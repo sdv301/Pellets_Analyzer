@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+
+{% block title %}ИИ - анализ{% endblock %}
+
+{% block content %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card mb-4">
+                <div class="card-header pb-0">
+                    <h6>ИИ - анализ</h6>
+                </div>
+                <div class="card-body">
+                    {% if ai_response %}
+                        <p>{{ ai_response }}</p>
+                    {% else %}
+                        <p>Нет данных для анализа. Загрузите файл с данными.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

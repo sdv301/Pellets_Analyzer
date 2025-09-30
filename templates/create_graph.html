@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+
+{% block title %}Создать график{% endblock %}
+
+{% block content %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card mb-4">
+                <div class="card-header pb-0">
+                    <h6>Создать график</h6>
+                </div>
+                <div class="card-body">
+                    {% for message in messages %}
+                        <div class="alert alert-{{ 'danger' if 'Error' in message or 'Warning' in message else 'success' }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                    <ul class="list-group mb-3">
+                        {% for graph in graphs %}
+                            <li class="list-group-item">{{ graph }}</li>
+                        {% endfor %}
+                    </ul>
+                    <form method="post">
+                        <div class="mb-3">
+                            <label for="x_param" class="form-label">Параметр X</label>
+                            <input type="text" class="form-control" id="x_param" name="x_param" placeholder="Например, ad">
+                        </div>
+                        <div class="mb-3">
+                            <label for="y_param" class="form-label">Параметр Y</label>
+                            <input type="text" class="form-control" id="y_param" name="y_param" placeholder="Например, q">
+                        </div>
+                        <div class="mb-3">
+                            <label for="file" class="form-label">Выберите файл из базы</label>
+                            <select class="form-select" id="file" name="file">
+                                {% for file in uploaded_files %}
+                                    <option value="{{ file }}">{{ file }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Создать</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
