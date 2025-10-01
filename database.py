@@ -2,11 +2,10 @@ import sqlite3
 import pandas as pd
 
 def init_db(db_path):
-    """Инициализация базы данных и создание таблиц."""
+    """Инициализация базы данных и создание таблиц с индексами."""
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
-    # Таблица measured_parameters
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS measured_parameters (
         composition TEXT PRIMARY KEY,
@@ -29,7 +28,6 @@ def init_db(db_path):
     )
     ''')
 
-    # Таблица components
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS components (
         component TEXT PRIMARY KEY,
@@ -45,28 +43,30 @@ def init_db(db_path):
     )
     ''')
 
+    # Добавление индексов
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_composition ON measured_parameters(composition)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_component ON components(component)')
+
     conn.commit()
     conn.close()
 
 def insert_data(db_path, table, data):
-    """Вставка данных в указанную таблицу."""
+    """Пакетная вставка данных."""
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
     if table == "measured_parameters":
-        for _, row in data.iterrows():
-            cursor.execute('''
-            INSERT OR REPLACE INTO measured_parameters VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (row['composition'], row['density'], row['kf'], row['kt'], row['h'], row['mass_loss'], 
-                  row['tign'], row['tb'], row['tau_d1'], row['tau_d2'], row['tau_b'], row['co2'], 
-                  row['co'], row['so2'], row['nox'], row['q'], row['ad']))
-
+        query = '''
+        INSERT OR REPLACE INTO measured_parameters VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        '''
+        records = [tuple(row) for _, row in data.iterrows()]
+        cursor.executemany(query, records)
     elif table == "components":
-        for _, row in data.iterrows():
-            cursor.execute('''
-            INSERT OR REPLACE INTO components VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (row['component'], row['war'], row['ad'], row['vd'], row['q'], 
-                  row['cd'], row['hd'], row['nd'], row['sd'], row['od']))
+        query = '''
+        INSERT OR REPLACE INTO components VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        '''
+        records = [tuple(row) for _, row in data.iterrows()]
+        cursor.executemany(query, records)
 
     conn.commit()
     conn.close()

@@ -3,47 +3,69 @@
 {% block title %}Сравнение составов{% endblock %}
 
 {% block content %}
-    <div class="row">
-        <div class="col-12">
-            <div class="card mb-4">
-                <div class="card-header pb-0">
-                    <h6>Сравнение составов</h6>
-                </div>
-                <div class="card-body">
-                    <form method="post">
-                        <div class="mb-3">
-                            <label for="file" class="form-label">Выберите файл</label>
-                            <select class="form-select" id="file" name="file">
-                                {% for file in uploaded_files %}
-                                    <option value="{{ file }}" {% if file == file %}selected{% endif %}>{{ file }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label for="comp1" class="form-label">Первый состав</label>
-                            <select class="form-select" id="comp1" name="comp1">
-                                {% for comp in compositions %}
-                                    <option value="{{ comp }}">{{ comp }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label for="comp2" class="form-label">Второй состав</label>
-                            <select class="form-select" id="comp2" name="comp2">
-                                {% for comp in compositions %}
-                                    <option value="{{ comp }}">{{ comp }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <button type="submit" name="show_all" value="1" class="btn btn-primary">Показать все</button>
-                        <button type="submit" name="show_diff" value="1" class="btn btn-secondary">Показать только различия</button>
-                    </form>
-                    {% if comparison %}
-                        <div class="mt-4">
-                            <h6>Результат сравнения</h6>
-                            {{ comparison | safe }}
-                        </div>
-                    {% endif %}
+    <div class="container-fluid py-4">
+        <div class="row">
+            <div class="col-12">
+                <div class="card mb-4">
+                    <div class="card-header pb-0">
+                        <h6>Сравнение составов</h6>
+                    </div>
+                    <div class="card-body px-0 pt-0 pb-2">
+                        <!-- Отображение flash-сообщений -->
+                        {% for message in get_flashed_messages() %}
+                            <div class="alert alert-{{ message.category if message.category else 'info' }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+
+                        <!-- Форма для выбора файла и составов -->
+                        <form method="post" class="px-4">
+                            <div class="mb-3">
+                                <label for="file" class="form-label">Выберите файл</label>
+                                <select class="form-select" id="file" name="file">
+                                    <option value="" disabled {% if not file %}selected{% endif %}>Выберите файл</option>
+                                    {% for file in uploaded_files %}
+                                        <option value="{{ file }}" {% if file == file %}selected{% endif %}>{{ file }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="comp1" class="form-label">Первый состав</label>
+                                <select class="form-select" id="comp1" name="comp1" required>
+                                    <option value="" disabled selected>Выберите состав</option>
+                                    {% for comp in compositions %}
+                                        <option value="{{ comp }}">{{ comp }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="comp2" class="form-label">Второй состав</label>
+                                <select class="form-select" id="comp2" name="comp2" required>
+                                    <option value="" disabled selected>Выберите состав</option>
+                                    {% for comp in compositions %}
+                                        <option value="{{ comp }}">{{ comp }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <button type="submit" name="show_all" value="1" class="btn btn-primary">Показать все</button>
+                                <button type="submit" name="show_diff" value="1" class="btn btn-secondary">Показать только различия</button>
+                            </div>
+                        </form>
+
+                        <!-- Отображение результата сравнения -->
+                        {% if comparison %}
+                            <div class="card mt-4 mx-4">
+                                <div class="card-header">
+                                    <h6 class="card-title">Результат сравнения</h6>
+                                </div>
+                                <div class="card-body">
+                                    {{ comparison | safe }}
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
         </div>

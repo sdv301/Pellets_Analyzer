@@ -10,7 +10,7 @@
                     <h6>Загрузка файла</h6>
                 </div>
                 <div class="card-body">
-                    {% for message in messages %}
+                    {% for message in get_flashed_messages() %}
                         <div class="alert alert-{{ 'danger' if 'Error' in message or 'Warning' in message else 'success' }} alert-dismissible fade show" role="alert">
                             {{ message }}
                             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
@@ -19,7 +19,7 @@
                     <form method="post" enctype="multipart/form-data">
                         <div class="mb-3">
                             <label for="file" class="form-label">Выберите CSV или Excel файл</label>
-                            <input type="file" class="form-control" id="file" name="file" accept=".csv,.xlsx">
+                            <input type="file" class="form-control" id="file" name="file" accept=".csv,.xlsx" required>
                         </div>
                         <button type="submit" class="btn btn-primary">Загрузить</button>
                     </form>
@@ -35,8 +35,42 @@
                     <div class="card-header pb-0">
                         <h6>Загруженная таблица</h6>
                     </div>
+                    <div class="card-body px-0 pt-0 pb-2">
+                        <div class="table-responsive p-0">
+                            {{ measured_data | safe }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-12">
+                <div class="card mb-4">
+                    <div class="card-header pb-0">
+                        <h6>Таблица компонентов</h6>
+                    </div>
+                    <div class="card-body px-0 pt-0 pb-2">
+                        <div class="table-responsive p-0">
+                            {{ components_data | safe }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-12">
+                <div class="card mb-4">
+                    <div class="card-header pb-0">
+                        <h6>График: Q vs Ad</h6>
+                    </div>
                     <div class="card-body">
-                        {{ measured_data | safe }}
+                        {% if graph %}
+                            <img src="data:image/png;base64,{{ graph }}" alt="Q vs Ad Graph" class="img-fluid" style="max-width: 100%;">
+                        {% else %}
+                            <p>График недоступен. Проверьте данные.</p>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -52,19 +86,19 @@
                         <form method="post" class="row g-3">
                             <div class="col-md-4">
                                 <label for="rho" class="form-label">ρ (не менее), кг/м3</label>
-                                <input type="number" class="form-control" id="rho" name="rho">
+                                <input type="number" class="form-control" id="rho" name="rho" step="any">
                             </div>
                             <div class="col-md-4">
                                 <label for="kt" class="form-label">Kt (не менее), %</label>
-                                <input type="number" class="form-control" id="kt" name="kt">
+                                <input type="number" class="form-control" id="kt" name="kt" step="any">
                             </div>
                             <div class="col-md-4">
                                 <label for="ad" class="form-label">Ad (не более), %</label>
-                                <input type="number" class="form-control" id="ad" name="ad">
+                                <input type="number" class="form-control" id="ad" name="ad" step="any">
                             </div>
                             <div class="col-md-4">
                                 <label for="q" class="form-label">Q (не менее), МДж/кг</label>
-                                <input type="number" class="form-control" id="q" name="q">
+                                <input type="number" class="form-control" id="q" name="q" step="any">
                             </div>
                             <div class="col-md-4">
                                 <label for="num_components" class="form-label">Компонентов (не более), шт</label>
@@ -84,89 +118,102 @@
                 <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addModal">Добавить данные</button>
             </div>
         </div>
+    {% else %}
+        <div class="row">
+            <div class="col-12">
+                <div class="card mb-4">
+                    <div class="card-body text-center">
+                        <p>Нет данных для отображения. Пожалуйста, загрузите файл.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
     {% endif %}
 
     <!-- Модальное окно для добавления данных -->
     <div class="modal fade" id="addModal" tabindex="-1" aria-labelledby="addModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg">
-            <div class="card">
-                <div class="card-header pb-0">
+            <div class="modal-content">
+                <div class="modal-header">
                     <h5 class="modal-title" id="addModalLabel">Добавить новый состав</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="card-body">
+                <div class="modal-body">
                     <form method="post" action="{{ url_for('add_data') }}">
-                        <div class="row">
+                        <div class="row g-3">
                             <div class="col-md-6">
                                 <label for="composition" class="form-label">Составы</label>
-                                <input type="text" class="form-control" name="composition" required>
+                                <input type="text" class="form-control" id="composition" name="composition" required>
                             </div>
                             <div class="col-md-6">
                                 <label for="density" class="form-label">ρ, кг/м3</label>
-                                <input type="number" class="form-control" name="density" required>
+                                <input type="number" class="form-control" id="density" name="density" step="any" required>
                             </div>
                             <div class="col-md-6">
                                 <label for="kf" class="form-label">Kf, %</label>
-                                <input type="number" class="form-control" name="kf" required>
+                                <input type="number" class="form-control" id="kf" name="kf" step="any" required>
                             </div>
                             <div class="col-md-6">
                                 <label for="kt" class="form-label">Kt, %</label>
-                                <input type="number" class="form-control" name="kt" required>
+                                <input type="number" class="form-control" id="kt" name="kt" step="any" required>
                             </div>
                             <div class="col-md-6">
                                 <label for="h" class="form-label">H, %</label>
-                                <input type="number" class="form-control" name="h" required>
+                                <input type="number" class="form-control" id="h" name="h" step="any" required>
                             </div>
                             <div class="col-md-6">
                                 <label for="mass_loss" class="form-label">Mass loss, %</label>
-                                <input type="number" class="form-control" name="mass_loss" required>
+                                <input type="number" class="form-control" id="mass_loss" name="mass_loss" step="any" required>
                             </div>
                             <div class="col-md-6">
                                 <label for="tign" class="form-label">Тign, °С</label>
-                                <input type="number" class="form-control" name="tign" required>
+                                <input type="number" class="form-control" id="tign" name="tign" step="any" required>
                             </div>
                             <div class="col-md-6">
                                 <label for="tb" class="form-label">Tb, °C</label>
-                                <input type="number" class="form-control" name="tb" required>
+                                <input type="number" class="form-control" id="tb" name="tb" step="any" required>
                             </div>
                             <div class="col-md-6">
                                 <label for="tau_d1" class="form-label">τd1, с</label>
-                                <input type="number" class="form-control" name="tau_d1" required>
+                                <input type="number" class="form-control" id="tau_d1" name="tau_d1" step="any" required>
                             </div>
                             <div class="col-md-6">
                                 <label for="tau_d2" class="form-label">τd2, с</label>
-                                <input type="number" class="form-control" name="tau_d2" required>
+                                <input type="number" class="form-control" id="tau_d2" name="tau_d2" step="any" required>
                             </div>
                             <div class="col-md-6">
                                 <label for="tau_b" class="form-label">τb, с</label>
-                                <input type="number" class="form-control" name="tau_b" required>
+                                <input type="number" class="form-control" id="tau_b" name="tau_b" step="any" required>
                             </div>
                             <div class="col-md-6">
                                 <label for="co2" class="form-label">CO2, %</label>
-                                <input type="number" class="form-control" name="co2" required>
+                                <input type="number" class="form-control" id="co2" name="co2" step="any" required>
                             </div>
                             <div class="col-md-6">
                                 <label for="co" class="form-label">CO, %</label>
-                                <input type="number" class="form-control" name="co" required>
+                                <input type="number" class="form-control" id="co" name="co" step="any" required>
                             </div>
                             <div class="col-md-6">
                                 <label for="so2" class="form-label">SO2, ppm</label>
-                                <input type="number" class="form-control" name="so2" required>
+                                <input type="number" class="form-control" id="so2" name="so2" step="any" required>
                             </div>
                             <div class="col-md-6">
                                 <label for="nox" class="form-label">NOx, ppm</label>
-                                <input type="number" class="form-control" name="nox" required>
+                                <input type="number" class="form-control" id="nox" name="nox" step="any" required>
                             </div>
                             <div class="col-md-6">
                                 <label for="q" class="form-label">Q, МДж/кг</label>
-                                <input type="number" class="form-control" name="q" required>
+                                <input type="number" class="form-control" id="q" name="q" step="any" required>
                             </div>
                             <div class="col-md-6">
                                 <label for="ad" class="form-label">Ad, %</label>
-                                <input type="number" class="form-control" name="ad" required>
+                                <input type="number" class="form-control" id="ad" name="ad" step="any" required>
                             </div>
                         </div>
-                        <button type="submit" class="btn btn-primary mt-3">Добавить</button>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                            <button type="submit" class="btn btn-primary">Добавить</button>
+                        </div>
                     </form>
                 </div>
             </div>

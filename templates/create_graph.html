@@ -1,47 +1,64 @@
 {% extends 'base.html' %}
 
-{% block title %}Создать график{% endblock %}
+{% block title %}Create Graph{% endblock %}
 
 {% block content %}
+<div class="container-fluid py-4">
     <div class="row">
         <div class="col-12">
             <div class="card mb-4">
                 <div class="card-header pb-0">
-                    <h6>Создать график</h6>
+                    <h6>Create Graph</h6>
                 </div>
                 <div class="card-body">
-                    {% for message in messages %}
-                        <div class="alert alert-{{ 'danger' if 'Error' in message or 'Warning' in message else 'success' }} alert-dismissible fade show" role="alert">
-                            {{ message }}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                        </div>
+                    <!-- Flash messages -->
+                    {% for message in get_flashed_messages() %}
+                        <div class="alert alert-info">{{ message }}</div>
                     {% endfor %}
-                    <ul class="list-group mb-3">
-                        {% for graph in graphs %}
-                            <li class="list-group-item">{{ graph }}</li>
-                        {% endfor %}
-                    </ul>
+                    
+                    <!-- Messages from route -->
+                    {% for message in messages %}
+                        <div class="alert alert-success">{{ message }}</div>
+                    {% endfor %}
+                    
+                    <!-- Form -->
                     <form method="post">
-                        <div class="mb-3">
-                            <label for="x_param" class="form-label">Параметр X</label>
-                            <input type="text" class="form-control" id="x_param" name="x_param" placeholder="Например, ad">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <label>Graph Type</label>
+                                <select name="graph_type" class="form-control">
+                                    {% for graph in graphs %}
+                                        <option value="{{ graph }}">{{ graph }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label>X Parameter</label>
+                                <input type="text" name="x_param" class="form-control" placeholder="e.g., Ad">
+                            </div>
+                            <div class="col-md-4">
+                                <label>Y Parameter</label>
+                                <input type="text" name="y_param" class="form-control" placeholder="e.g., Q">
+                            </div>
                         </div>
-                        <div class="mb-3">
-                            <label for="y_param" class="form-label">Параметр Y</label>
-                            <input type="text" class="form-control" id="y_param" name="y_param" placeholder="Например, q">
+                        <div class="row mt-3">
+                            <div class="col-md-6">
+                                <label>Select File</label>
+                                <select name="file" class="form-control">
+                                    <option value="">Choose file</option>
+                                    {% for file in uploaded_files %}
+                                        <option value="{{ file }}">{{ file }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6 d-flex align-items-end">
+                                <button type="submit" class="btn btn-primary">Create Graph</button>
+                            </div>
                         </div>
-                        <div class="mb-3">
-                            <label for="file" class="form-label">Выберите файл из базы</label>
-                            <select class="form-select" id="file" name="file">
-                                {% for file in uploaded_files %}
-                                    <option value="{{ file }}">{{ file }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <button type="submit" class="btn btn-primary">Создать</button>
                     </form>
                 </div>
             </div>
         </div>
     </div>
+</div>
 {% endblock %}
