@@ -47,7 +47,7 @@
 
 ```bash
 # Клонирование репозитория
-git clone <repository-url>
+git clone https://github.com/sdv301/Pellets_Analyzer.git
 cd pellets-analyzer
 
 # Создание виртуального окружения
@@ -61,4 +61,7 @@ source venv/bin/activate
 
 # Установка зависимостей
 pip install -r requirements.txt
+
+# Запуск
+python main.py
 ```
