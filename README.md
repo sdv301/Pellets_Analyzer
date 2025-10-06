@@ -47,7 +47,7 @@
 
 ```bash
 # Клонирование репозитория
-git clone https://github.com/sdv301/Pellets_Analyzer
+git clone https://github.com/sdv301/Pellets_Analyzer.git
 cd pellets-analyzer
 
 # Создание виртуального окружения
