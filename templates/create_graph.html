@@ -1,487 +1,2153 @@
-{% extends 'base.html' %}
-
-{% block title %}Создание графика{% endblock %}
+{% extends "base.html" %}
 
 {% block content %}
-    <div class="container-fluid py-4">
-        <div class="row">
-            <div class="col-12">
-                <!-- Форма создания графика -->
-                <div class="card mb-4">
-                    <div class="card-header pb-0 text-center">
-                        <h6>Расширенное создание графиков</h6>
-                    </div>
-                    <div class="card-body px-3 pt-0 pb-2">
-                        <form method="post" id="graphForm">
-                            <div class="row mb-3">
-                                <div class="col-md-3">
-                                    <label for="graph_type" class="form-label">Тип графика</label>
-                                    <select class="form-select" id="graph_type" name="graph_type">
-                                        <option value="" disabled selected>Выберите тип</option>
-                                        {% for graph in graphs %}
-                                            <option value="{{ graph }}">{{ graph.capitalize() }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <div class="col-md-2">
-                                    <label for="x_param" class="form-label">Параметр X</label>
-                                    <select class="form-select" id="x_param" name="x_param">
-                                        <option value="" disabled selected>Выберите параметр</option>
-                                        {% for param in parameters %}
-                                            <option value="{{ param }}">{{ param.capitalize() }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <div class="col-md-2">
-                                    <label for="y_param" class="form-label">Параметр Y</label>
-                                    <select class="form-select" id="y_param" name="y_param">
-                                        <option value="" disabled selected>Выберите параметр</option>
-                                        {% for param in parameters %}
-                                            <option value="{{ param }}">{{ param.capitalize() }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <div class="col-md-2" id="z_param_container" style="display: none;">
-                                    <label for="z_param" class="form-label">Параметр Z (3D)</label>
-                                    <select class="form-select" id="z_param" name="z_param">
-                                        <option value="" selected>Выберите параметр</option>
-                                        {% for param in parameters %}
-                                            <option value="{{ param }}">{{ param.capitalize() }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <div class="col-md-3">
-                                    <label for="selected_file" class="form-label">Выберите файл</label>
-                                    <select class="form-select" id="selected_file" name="selected_file">
-                                        <option value="" disabled selected>Выберите файл</option>
-                                        {% for file in uploaded_files %}
-                                            <option value="{{ file }}">{{ file }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                            </div>
-                            
-                            <!-- Дополнительные настройки -->
-                            <div class="row mb-3">
-                                <div class="col-md-3">
-                                    <label for="color_param" class="form-label">Цвет точек</label>
-                                    <select class="form-select" id="color_param" name="color_param">
-                                        <option value="" selected>Авто</option>
-                                        {% for param in parameters %}
-                                            <option value="{{ param }}">{{ param.capitalize() }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <div class="col-md-3">
-                                    <label for="theme" class="form-label">Тема графика</label>
-                                    <select class="form-select" id="theme" name="theme">
-                                        <option value="default" selected>Стандартная</option>
-                                        <option value="dark">Темная</option>
-                                        <option value="seaborn">Seaborn</option>
-                                        <option value="ggplot">ggplot</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-3">
-                                    <label for="width" class="form-label">Ширина (px)</label>
-                                    <input type="number" class="form-control" id="width" name="width" value="800" min="400" max="2000">
-                                </div>
-                                <div class="col-md-3">
-                                    <label for="height" class="form-label">Высота (px)</label>
-                                    <input type="number" class="form-control" id="height" name="height" value="600" min="300" max="1500">
-                                </div>
-                            </div>
-                            
-                            <div class="row mb-3">
-                                <div class="col-md-6">
-                                    <label for="title" class="form-label">Заголовок графика</label>
-                                    <input type="text" class="form-control" id="title" name="title" placeholder="Введите заголовок">
-                                </div>
-                                <div class="col-md-6 d-flex align-items-end">
-                                    <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" id="show_grid" name="show_grid" checked>
-                                        <label class="form-check-label" for="show_grid">Показать сетку</label>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="d-flex gap-2">
-                                <button type="submit" class="btn bg-gradient-primary" id="submitBtn">
-                                    <i class="fas fa-chart-line me-2"></i>Создать график
-                                </button>
-                                <button type="button" class="btn bg-gradient-info" id="previewBtn">
-                                    <i class="fas fa-eye me-2"></i>Предпросмотр
-                                </button>
-                                <button type="button" class="btn bg-gradient-success" id="exportBtn" disabled>
-                                    <i class="fas fa-download me-2"></i>Экспорт
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-
-                <!-- Сообщения -->
-                <div id="messagesContainer">
-                    {% for message in messages %}
-                        <div class="alert alert-{% if 'Ошибка' in message %}danger{% else %}success{% endif %} ms-3">
-                            {{ message }}
+<div id="create-graph-page" class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <!-- Заголовок -->
+            <div class="card border-radius-lg shadow-sm mb-4">
+                <div class="card-header pb-3 bg-white">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h4 class="mb-1">Создание графиков и визуализаций</h4>
+                            <p class="text-sm text-muted mb-0">Создавайте красивые и информативные графики на основе данных о пеллетах</p>
                         </div>
-                    {% endfor %}
-                </div>
-
-                <!-- График -->
-                <div class="card mb-4" id="graphCard">
-                    <div class="card-header pb-0 d-flex justify-content-between align-items-center">
-                        <h6>Визуализация данных</h6>
-                        <div class="btn-group" id="graphControls" style="display: none;">
-                            <button class="btn btn-sm btn-outline-primary" id="fullscreenBtn">
-                                <i class="fas fa-expand"></i>
+                        <div class="col-md-4 text-end">
+                            <button class="btn btn-outline-primary btn-sm border-radius-lg" id="helpBtn">
+                                <i class="fas fa-question-circle me-1"></i>Помощь
                             </button>
                         </div>
                     </div>
-                    <div class="card-body px-3 pt-0 pb-2" id="graphContainer">
-                        {% if graph %}
-                            <img src="data:image/png;base64,{{ graph }}" alt="Graph" class="img-fluid">
-                            <p class="mt-2 text-sm ms-3">Легенда: Каждая точка соответствует составу пеллет.</p>
-                        {% else %}
-                            <div class="text-center py-5">
-                                <i class="fas fa-chart-area fa-3x text-muted mb-3"></i>
-                                <p class="text-muted">График не создан. Выберите параметры и нажмите "Создать график".</p>
-                            </div>
-                        {% endif %}
-                    </div>
-                </div>
-
-                <!-- Статистика данных -->
-                <div class="card" id="statsCard" style="display: none;">
-                    <div class="card-header pb-0">
-                        <h6>Статистика данных</h6>
-                    </div>
-                    <div class="card-body" id="statsContainer">
-                        <!-- Статистика будет загружена динамически -->
-                    </div>
                 </div>
             </div>
-        </div>
-    </div>
 
-    <!-- Модальное окно для предпросмотра -->
-    <div class="modal fade" id="previewModal" tabindex="-1">
-        <div class="modal-dialog modal-xl">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Предпросмотр графика</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body text-center" id="previewContainer">
-                    <!-- Контент предпросмотра -->
-                </div>
-            </div>
-        </div>
-    </div>
 
-    {% block extra_js %}
-    <style>
-        .toast-container {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            z-index: 1050;
-        }
-        .toast {
-            min-width: 300px;
-        }
-        #graphContainer {
-            position: relative;
-            min-height: 400px;
-        }
-        .graph-loading {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(255,255,255,0.8);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 10;
-        }
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-        }
-        .stat-card {
-            background: #f8f9fa;
-            border-radius: 0.5rem;
-            padding: 1rem;
-            text-align: center;
-        }
-        .stat-value {
-            font-size: 1.5rem;
-            font-weight: bold;
-            color: #2c3e50;
-        }
-        .stat-label {
-            font-size: 0.875rem;
-            color: #6c757d;
-        }
-    </style>
-    
-    <script>
-        let isSubmitting = false;
-
-        document.getElementById('graphForm')?.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            if (isSubmitting) return;
-            await createGraph();
-        });
-
-        document.getElementById('previewBtn')?.addEventListener('click', async function() {
-            if (isSubmitting) return;
-            await createGraph(true);
-        });
-
-        document.getElementById('exportBtn')?.addEventListener('click', function() {
-            exportGraph();
-        });
-
-        document.getElementById('fullscreenBtn')?.addEventListener('click', function() {
-            const graphContainer = document.getElementById('graphContainer');
-            if (graphContainer.requestFullscreen) {
-                graphContainer.requestFullscreen();
-            }
-        });
-
-        // Динамическое обновление параметров в зависимости от типа графика
-        document.getElementById('graph_type')?.addEventListener('change', function() {
-            const graphType = this.value;
-            const zParamContainer = document.getElementById('z_param_container');
-            
-            if (graphType === '3d_scatter') {
-                zParamContainer.style.display = 'block';
-            } else {
-                zParamContainer.style.display = 'none';
-            }
-        });
-
-        async function createGraph(isPreview = false) {
-            if (isSubmitting) return;
-            
-            isSubmitting = true;
-            const submitBtn = document.getElementById('submitBtn');
-            const previewBtn = document.getElementById('previewBtn');
-            
-            submitBtn.disabled = true;
-            previewBtn.disabled = true;
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Создание...';
-            previewBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Загрузка...';
-
-            showLoading();
-
-            try {
-                const formData = new FormData(document.getElementById('graphForm'));
-                if (isPreview) {
-                    formData.append('preview', 'true');
-                }
-
-                const response = await fetch('/create_graph', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                const data = await response.json();
-                
-                console.log('Response data:', data);
-                
-                hideLoading();
-                submitBtn.disabled = false;
-                previewBtn.disabled = false;
-                submitBtn.innerHTML = '<i class="fas fa-chart-line me-2"></i>Создать график';
-                previewBtn.innerHTML = '<i class="fas fa-eye me-2"></i>Предпросмотр';
-                isSubmitting = false;
-
-                if (data.success) {
-                    showToast(data.message, 'success');
-                    if (isPreview) {
-                        showPreview(data);
-                    } else {
-                        updateContent(data);
-                        document.getElementById('exportBtn').disabled = false;
-                    }
-                } else {
-                    showToast(data.message, 'danger');
-                }
-
-                if (data.messages) {
-                    data.messages.forEach(msg => {
-                        showToast(msg, msg.includes('Ошибка') ? 'danger' : 'success');
-                    });
-                }
-
-                if (data.stats) {
-                    updateStats(data.stats);
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                hideLoading();
-                submitBtn.disabled = false;
-                previewBtn.disabled = false;
-                submitBtn.innerHTML = '<i class="fas fa-chart-line me-2"></i>Создать график';
-                previewBtn.innerHTML = '<i class="fas fa-eye me-2"></i>Предпросмотр';
-                isSubmitting = false;
-                showToast('Ошибка при создании графика: ' + error.message, 'danger');
-            }
-        }
-
-        function showLoading() {
-            const graphContainer = document.getElementById('graphContainer');
-            graphContainer.innerHTML = `
-                <div class="graph-loading">
-                    <div class="text-center">
-                        <div class="spinner-border text-primary" role="status">
-                            <span class="visually-hidden">Загрузка...</span>
+            <div class="row h-80">
+                <!-- Левая колонка - Форма настроек и статистика -->
+                <div class="col-lg-4 h-100 d-flex flex-column">
+                    <!-- Карточка настроек графика -->
+                    <div class="card border-radius-lg shadow-sm flex-shrink-0" style="flex: 0 0 65%;">
+                        <div class="card-header bg-gradient-primary text-white border-radius-lg-top">
+                            <h5 class="mb-0">Настройки графика</h5>
                         </div>
-                        <p class="mt-2">Создание графика...</p>
+                        <div class="card-body p-3 d-flex flex-column">
+                            <form id="graph-form" class="h-100 d-flex flex-column" onsubmit="return false;">
+                                <div style="flex: 1; overflow-y: auto;">
+                                    <!-- Тип визуализации и график -->
+                                    <div class="row mb-2">
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-bold">Тип визуализации:</label>
+                                            <select name="viz_type" class="form-select border-radius-lg" id="vizType">
+                                                <option value="matplotlib">Matplotlib (статические)</option>
+                                                <option value="plotly">Plotly (интерактивные)</option>
+                                                <option value="seaborn">Seaborn (статистические)</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-bold">Тип графика:</label>
+                                            <select name="graph_type" class="form-select border-radius-lg" id="graphType">
+                                                <option value="scatter">Точечная диаграмма</option>
+                                                <option value="line">Линейный график</option>
+                                                <option value="bar">Столбчатая диаграмма</option>
+                                                <option value="histogram">Гистограмма</option>
+                                                <option value="box">Box Plot</option>
+                                                <option value="violin">Violin Plot</option>
+                                                <option value="pie">Круговая диаграмма</option>
+                                                <option value="heatmap">Тепловая карта</option>
+                                                <option value="radar">Радарная диаграмма</option>
+                                                <option value="sunburst">Sunburst</option>
+                                                <option value="treemap">Treemap</option>
+                                                <option value="3d_scatter">3D Scatter</option>
+                                                <option value="animated_scatter">Анимированный</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <!-- Выбор параметров -->
+                                    <div class="row mb-2">
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-bold">Параметр X:</label>
+                                            <select name="x_param" class="form-select border-radius-lg" id="xParam">
+                                                {% for param in parameters %}
+                                                    <option value="{{ param }}" {% if param == 'ad' %}selected{% endif %}>
+                                                        {{ param }}
+                                                    </option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-bold">Параметр Y:</label>
+                                            <select name="y_param" class="form-select border-radius-lg" id="yParam">
+                                                {% for param in parameters %}
+                                                    <option value="{{ param }}" {% if param == 'q' %}selected{% endif %}>
+                                                        {{ param }}
+                                                    </option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <!-- Дополнительные параметры -->
+                                    <div class="row mb-2">
+                                        <div class="col-md-6">
+                                            <label class="form-label">Параметр Z (для 3D):</label>
+                                            <select name="z_param" class="form-select border-radius-lg" id="zParam">
+                                                <option value="">Не выбрано</option>
+                                                {% for param in parameters %}
+                                                    <option value="{{ param }}">{{ param }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Цветовая схема:</label>
+                                            <select name="color_param" class="form-select border-radius-lg" id="colorParam">
+                                                <option value="">Не выбрано</option>
+                                                {% for param in parameters %}
+                                                    <option value="{{ param }}">{{ param }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <!-- Опции для Plotly -->
+                                    <div id="plotlyOptions" style="display: none;">
+                                        <div class="row mb-2">
+                                            <div class="col-md-6">
+                                                <label class="form-label">Параметр размера:</label>
+                                                <select name="size_param" class="form-select border-radius-lg">
+                                                    <option value="">Не выбрано</option>
+                                                    {% for param in parameters %}
+                                                        <option value="{{ param }}">{{ param }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label">Параметр анимации:</label>
+                                                <select name="animation_param" class="form-select border-radius-lg">
+                                                    <option value="">Не выбрано</option>
+                                                    {% for param in parameters %}
+                                                        <option value="{{ param }}">{{ param }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Настройки внешнего вида -->
+                                    <div class="row mb-2">
+                                        <div class="col-md-6">
+                                            <label class="form-label">Тема:</label>
+                                            <select name="theme" class="form-select border-radius-lg">
+                                                <option value="default">Стандартная</option>
+                                                <option value="dark">Темная</option>
+                                                <option value="seaborn">Seaborn</option>
+                                                <option value="ggplot">ggplot</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Сетка:</label>
+                                            <div class="form-check form-switch mt-2">
+                                                <input class="form-check-input" type="checkbox" name="show_grid" id="showGrid" checked>
+                                                <label class="form-check-label" for="showGrid">Показывать сетку</label>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Размеры и заголовок -->
+                                    <div class="row mb-2">
+                                        <div class="col-md-6">
+                                            <label class="form-label">Ширина (px):</label>
+                                            <input type="number" name="width" class="form-control border-radius-lg" value="800" min="400" max="2000">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Высота (px):</label>
+                                            <input type="number" name="height" class="form-control border-radius-lg" value="600" min="300" max="2000">
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-2">
+                                        <label class="form-label">Заголовок графика:</label>
+                                        <input type="text" name="title" class="form-control border-radius-lg" placeholder="Введите заголовок...">
+                                    </div>
+                                </div>
+                                
+                                <!-- Кнопки внизу формы -->
+                                <div class="mt-auto pt-2">
+                                    <div class="d-grid gap-2">
+                                        <button type="submit" class="btn btn-primary border-radius-lg" id="createGraphBtn">
+                                            <i class="fas fa-chart-line me-2"></i>Создать график
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary border-radius-lg" id="resetFormBtn">
+                                            <i class="fas fa-redo me-2"></i>Сбросить настройки
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
                     </div>
+
+                    <!-- Карточка статистики данных - ЗАНИМАЕТ ВСЁ ОСТАВШЕЕСЯ МЕСТО -->
+                    <div class="card border-radius-lg shadow-sm flex-grow-1">
+                        <div class="card-header bg-gradient-info text-white border-radius-lg-top">
+                            <h5 class="mb-0">Статистика данных</h5>
+                        </div>
+                        <div class="card-body p-2 d-flex flex-column h-100">
+                            <div id="dataStats" class="flex-grow-1 w-100 h-100">
+                                {% if stats %}
+                                    <div class="table-responsive h-100 w-100">
+                                        <table class="table table-sm table-hover mb-0">
+                                            <thead style="position: sticky; top: 0; background: #f8f9fa; z-index: 10;">
+                                                <tr>
+                                                    <th>Параметр</th>
+                                                    <th>Среднее</th>
+                                                    <th>Std</th>
+                                                    <th>Min</th>
+                                                    <th>Max</th>
+                                                    <th>Count</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for param, values in stats.items() %}
+                                                <tr>
+                                                    <td><small class="fw-bold text-dark">{{ param }}</small></td>
+                                                    <td><small>{{ "%.2f"|format(values.mean) if values.mean is not none else 'N/A' }}</small></td>
+                                                    <td><small>{{ "%.2f"|format(values.std) if values.std is not none else 'N/A' }}</small></td>
+                                                    <td><small>{{ "%.2f"|format(values.min) if values.min is not none else 'N/A' }}</small></td>
+                                                    <td><small>{{ "%.2f"|format(values.max) if values.max is not none else 'N/A' }}</small></td>
+                                                    <td><small class="badge bg-primary">{{ values.count }}</small></td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                {% else %}
+                                    <div class="d-flex align-items-center justify-content-center h-100 w-100">
+                                        <div class="text-center text-muted">
+                                            <i class="fas fa-chart-bar fa-2x mb-2"></i>
+                                            <p class="mb-0">Нет данных для отображения статистики</p>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Правая колонка - График -->
+                <div class="col-lg-8 h-100" style="min-height: 500px;">
+                    <div class="card border-radius-lg shadow-sm h-100">
+                        <div class="card-header bg-gradient-primary text-white border-radius-lg-top d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">Результат</h5>
+                            <div class="btn-group" id="graphControls" style="display: none;">
+                                <button class="btn btn-sm btn-light" id="downloadGraphBtn">
+                                    <i class="fas fa-download me-1"></i>Скачать
+                                </button>
+                                <button class="btn btn-sm btn-light" id="fullscreenBtn">
+                                    <i class="fas fa-expand me-1"></i>Полный экран
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body p-3 d-flex flex-column h-100" style="min-height: 500px;">
+                            <!-- Сообщения -->
+                            <div id="graphMessages" class="flex-shrink-0"></div>
+                            
+                            <!-- Универсальная область графиков -->
+                            <div id="graphArea" class="flex-grow-1 position-relative" 
+                                style="min-height: 450px;">
+                                
+                                <!-- Состояние по умолчанию -->
+                                <div id="defaultState" class="w-100 h-100 d-flex flex-column align-items-center justify-content-center text-muted">
+                                    <i class="fas fa-chart-bar fa-4x mb-3"></i>
+                                    <h5 class="text-muted">График не создан</h5>
+                                    <p class="text-muted">Настройте параметры и нажмите "Создать график"</p>
+                                </div>
+                                
+                                <!-- Динамический контейнер для графиков -->
+                                <div id="dynamicGraphContainer" class="w-100 h-100" style="display: none;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно помощи -->
+<div class="modal fade" id="helpModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-gradient-primary text-white">
+                <h5 class="modal-title">Помощь по созданию графиков</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Типы визуализаций:</h6>
+                        <ul class="list-unstyled">
+                            <li><strong>Matplotlib</strong> - классические статические графики</li>
+                            <li><strong>Plotly</strong> - интерактивные графики с анимацией</li>
+                            <li><strong>Seaborn</strong> - статистические графики</li>
+                        </ul>
+                        
+                        <h6>Популярные комбинации:</h6>
+                        <ul class="list-unstyled">
+                            <li>• Зольность vs Теплота сгорания</li>
+                            <li>• Плотность vs Коэффициент формы</li>
+                            <li>• Время горения vs Температура</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Советы:</h6>
+                        <ul>
+                            <li>Используйте цветовые схемы для группировки данных</li>
+                            <li>Для больших данных используйте Plotly для интерактивности</li>
+                            <li>Круговые диаграммы подходят для категориальных данных</li>
+                            <li>3D графики требуют параметр Z</li>
+                        </ul>
+                        
+                        <h6>Горячие клавиши:</h6>
+                        <ul class="list-unstyled">
+                            <li><kbd>Enter</kbd> - создать график</li>
+                            <li><kbd>R</kbd> - сбросить настройки</li>
+                            <li><kbd>F</kbd> - полный экран</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+
+/* СПЕЦИФИЧНЫЕ СТИЛИ ТОЛЬКО ДЛЯ СТРАНИЦЫ СОЗДАНИЯ ГРАФИКОВ */
+#create-graph-page .container-fluid {
+    height: calc(100vh - 80px) !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+#create-graph-page .container-fluid .row {
+    height: 100% !important;
+    margin: 0 !important;
+}
+
+#create-graph-page .container-fluid .row > .col-12 {
+    height: 100% !important;
+    padding: 0 !important;
+}
+
+/* ГЛАВНЫЙ КОНТЕЙНЕР */
+#create-graph-page .py-4 {
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    height: 100% !important;
+}
+
+/* КАРТОЧКИ - ЗАНИМАЮТ ВСЮ ВЫСОТУ */
+#create-graph-page .card {
+    height: 100% !important;
+    margin-bottom: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+#create-graph-page .card-body {
+    flex: 1 !important;
+    overflow: hidden !important;
+    padding: 0.5rem !important; /* УМЕНЬШЕНО */
+}
+
+/* ЛЕВАЯ КОЛОНКА - ФОРМА И СТАТИСТИКА */
+#create-graph-page .col-lg-4 {
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important; /* УМЕНЬШЕНО */
+    padding-right: 5px !important;
+}
+
+#create-graph-page .col-lg-4 > .card:first-child {
+    flex: 0 0 65% !important;
+    min-height: 0 !important;
+}
+
+#create-graph-page .col-lg-4 > .card:last-child {
+    flex: 1 !important;
+    min-height: 0 !important;
+}
+
+/* ПРАВАЯ КОЛОНКА - ГРАФИК (КОМПАКТНАЯ) */
+#create-graph-page .col-lg-8 {
+    height: 100% !important;
+    padding-left: 5px !important;
+}
+
+#create-graph-page .col-lg-8 > .card {
+    height: 100% !important;
+}
+
+/* КОМПАКТНЫЙ HEADER ДЛЯ КАРТОЧКИ ГРАФИКА */
+#create-graph-page .col-lg-8 .card-header {
+    padding: 0.4rem 0.75rem !important; /* УМЕНЬШЕНО */
+    min-height: auto !important;
+}
+
+#create-graph-page .col-lg-8 .card-header h5 {
+    font-size: 0.9rem !important; /* УМЕНЬШЕНО */
+    margin: 0 !important;
+}
+
+/* ЗАГОЛОВОЧНАЯ КАРТОЧКА */
+#create-graph-page .card.mb-4 {
+    margin-bottom: 8px !important; /* УМЕНЬШЕНО */
+    flex: 0 0 auto !important;
+    height: auto !important;
+}
+
+/* ФОРМА НАСТРОЕК ГРАФИКА */
+#create-graph-page #graph-form {
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+#create-graph-page #graph-form .card-body {
+    overflow-y: auto !important;
+    flex: 1 !important;
+    padding: 0.75rem !important; /* УМЕНЬШЕНО */
+}
+
+/* СТАТИСТИКА ДАННЫХ - ЗАНИМАЕТ ВСЁ ОСТАВШЕЕСЯ МЕСТО */
+#create-graph-page #dataStats {
+    height: 100% !important;
+    max-height: none !important;
+}
+
+#create-graph-page #dataStats .table-responsive {
+    height: 100% !important;
+    max-height: none !important;
+}
+
+#create-graph-page #dataStats table {
+    margin-bottom: 0 !important;
+}
+
+#create-graph-page #dataStats tbody {
+    max-height: none !important;
+}
+
+/* СТИЛИ ДЛЯ ПОЛНОЭКРАННОГО РЕЖИМA */
+:fullscreen .js-plotly-plot,
+:fullscreen .plotly,
+:-webkit-full-screen .js-plotly-plot,
+:-webkit-full-screen .plotly,
+:-ms-fullscreen .js-plotly-plot,
+:-ms-fullscreen .plotly {
+    width: 100vw !important;
+    height: 100vh !important;
+    background: white !important;
+    padding: 20px !important;
+}
+
+:fullscreen img,
+:-webkit-full-screen img,
+:-ms-fullscreen img {
+    max-width: 95vw !important;
+    max-height: 95vh !important;
+    object-fit: contain !important;
+}
+
+/* Стили для контейнера в полноэкранном режиме */
+:fullscreen #dynamicGraphContainer,
+:-webkit-full-screen #dynamicGraphContainer,
+:-ms-fullscreen #dynamicGraphContainer {
+    background: white !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 20px !important;
+}
+
+/* КОНТЕЙНЕРЫ ГРАФИКОВ - КОМПАКТНЫЕ БЕЗ ОТСТУПОВ */
+#create-graph-page #graphContainer, 
+#create-graph-page #plotlyContainer {
+    height: 100% !important;
+    min-height: 450px !important; /* УМЕНЬШЕНО */
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 !important; /* ДОБАВЛЕНО */
+    margin: 0 !important; /* ДОБАВЛЕНО */
+}
+
+#create-graph-page #graphContainer img {
+    max-height: 100% !important;
+    max-width: 100% !important;
+    object-fit: contain !important;
+    padding: 0 !important; /* ДОБАВЛЕНО */
+    margin: 0 !important; /* ДОБАВЛЕНО */
+}
+
+/* PLOTLY ГРАФИКИ - КОМПАКТНЫЕ */
+#create-graph-page #plotlyContainer .js-plotly-plot {
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 450px !important; /* УМЕНЬШЕНО */
+    padding: 0 !important; /* ДОБАВЛЕНО */
+    margin: 0 !important; /* ДОБАВЛЕНО */
+}
+
+/* КОНТЕЙНЕР ДЛЯ СООБЩЕНИЙ - КОМПАКТНЫЙ */
+#create-graph-page #graphMessages {
+    flex: 0 0 auto !important;
+    padding: 0.25rem 0 !important; /* УМЕНЬШЕНО */
+    margin-bottom: 0.25rem !important; /* УМЕНЬШЕНО */
+    min-height: auto !important;
+}
+
+/* ТАБЛИЦА СТАТИСТИКИ */
+#create-graph-page .table-responsive {
+    max-height: 100% !important;
+}
+
+#create-graph-page .table {
+    margin-bottom: 0 !important;
+    font-size: 0.75rem !important; /* УМЕНЬШЕНО */
+}
+
+#create-graph-page .table th, 
+#create-graph-page .table td {
+    padding: 0.25rem 0.15rem !important; /* УМЕНЬШЕНО */
+    white-space: nowrap !important;
+}
+
+/* СКРОЛЛБАРЫ */
+#create-graph-page .card-body::-webkit-scrollbar {
+    width: 4px; /* УМЕНЬШЕНО */
+}
+
+#create-graph-page .card-body::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 2px; /* УМЕНЬШЕНО */
+}
+
+#create-graph-page .card-body::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 2px; /* УМЕНЬШЕНО */
+}
+
+#create-graph-page .card-body::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* АДАПТИВНОСТЬ */
+@media (max-width: 992px) {
+    #create-graph-page .container-fluid {
+        height: auto !important;
+        min-height: calc(100vh - 80px) !important;
+    }
+    
+    #create-graph-page .col-lg-4, 
+    #create-graph-page .col-lg-8 {
+        height: auto !important;
+        min-height: 45vh !important; /* УМЕНЬШЕНО */
+    }
+    
+    #create-graph-page .col-lg-4 > .card:first-child {
+        flex: 0 0 auto !important;
+        height: auto !important;
+        min-height: 350px !important; /* УМЕНЬШЕНО */
+    }
+    
+    /* КОМПАКТНЫЕ ГРАФИКИ НА МОБИЛЬНЫХ */
+    #create-graph-page #graphContainer, 
+    #create-graph-page #plotlyContainer {
+        min-height: 350px !important; /* УМЕНЬШЕНО */
+    }
+}
+
+#defaultState, #dynamicGraphContainer {
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+#defaultState {
+    display: flex !important;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+/* УЛУЧШЕНИЯ ДЛЯ ФОРМЫ */
+#create-graph-page .form-select, 
+#create-graph-page .form-control {
+    font-size: 0.8rem !important; /* УМЕНЬШЕНО */
+}
+
+#create-graph-page .btn {
+    font-size: 0.85rem !important; /* УМЕНЬШЕНО */
+}
+
+/* ЗАГОЛОВКИ КАРТОЧЕК */
+#create-graph-page .card-header {
+    padding: 0.5rem 0.75rem !important; /* УМЕНЬШЕНО */
+    flex: 0 0 auto !important;
+}
+
+#create-graph-page .card-header h5 {
+    font-size: 0.9rem !important; /* УМЕНЬШЕНО */
+    margin: 0 !important;
+}
+
+/* УБИРАЕМ ЛИШНИЕ ОТСТУПЫ */
+#create-graph-page .mb-4, 
+#create-graph-page .mb-3, 
+#create-graph-page .mb-2 {
+    margin-bottom: 0.4rem !important; /* УМЕНЬШЕНО */
+}
+
+#create-graph-page .row {
+    --bs-gutter-x: 0.4rem !important; /* УМЕНЬШЕНО */
+    --bs-gutter-y: 0.4rem !important; /* УМЕНЬШЕНО */
+}
+
+/* УЛУЧШЕНИЯ ДЛЯ ТАБЛИЦЫ СТАТИСТИКИ */
+#create-graph-page #dataStats .table thead {
+    position: sticky !important;
+    top: 0 !important;
+    background: #f8f9fa !important;
+    z-index: 10 !important;
+}
+
+#create-graph-page #dataStats .table tbody tr:hover {
+    background-color: rgba(0, 123, 255, 0.1) !important;
+}
+
+/* УЛУЧШЕНИЯ ДЛЯ КНОПОК УПРАВЛЕНИЯ */
+#create-graph-page #graphControls {
+    flex: 0 0 auto !important;
+}
+
+#create-graph-page #graphControls .btn {
+    padding: 0.25rem 0.5rem !important; /* УМЕНЬШЕНО */
+    font-size: 0.75rem !important; /* УМЕНЬШЕНО */
+}
+
+/* ОБЕСПЕЧИВАЕМ ПРАВИЛЬНОЕ РАСПРЕДЕЛЕНИЕ ПРОСТРАНСТВА */
+#create-graph-page .d-flex {
+    display: flex !important;
+}
+
+#create-graph-page .flex-column {
+    flex-direction: column !important;
+}
+
+#create-graph-page .flex-grow-1 {
+    flex-grow: 1 !important;
+}
+
+#create-graph-page .flex-shrink-0 {
+    flex-shrink: 0 !important;
+}
+
+#create-graph-page .h-100 {
+    height: 100% !important;
+}
+
+#create-graph-page .w-100 {
+    width: 100% !important;
+}
+
+/* УЛУЧШЕНИЯ ДЛЯ SCROLLABLE КОНТЕЙНЕРОВ */
+#create-graph-page .overflow-auto {
+    overflow: auto !important;
+}
+
+#create-graph-page .overflow-hidden {
+    overflow: hidden !important;
+}
+
+/* ФИКС ДЛЯ ИЗОБРАЖЕНИЙ ГРАФИКОВ */
+#create-graph-page .img-fluid {
+    max-height: 100% !important;
+    width: auto !important;
+}
+
+/* КОМПАКТНЫЕ РАДИУСЫ */
+.border-radius-lg {
+    border-radius: 8px !important; /* УМЕНЬШЕНО */
+}
+
+.border-radius-lg-top {
+    border-radius: 8px 8px 0 0 !important; /* УМЕНЬШЕНО */
+}
+
+/* ОБЩИЕ СТИЛИ КОТОРЫЕ НЕ ЛОМАЮТ NAVBAR */
+.card {
+    border: none;
+    box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.06); /* УМЕНЬШЕНО */
+}
+
+.btn {
+    border-radius: 6px; /* УМЕНЬШЕНО */
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+}
+
+.form-select {
+    border-radius: 6px; /* УМЕНЬШЕНО */
+    border: 1px solid #e2e8f0;
+    transition: all 0.3s ease;
+}
+
+.form-select:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.15rem rgba(0, 123, 255, 0.25); /* УМЕНЬШЕНО */
+}
+
+/* УБИРАЕМ КОНФЛИКТЫ С ТЕМОЙ */
+.modebar {
+    z-index: 1000 !important;
+}
+
+/* ДОПОЛНИТЕЛЬНЫЕ КОМПАКТНЫЕ СТИЛИ ДЛЯ ГРАФИКОВ */
+#create-graph-page .col-lg-8 .card-body {
+    padding: 0.25rem !important; /* МИНИМАЛЬНЫЙ ОТСТУП */
+}
+
+#create-graph-page #graphContainer .text-muted,
+#create-graph-page #plotlyContainer .text-muted {
+    padding: 0.5rem !important; /* КОМПАКТНЫЕ ОТСТУПЫ ДЛЯ СООБЩЕНИЙ */
+}
+
+/* КОМПАКТНЫЕ ФОРМЫ */
+#create-graph-page .form-label {
+    margin-bottom: 0.3rem !important; /* УМЕНЬШЕНО */
+    font-size: 0.8rem !important; /* УМЕНЬШЕНО */
+}
+
+#create-graph-page .form-check {
+    margin-bottom: 0.3rem !important; /* УМЕНЬШЕНО */
+    min-height: auto !important;
+}
+
+/* КОМПАКТНЫЕ КНОПКИ В ФОРМЕ */
+#create-graph-page #graph-form .btn {
+    padding: 0.4rem 0.75rem !important; /* УМЕНЬШЕНО */
+    margin-top: 0.5rem !important; /* УМЕНЬШЕНО */
+}
+
+#defaultState {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: all 0.3s ease !important;
+    z-index: 1 !important;
+}
+
+/* ОСНОВНЫЕ СТИЛИ ДЛЯ PLOTLY КОНТЕЙНЕРА */
+#dynamicGraphContainer {
+    position: relative !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 500px !important;
+    overflow: visible !important; /* ВАЖНО: разрешаем overflow */
+    z-index: 2 !important;
+    padding: 10px !important; /* Добавляем немного отступов */
+}
+
+/* СТИЛИ ДЛЯ PLOTLY ГРАФИКОВ - УБИРАЕМ ВСЕ ОГРАНИЧЕНИЯ */
+#dynamicGraphContainer .js-plotly-plot,
+#dynamicGraphContainer .plotly,
+#dynamicGraphContainer .plot-container {
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 450px !important;
+    overflow: visible !important; /* ВАЖНО */
+}
+
+/* ОСНОВНОЙ SVG PLOTLY */
+#dynamicGraphContainer .main-svg {
+    width: 100% !important;
+    height: 100% !important;
+    overflow: visible !important;
+}
+
+/* КОНТЕЙНЕР SVG */
+#dynamicGraphContainer .svg-container {
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 450px !important;
+    overflow: visible !important;
+}
+
+/* УВЕЛИЧИВАЕМ ОБЛАСТЬ ГРАФИКА */
+#dynamicGraphContainer .plotly .graph {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* ДОПОЛНИТЕЛЬНЫЕ СТИЛИ ДЛЯ ЛЕГЕНДЫ И ОСЕЙ */
+#dynamicGraphContainer .plotly .legend {
+    max-width: 100% !important;
+    overflow: visible !important;
+}
+
+#dynamicGraphContainer .plotly .xaxislayer,
+#dynamicGraphContainer .plotly .yaxislayer {
+    overflow: visible !important;
+}
+
+/* УБЕРАЕМ ЛЮБЫЕ ОГРАНИЧЕНИЯ В CARD-BODY */
+.card-body {
+    min-height: 500px !important;
+    overflow: visible !important; /* ВАЖНО */
+    padding: 10px !important;
+}
+
+/* GRAPHAREA ДОЛЖНА БЫТЬ С OVERFLOW VISIBLE */
+#graphArea {
+    position: relative !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 450px !important;
+    overflow: visible !important; /* ВАЖНО */
+    flex: 1 !important;
+}
+
+/* ПРАВАЯ КОЛОНКА */
+.col-lg-8 {
+    height: 100% !important;
+    min-height: 500px !important;
+    overflow: visible !important;
+}
+
+/* УВЕЛИЧИМ РАЗМЕРЫ ДЛЯ ЛУЧШЕГО ОТОБРАЖЕНИЯ */
+#create-graph-page .col-lg-8 .card {
+    min-height: 550px !important;
+}
+
+#create-graph-page .col-lg-8 .card-body {
+    min-height: 500px !important;
+}
+
+</style>
+
+<script src="https://cdn.plot.ly/plotly-2.27.1.min.js"></script>
+
+<script>
+
+
+function testPlotlyManually() {
+    // Простой тестовый график
+    const testData = [{
+        x: [1, 2, 3, 4, 5],
+        y: [1, 2, 3, 4, 5],
+        type: 'scatter'
+    }];
+    
+    const testLayout = {
+        title: 'Тестовый график Plotly',
+        width: 800,
+        height: 600
+    };
+    
+    const plotlyContainer = document.getElementById('plotlyContainer');
+    plotlyContainer.innerHTML = '<div id="manual-test-plot" style="width: 100%; height: 500px;"></div>';
+    plotlyContainer.style.display = 'block';
+    
+    if (typeof Plotly !== 'undefined') {
+        Plotly.newPlot('manual-test-plot', testData, testLayout);
+        console.log('✅ Manual Plotly test successful');
+    } else {
+        console.error('❌ Plotly not available for manual test');
+        plotlyContainer.innerHTML = '<div class="alert alert-danger">Plotly.js не загружен</div>';
+    }
+}
+// Глобальные переменные
+let currentGraph = null;
+let currentGraphType = 'matplotlib';
+
+// Списки графиков для каждого типа визуализации
+const GRAPHS_BY_TYPE = {
+    matplotlib: [
+        {value: 'scatter', label: 'Точечная диаграмма'},
+        {value: 'line', label: 'Линейный график'},
+        {value: 'bar', label: 'Столбчатая диаграмма'},
+        {value: 'histogram', label: 'Гистограмма'},
+        {value: 'box', label: 'Box Plot'},
+        {value: 'pie', label: 'Круговая диаграмма'},
+        {value: 'heatmap', label: 'Тепловая карта'},
+        {value: '3d_scatter', label: '3D Scatter'}
+    ],
+    plotly: [
+        {value: 'scatter', label: 'Точечная диаграмма'},
+        {value: 'line', label: 'Линейный график'},
+        {value: 'bar', label: 'Столбчатая диаграмма'},
+        {value: 'histogram', label: 'Гистограмма'},
+        {value: 'box', label: 'Box Plot'},
+        {value: 'violin', label: 'Violin Plot'},
+        {value: 'pie', label: 'Круговая диаграмма'},
+        {value: 'heatmap', label: 'Тепловая карта'},
+        {value: 'radar', label: 'Радарная диаграмма'},
+        {value: 'sunburst', label: 'Sunburst'},
+        {value: 'treemap', label: 'Treemap'},
+        {value: '3d_scatter', label: '3D Scatter'},
+        {value: 'animated_scatter', label: 'Анимированный график'}
+    ],
+    seaborn: [
+        {value: 'scatter', label: 'Точечная диаграмма'},
+        {value: 'line', label: 'Линейный график'},
+        {value: 'bar', label: 'Столбчатая диаграмма'},
+        {value: 'histogram', label: 'Гистограмма'},
+        {value: 'box', label: 'Box Plot'},
+        {value: 'violin', label: 'Violin Plot'},
+        {value: 'heatmap', label: 'Тепловая карта'}
+    ]
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('=== УПРОЩЕННАЯ ИНИЦИАЛИЗАЦИЯ ===');
+    
+    try {
+        // Проверяем загрузку Plotly
+        setTimeout(() => {
+            if (typeof Plotly !== 'undefined') {
+                console.log('✅ Plotly.js доступен');
+            } else {
+                console.warn('⚠️ Plotly.js не загружен');
+            }
+        }, 1000);
+        
+        // Гарантируем правильное начальное состояние
+        const defaultState = document.getElementById('defaultState');
+        const dynamicContainer = document.getElementById('dynamicGraphContainer');
+        
+        if (defaultState) defaultState.style.display = 'flex';
+        if (dynamicContainer) dynamicContainer.style.display = 'none';
+        
+        // Проверяем поддержку полноэкранного режима
+        if (!checkFullscreenSupport()) {
+            console.warn('⚠️ Полноэкранный режим не поддерживается браузером');
+            const fullscreenBtn = document.getElementById('fullscreenBtn');
+            if (fullscreenBtn) {
+                fullscreenBtn.disabled = true;
+                fullscreenBtn.title = 'Полноэкранный режим не поддерживается вашим браузером';
+            }
+        }
+
+        initializeForm();
+        setupEventListeners();
+        updateFormOptions();
+        
+    } catch (error) {
+        console.error('❌ Ошибка инициализации:', error);
+    }
+    
+    console.log('✅ Инициализация завершена');
+});
+
+function initializeForm() {
+    console.log('=== Инициализация формы ===');
+    
+    // Устанавливаем значения по умолчанию с проверками
+    const xParam = document.getElementById('xParam');
+    const yParam = document.getElementById('yParam');
+    const graphType = document.getElementById('graphType');
+    const vizType = document.getElementById('vizType');
+    
+    if (xParam) xParam.value = 'ad';
+    if (yParam) yParam.value = 'q';
+    if (graphType) graphType.value = 'scatter';
+    if (vizType) vizType.value = 'matplotlib';
+    
+    // Обновляем список графиков
+    updateGraphsList('matplotlib');
+    
+    console.log('✅ Форма инициализирована');
+}
+
+function updateGraphsList(vizType) {
+    const graphTypeSelect = document.getElementById('graphType');
+    const graphs = GRAPHS_BY_TYPE[vizType] || GRAPHS_BY_TYPE.matplotlib;
+    
+    // Сохраняем текущее значение
+    const currentValue = graphTypeSelect.value;
+    
+    // Очищаем и заполняем список
+    graphTypeSelect.innerHTML = '';
+    graphs.forEach(graph => {
+        const option = document.createElement('option');
+        option.value = graph.value;
+        option.textContent = graph.label;
+        graphTypeSelect.appendChild(option);
+    });
+    
+    // Восстанавливаем значение если оно есть в новом списке
+    if (graphs.some(g => g.value === currentValue)) {
+        graphTypeSelect.value = currentValue;
+    } else {
+        graphTypeSelect.value = graphs[0].value;
+    }
+}
+
+function setupEventListeners() {
+    console.log('=== Настройка обработчиков событий ===');
+    
+    // Основная форма
+    const form = document.getElementById('graph-form');
+    if (form) {
+        form.addEventListener('submit', handleGraphCreation);
+        console.log('✅ Обработчик формы добавлен');
+    } else {
+        console.error('❌ Форма не найдена');
+    }
+
+    // Кнопки управления - добавляем проверки
+    const helpBtn = document.getElementById('helpBtn');
+    const resetBtn = document.getElementById('resetFormBtn');
+    const downloadBtn = document.getElementById('downloadGraphBtn');
+    const fullscreenBtn = document.getElementById('fullscreenBtn');
+
+    if (helpBtn) {
+        helpBtn.addEventListener('click', () => {
+            const helpModal = document.getElementById('helpModal');
+            if (helpModal) {
+                new bootstrap.Modal(helpModal).show();
+            }
+        });
+    }
+
+    if (resetBtn) resetBtn.addEventListener('click', resetForm);
+    if (downloadBtn) downloadBtn.addEventListener('click', downloadGraph);
+    if (fullscreenBtn) fullscreenBtn.addEventListener('click', toggleFullscreen);
+
+    // Изменения в форме
+    const vizType = document.getElementById('vizType');
+    const graphType = document.getElementById('graphType');
+    
+    if (vizType) {
+        vizType.addEventListener('change', function() {
+            updateGraphsList(this.value);
+            updateFormOptions();
+        });
+    }
+    
+    if (graphType) {
+        graphType.addEventListener('change', updateFormOptions);
+    }
+
+    // Горячие клавиши
+    document.addEventListener('keydown', handleKeyboardShortcuts);
+
+    // Обработка выхода из полноэкранного режима
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('msfullscreenchange', handleFullscreenChange);
+    
+    console.log('=== Обработчики событий настроены ===');
+}
+
+function handleFullscreenChange() {
+    const fullscreenBtn = document.getElementById('fullscreenBtn');
+    
+    if (!document.fullscreenElement && 
+        !document.webkitFullscreenElement && 
+        !document.msFullscreenElement) {
+        // Выход из полноэкранного режима
+        console.log('🔚 Выход из полноэкранного режима');
+        
+        // Обновляем размер Plotly графиков
+        setTimeout(() => {
+            const plotlyGraphs = document.querySelectorAll('.js-plotly-plot');
+            plotlyGraphs.forEach(graph => {
+                if (typeof Plotly !== 'undefined') {
+                    Plotly.Plots.resize(graph);
+                }
+            });
+            console.log('✅ Размер Plotly обновлен после выхода из полноэкранного режима');
+        }, 100);
+        
+        // Обновляем текст кнопки если нужно
+        if (fullscreenBtn) {
+            fullscreenBtn.innerHTML = '<i class="fas fa-expand me-1"></i>Полный экран';
+        }
+    } else {
+        // Вход в полноэкранный режим
+        if (fullscreenBtn) {
+            fullscreenBtn.innerHTML = '<i class="fas fa-compress me-1"></i>Выйти';
+        }
+    }
+}
+
+function updateFormOptions() {
+    const vizType = document.getElementById('vizType').value;
+    const graphType = document.getElementById('graphType').value;
+    const plotlyOptions = document.getElementById('plotlyOptions');
+    const yParamGroup = document.getElementById('yParam').closest('.row');
+    const zParamGroup = document.getElementById('zParam').closest('.row');
+
+    // Опции для Plotly
+    if (vizType === 'plotly') {
+        plotlyOptions.style.display = 'block';
+    } else {
+        plotlyOptions.style.display = 'none';
+    }
+
+    // Для круговых диаграмм скрываем Y параметр
+    if (graphType === 'pie' || graphType === 'sunburst' || graphType === 'treemap') {
+        yParamGroup.style.display = 'none';
+    } else {
+        yParamGroup.style.display = 'flex';
+    }
+
+    // Опции для 3D графиков
+    if (graphType === '3d_scatter') {
+        zParamGroup.style.display = 'flex';
+    } else {
+        zParamGroup.style.display = 'none';
+    }
+}
+
+async function handleGraphCreation(e) {
+    // ВАЖНО: Полностью предотвращаем поведение по умолчанию
+    e.preventDefault();
+    e.stopPropagation();
+    
+    console.log('🔄 Обработка создания графика...');
+    
+    const form = document.getElementById('graph-form');
+    const submitBtn = document.getElementById('createGraphBtn');
+    
+    if (!form) {
+        console.error('❌ Форма не найдена');
+        return;
+    }
+    
+    const formData = new FormData(form);
+    
+    console.log('📊 Form data:', Object.fromEntries(formData));
+    console.log('🔍 Проверка элементов ДО запроса:', {
+        graphArea: !!document.getElementById('graphArea'),
+        defaultState: !!document.getElementById('defaultState'),
+        dynamicContainer: !!document.getElementById('dynamicGraphContainer'),
+        form: !!form
+    });
+    
+    // Показываем загрузку
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Создание...';
+    
+    clearMessages();
+    
+    try {
+        console.log('📡 Отправка запроса на сервер...');
+        const response = await fetch('/create_graph', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('✅ Ответ сервера получен:', data);
+        
+        if (data.success) {
+            console.log('🎯 Вызов displayGraph...');
+            safeDisplayGraph(data.graph, data.graph_type);
+            showMessage(data.message, 'success');
+            updateStatistics(data.stats);
+            
+            // Показываем кнопки управления
+            const graphControls = document.getElementById('graphControls');
+            if (graphControls) {
+                graphControls.style.display = 'flex';
+            }
+        } else {
+            showMessage(data.message, 'danger');
+            console.error('❌ Ошибка сервера:', data.message);
+        }
+    } catch (error) {
+        console.error('❌ Ошибка запроса:', error);
+        showMessage('Ошибка при создании графика: ' + error.message, 'danger');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fas fa-chart-line me-2"></i>Создать график';
+    }
+    
+    return false;
+}
+
+function ensureContainersExist() {
+    console.log('🔧 Проверка существования контейнеров...');
+    
+    let graphContainer = document.getElementById('graphContainer');
+    let plotlyContainer = document.getElementById('plotlyContainer');
+    
+    console.log('📦 Текущее состояние:', {
+        graphContainer: !!graphContainer,
+        plotlyContainer: !!plotlyContainer
+    });
+    
+    // Если plotlyContainer не найден, создаем его в ПРАВИЛЬНОМ месте
+    if (!plotlyContainer) {
+        console.warn('⚠️ plotlyContainer не найден, создаем в правильном месте...');
+        
+        // Находим ПРАВИЛЬНЫЙ контейнер - тот, где должен быть график
+        const graphArea = document.querySelector('.col-lg-8 .card-body');
+        if (graphArea) {
+            plotlyContainer = document.createElement('div');
+            plotlyContainer.id = 'plotlyContainer';
+            plotlyContainer.style.display = 'none';
+            plotlyContainer.style.height = '100%';
+            plotlyContainer.style.width = '100%';
+            
+            // Добавляем в ПРАВИЛЬНОЕ место - в область графика
+            graphArea.appendChild(plotlyContainer);
+            console.log('✅ plotlyContainer создан и добавлен в область графика');
+        } else {
+            console.error('❌ Не удалось найти область графика для создания plotlyContainer');
+            
+            // Альтернативный поиск
+            const rightColumn = document.querySelector('.col-lg-8');
+            if (rightColumn) {
+                const cardBody = rightColumn.querySelector('.card-body');
+                if (cardBody) {
+                    plotlyContainer = document.createElement('div');
+                    plotlyContainer.id = 'plotlyContainer';
+                    plotlyContainer.style.display = 'none';
+                    plotlyContainer.style.height = '100%';
+                    plotlyContainer.style.width = '100%';
+                    cardBody.appendChild(plotlyContainer);
+                    console.log('✅ plotlyContainer создан в правой колонке');
+                }
+            }
+        }
+    }
+    
+    return {
+        graphContainer: graphContainer || document.getElementById('graphContainer'),
+        plotlyContainer: plotlyContainer || document.getElementById('plotlyContainer')
+    };
+}
+
+function displayGraph(graphData, graphType) {
+    console.log('🎨 displayGraph вызвана с:', { graphType, hasData: !!graphData });
+    
+    const defaultState = document.getElementById('defaultState');
+    const dynamicContainer = document.getElementById('dynamicGraphContainer');
+    const graphArea = document.getElementById('graphArea');
+    
+    if (!defaultState || !dynamicContainer || !graphArea) {
+        console.error('❌ Элементы не найдены!');
+        return;
+    }
+    
+    // ВАЖНО: Полностью скрываем состояние по умолчанию
+    defaultState.style.display = 'none';
+    defaultState.style.visibility = 'hidden';
+    defaultState.style.opacity = '0';
+    defaultState.style.position = 'absolute';
+    defaultState.style.zIndex = '-1';
+    
+    // ВАЖНО: Полностью показываем динамический контейнер
+    dynamicContainer.style.display = 'block';
+    dynamicContainer.style.visibility = 'visible';
+    dynamicContainer.style.opacity = '1';
+    dynamicContainer.style.position = 'relative';
+    dynamicContainer.style.zIndex = '1';
+    dynamicContainer.innerHTML = '';
+    
+    // Убедимся, что graphArea правильно отображает контент
+    graphArea.style.overflow = 'visible';
+    graphArea.style.position = 'relative';
+    
+    currentGraph = graphData;
+    currentGraphType = graphType;
+    
+    if (!graphData) {
+        showDefaultState();
+        return;
+    }
+    
+    try {
+        if (graphType === 'plotly') {
+            console.log('📈 Создаем Plotly график');
+            createPlotlyGraph(graphData, dynamicContainer);
+        } else {
+            console.log('📊 Создаем matplotlib график');
+            dynamicContainer.innerHTML = `
+                <div class="h-100 d-flex align-items-center justify-content-center">
+                    <img src="data:image/png;base64,${graphData}" 
+                         class="img-fluid rounded shadow-sm" 
+                         alt="График" 
+                         style="max-height: 100%; max-width: 100%; object-fit: contain;">
                 </div>
             `;
         }
-
-        function hideLoading() {
-            const loading = document.querySelector('.graph-loading');
-            if (loading) {
-                loading.remove();
-            }
-        }
-
-        function updateContent(data) {
-            const graphContainer = document.getElementById('graphContainer');
-            if (data.graph) {
-                graphContainer.innerHTML = `
-                    <img src="data:image/png;base64,${data.graph}" alt="Graph" class="img-fluid">
-                    ${data.legend ? `<p class="mt-2 text-sm ms-3">${data.legend}</p>` : ''}
-                `;
-                document.getElementById('graphControls').style.display = 'flex';
+        
+        console.log('✅ График успешно отображен');
+        
+        // Дополнительная проверка через секунду
+        setTimeout(() => {
+            const plotlyContainer = dynamicContainer.querySelector('.plotly, .js-plotly-plot, [id*="plot"]');
+            if (plotlyContainer) {
+                console.log('✅ Plotly контейнер найден после отрисовки');
             } else {
-                graphContainer.innerHTML = `
-                    <div class="text-center py-5">
-                        <i class="fas fa-exclamation-triangle fa-2x text-warning mb-3"></i>
-                        <p class="text-muted">Не удалось создать график. Проверьте параметры.</p>
-                    </div>
-                `;
+                console.warn('⚠️ Plotly контейнер не найден после отрисовки');
+            }
+        }, 1000);
+        
+    } catch (error) {
+        console.error('❌ Ошибка при отображении графика:', error);
+        showErrorState(dynamicContainer, 'Не удалось создать график: ' + error.message);
+    }
+}
+
+// ГЛАВНЫЕ ФУНКЦИИ PLOTLY
+function createPlotlyGraph(graphData, container) {
+    console.log('📈 Создаем Plotly график');
+    
+    // Очищаем контейнер
+    container.innerHTML = '';
+    
+    // Создаем временный div для парсинга
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = graphData;
+    
+    // Ищем основной Plotly div
+    const plotlyDiv = tempDiv.querySelector('.js-plotly-plot, .plotly, [id*="plot"]');
+    
+    if (plotlyDiv) {
+        console.log('✅ Найден Plotly div');
+        
+        // Клонируем Plotly div
+        const clonedPlotlyDiv = plotlyDiv.cloneNode(true);
+        
+        // Копируем все атрибуты
+        for (let attr of plotlyDiv.attributes) {
+            clonedPlotlyDiv.setAttribute(attr.name, attr.value);
+        }
+        
+        // Устанавливаем стили для большого размера
+        clonedPlotlyDiv.style.width = '100%';
+        clonedPlotlyDiv.style.height = '100%';
+        clonedPlotlyDiv.style.minHeight = '450px';
+        
+        // Добавляем в контейнер
+        container.appendChild(clonedPlotlyDiv);
+        
+        // Выполняем скрипты Plotly
+        executePlotlyScriptsSimple(tempDiv, clonedPlotlyDiv.id);
+        
+    } else {
+        console.log('❌ Plotly div не найден, используем полный HTML');
+        container.innerHTML = graphData;
+        executeAllPlotlyScripts(container);
+    }
+    
+    // Принудительно обновляем размер
+    forcePlotlyResize();
+}
+
+function executePlotlyScriptsSimple(container, plotlyId) {
+    const scripts = container.querySelectorAll('script');
+    let plotlyScript = null;
+    
+    // Ищем скрипт с Plotly.newPlot
+    scripts.forEach(script => {
+        if (script.textContent && script.textContent.includes('Plotly.newPlot')) {
+            plotlyScript = script.textContent;
+        }
+    });
+    
+    if (plotlyScript && typeof Plotly !== 'undefined') {
+        console.log('🔧 Выполняем Plotly скрипт');
+        
+        try {
+            // Заменяем ID в скрипте на наш ID
+            const originalIdMatch = plotlyScript.match(/Plotly\.newPlot\(["']([^"']+)["']/);
+            if (originalIdMatch) {
+                const originalId = originalIdMatch[1];
+                plotlyScript = plotlyScript.replace(new RegExp(originalId, 'g'), plotlyId);
+            }
+            
+            // Выполняем скрипт
+            eval(plotlyScript);
+            console.log('✅ Plotly скрипт выполнен');
+            
+            // Обновляем размер несколько раз
+            setTimeout(() => Plotly.Plots.resize(document.getElementById(plotlyId)), 100);
+            setTimeout(() => Plotly.Plots.resize(document.getElementById(plotlyId)), 500);
+            setTimeout(() => Plotly.Plots.resize(document.getElementById(plotlyId)), 1000);
+            
+        } catch (error) {
+            console.error('❌ Ошибка выполнения Plotly скрипта:', error);
+        }
+    }
+}
+
+function executeAllPlotlyScripts(container) {
+    const scripts = container.querySelectorAll('script');
+    
+    scripts.forEach((script, index) => {
+        if (!script.src && script.textContent && script.textContent.includes('Plotly')) {
+            try {
+                eval(script.textContent);
+                console.log(`✅ Скрипт ${index + 1} выполнен`);
+            } catch (error) {
+                console.error(`❌ Ошибка скрипта ${index + 1}:`, error);
             }
         }
-
-        function showPreview(data) {
-            const previewContainer = document.getElementById('previewContainer');
-            if (data.graph) {
-                previewContainer.innerHTML = `
-                    <img src="data:image/png;base64,${data.graph}" alt="Preview" class="img-fluid">
-                    ${data.legend ? `<p class="mt-2 text-sm">${data.legend}</p>` : ''}
-                `;
-            } else {
-                previewContainer.innerHTML = '<p class="text-danger">График недоступен для предпросмотра</p>';
-            }
-            
-            const previewModal = new bootstrap.Modal(document.getElementById('previewModal'));
-            previewModal.show();
+    });
+    
+    setTimeout(() => {
+        if (typeof Plotly !== 'undefined') {
+            const plotlyGraphs = container.querySelectorAll('.js-plotly-plot');
+            plotlyGraphs.forEach(graph => Plotly.Plots.resize(graph));
         }
+    }, 200);
+}
 
-        function updateStats(stats) {
-            const statsCard = document.getElementById('statsCard');
-            const statsContainer = document.getElementById('statsContainer');
-            
-            if (!stats || Object.keys(stats).length === 0) {
-                statsContainer.innerHTML = '<p class="text-muted">Статистика недоступна</p>';
-                statsCard.style.display = 'block';
-                return;
+function forcePlotlyResize() {
+    console.log('📏 Принудительное обновление размера и layout Plotly');
+    
+    // Обновляем размер
+    setTimeout(() => {
+        const plotlyGraphs = document.querySelectorAll('#dynamicGraphContainer .js-plotly-plot, #dynamicGraphContainer .plotly');
+        plotlyGraphs.forEach(graph => {
+            if (typeof Plotly !== 'undefined') {
+                Plotly.Plots.resize(graph);
             }
-            
-            let statsHTML = '<div class="stats-grid">';
-            for (const [param, values] of Object.entries(stats)) {
-                const mean = values.mean !== null && values.mean !== undefined ? values.mean.toFixed(2) : 'N/A';
-                const std = values.std !== null && values.std !== undefined ? values.std.toFixed(2) : 'N/A';
-                const min = values.min !== null && values.min !== undefined ? values.min.toFixed(2) : 'N/A';
-                const max = values.max !== null && values.max !== undefined ? values.max.toFixed(2) : 'N/A';
-                
-                statsHTML += `
-                    <div class="stat-card">
-                        <div class="stat-value">${mean}</div>
-                        <div class="stat-label">${param} (среднее)</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value">${std}</div>
-                        <div class="stat-label">${param} (станд. отклонение)</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value">${min}</div>
-                        <div class="stat-label">${param} (минимум)</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value">${max}</div>
-                        <div class="stat-label">${param} (максимум)</div>
-                    </div>
-                `;
-            }
-            statsHTML += '</div>';
-            
-            statsContainer.innerHTML = statsHTML;
-            statsCard.style.display = 'block';
-        }
+        });
+    }, 100);
+    
+    // Настраиваем layout
+    setTimeout(adjustPlotlyLayout, 200);
+    setTimeout(adjustPlotlyLayout, 500);
+    setTimeout(adjustPlotlyLayout, 1000);
+}
 
-        function exportGraph() {
-            const graphImg = document.querySelector('#graphContainer img');
-            if (graphImg) {
-                const link = document.createElement('a');
-                link.download = 'graph.png';
-                link.href = graphImg.src;
-                link.click();
-            } else {
-                showToast('Нет графика для экспорта', 'warning');
-            }
-        }
-
-        function showToast(message, type) {
-            const toastContainer = document.querySelector('.toast-container') || document.createElement('div');
-            toastContainer.className = 'toast-container';
-            
-            const toastId = 'toast-' + Date.now();
-            const toastHTML = `
-                <div id="${toastId}" class="toast align-items-center text-white bg-${type} border-0" role="alert">
-                    <div class="d-flex">
-                        <div class="toast-body">${message}</div>
-                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-                    </div>
-                </div>
-            `;
-            
-            toastContainer.innerHTML += toastHTML;
-            document.body.appendChild(toastContainer);
-            
-            const toastElement = document.getElementById(toastId);
-            const toast = new bootstrap.Toast(toastElement);
-            toast.show();
-            
-            toastElement.addEventListener('hidden.bs.toast', function() {
-                this.remove();
+function adjustPlotlyLayout() {
+    const plotlyGraphs = document.querySelectorAll('#dynamicGraphContainer .js-plotly-plot');
+    
+    plotlyGraphs.forEach((graph, index) => {
+        if (typeof Plotly !== 'undefined') {
+            // Получаем текущий layout
+            Plotly.relayout(graph, {
+                'autosize': true,
+                'margin': {
+                    'l': 80,   // левый отступ
+                    'r': 80,   // правый отступ  
+                    't': 50,   // верхний отступ
+                    'b': 80    // нижний отступ
+                },
+                'width': graph.clientWidth,
+                'height': graph.clientHeight
+            }).then(() => {
+                console.log(`✅ Layout графика ${index + 1} настроен`);
             });
         }
+    });
+}
 
-        // Автозаполнение при загрузке
-        document.addEventListener('DOMContentLoaded', function() {
-            setTimeout(() => {
-                const xParam = document.getElementById('x_param');
-                const yParam = document.getElementById('y_param');
-                const graphType = document.getElementById('graph_type');
-                
-                if (xParam && yParam && graphType) {
-                    if (xParam.querySelector('option[value="ad"]')) xParam.value = 'ad';
-                    if (yParam.querySelector('option[value="q"]')) yParam.value = 'q';
-                    if (graphType.querySelector('option[value="scatter"]')) graphType.value = 'scatter';
-                }
-            }, 100);
+function extractPlotlyDataAdvanced(container) {
+    const scripts = container.querySelectorAll('script');
+    
+    for (let script of scripts) {
+        const scriptContent = script.textContent || script.innerHTML;
+        
+        if (scriptContent.includes('Plotly.newPlot')) {
+            console.log('🔍 Найден Plotly.newPlot скрипт');
+            
+            // Пытаемся извлечь аргументы разными способами
+            const args = extractPlotlyArguments(scriptContent);
+            if (args) {
+                return args;
+            }
+        }
+        
+        // Ищем данные в переменных
+        if (scriptContent.includes('data = ') || scriptContent.includes('var data')) {
+            console.log('🔍 Найдены данные в переменных');
+            const data = extractJavaScriptVariable(scriptContent, 'data');
+            const layout = extractJavaScriptVariable(scriptContent, 'layout') || {};
+            const config = extractJavaScriptVariable(scriptContent, 'config') || {};
+            
+            if (data) {
+                return { data, layout, config };
+            }
+        }
+    }
+    
+    return null;
+}
+
+// Проверка поддержки полноэкранного режима
+function checkFullscreenSupport() {
+    const doc = document.documentElement;
+    const support = !!(doc.requestFullscreen || 
+                      doc.webkitRequestFullscreen || 
+                      doc.msRequestFullscreen);
+    
+    console.log('🔍 Поддержка полноэкранного режима:', support);
+    return support;
+}
+
+
+function extractPlotlyArguments(scriptContent) {
+    // Упрощенное извлечение - ищем вызов Plotly.newPlot и пытаемся выполнить его
+    const plotlyCallMatch = scriptContent.match(/Plotly\.newPlot\(([^)]+)\)/);
+    if (!plotlyCallMatch) return null;
+    
+    const fullCall = plotlyCallMatch[0];
+    console.log('📞 Найден вызов Plotly:', fullCall.substring(0, 200) + '...');
+    
+    try {
+        // Создаем безопасный контекст для выполнения
+        const data = [];
+        const layout = {};
+        const config = {};
+        
+        // Временные переменные для выполнения
+        window.tempPlotlyData = data;
+        window.tempPlotlyLayout = layout;
+        window.tempPlotlyConfig = config;
+        
+        // Заменяем вызов Plotly на присваивание нашим переменным
+        const modifiedScript = scriptContent
+            .replace(/Plotly\.newPlot\([^,]+,\s*([^,]+),\s*([^,]+),\s*([^)]+)\)/,
+                'window.tempPlotlyData = $1; window.tempPlotlyLayout = $2; window.tempPlotlyConfig = $3;')
+            .replace(/Plotly\.newPlot\([^,]+,\s*([^,]+),\s*([^)]+)\)/,
+                'window.tempPlotlyData = $1; window.tempPlotlyLayout = $2;');
+        
+        // Выполняем скрипт
+        eval(modifiedScript);
+        
+        // Получаем данные
+        const result = {
+            data: window.tempPlotlyData,
+            layout: window.tempPlotlyLayout,
+            config: window.tempPlotlyConfig
+        };
+        
+        // Очищаем временные переменные
+        delete window.tempPlotlyData;
+        delete window.tempPlotlyLayout;
+        delete window.tempPlotlyConfig;
+        
+        console.log('✅ Данные успешно извлечены:', {
+            data_length: result.data ? result.data.length : 0,
+            layout_keys: result.layout ? Object.keys(result.layout) : []
         });
-    </script>
-    {% endblock extra_js %}
+        
+        return result;
+        
+    } catch (error) {
+        console.error('❌ Ошибка извлечения аргументов:', error);
+        return null;
+    }
+}
+
+function extractJavaScriptVariable(scriptContent, varName) {
+    // Ищем переменную в разных форматах
+    const patterns = [
+        new RegExp(`(?:var|let|const)\\s+${varName}\\s*=\\s*({[^;]+});?`),
+        new RegExp(`(?:var|let|const)\\s+${varName}\\s*=\\s*(\\[[^;]+\\]);?`),
+        new RegExp(`${varName}\\s*=\\s*({[^;]+});?`),
+        new RegExp(`${varName}\\s*=\\s*(\\[[^;]+\\]);?`)
+    ];
+    
+    for (let pattern of patterns) {
+        const match = scriptContent.match(pattern);
+        if (match) {
+            try {
+                // Чистим строку от возможных проблем
+                let jsonStr = match[1]
+                    .replace(/(['"])?([a-zA-Z0-9_]+)(['"])?:/g, '"$2":') // Ключи в двойные кавычки
+                    .replace(/'/g, '"') // Заменяем одинарные кавычки на двойные
+                    .replace(/,(\s*[}\]])/g, '$1'); // Убираем висящие запятые
+                
+                return JSON.parse(jsonStr);
+            } catch (e) {
+                console.error(`❌ Ошибка парсинга переменной ${varName}:`, e);
+                console.log('📄 Проблемная строка:', match[1].substring(0, 100));
+                continue;
+            }
+        }
+    }
+    
+    return null;
+}
+
+function executePlotlyScriptsAdvanced(container, targetId) {
+    const scripts = container.querySelectorAll('script');
+    let executed = false;
+    
+    scripts.forEach((script, index) => {
+        if (!script.src && script.textContent) {
+            try {
+                let modifiedScript = script.textContent;
+                
+                // Заменяем ID контейнера если нужно
+                if (modifiedScript.includes("document.getElementById('")) {
+                    const idMatch = modifiedScript.match(/document\.getElementById\('([^']+)'\)/);
+                    if (idMatch) {
+                        modifiedScript = modifiedScript.replace(new RegExp(idMatch[1], 'g'), targetId);
+                    }
+                }
+                
+                // Выполняем скрипт
+                eval(modifiedScript);
+                executed = true;
+                console.log(`✅ Скрипт ${index + 1} выполнен`);
+                
+            } catch (error) {
+                console.error(`❌ Ошибка выполнения скрипта ${index + 1}:`, error);
+            }
+        }
+    });
+    
+    if (executed) {
+        // Обновляем размер после выполнения скриптов
+        setTimeout(() => {
+            const plotlyDiv = document.getElementById(targetId);
+            if (plotlyDiv && typeof Plotly !== 'undefined') {
+                Plotly.Plots.resize(plotlyDiv);
+                console.log('✅ Размер Plotly графика обновлен');
+            }
+        }, 300);
+    } else {
+        console.log('ℹ️ Скрипты не были выполнены, используем альтернативный метод');
+        useDirectHTMLRender(container.innerHTML, targetId);
+    }
+}
+
+function useDirectHTMLRender(graphData, graphId) {
+    console.log('🔄 Прямой HTML рендер Plotly');
+    
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = graphData;
+    
+    // Ищем оригинальный Plotly div
+    const originalDiv = tempDiv.querySelector('.js-plotly-plot');
+    const targetDiv = document.getElementById(graphId);
+    
+    if (originalDiv && targetDiv) {
+        // Копируем содержимое и атрибуты
+        targetDiv.innerHTML = originalDiv.innerHTML;
+        targetDiv.className = originalDiv.className;
+        
+        for (let attr of originalDiv.attributes) {
+            targetDiv.setAttribute(attr.name, attr.value);
+        }
+        
+        console.log('✅ HTML напрямую скопирован');
+        
+        // Пытаемся инициализировать Plotly если он доступен
+        if (typeof Plotly !== 'undefined' && targetDiv.classList.contains('js-plotly-plot')) {
+            setTimeout(() => {
+                try {
+                    Plotly.Plots.resize(targetDiv);
+                    console.log('✅ Plotly инициализирован после прямого рендера');
+                } catch (e) {
+                    console.log('ℹ️ Plotly уже инициализирован');
+                }
+            }, 500);
+        }
+    } else {
+        // Последняя попытка - просто вставляем HTML
+        targetDiv.innerHTML = graphData;
+        console.log('✅ Весь HTML вставлен напрямую');
+    }
+}
+
+function extractPlotlyData(scriptContent) {
+    // Пытаемся найти данные в разных форматах
+    const patterns = [
+        /Plotly\.newPlot\([^,]+,([^,]+),([^,]+),([^)]+)\)/,
+        /Plotly\.newPlot\([^,]+,([^,]+),([^)]+)\)/,
+        /Plotly\.plot\([^,]+,([^,]+),([^,]+),([^)]+)\)/
+    ];
+    
+    for (let pattern of patterns) {
+        const match = scriptContent.match(pattern);
+        if (match) {
+            try {
+                const data = JSON.parse(match[1].trim());
+                const layout = match[2] ? JSON.parse(match[2].trim()) : {};
+                const config = match[3] ? JSON.parse(match[3].trim()) : {};
+                
+                return { data, layout, config };
+            } catch (e) {
+                console.error('❌ Ошибка парсинга данных Plotly:', e);
+                continue;
+            }
+        }
+    }
+    
+    return null;
+}
+
+function extractFromScript(scriptContent, variableName) {
+    const pattern = new RegExp(`(?:var|let|const)\\s+${variableName}\\s*=\\s*({[^;]+});?`, 'i');
+    const match = scriptContent.match(pattern);
+    
+    if (match) {
+        try {
+            return JSON.parse(match[1]);
+        } catch (e) {
+            console.error(`❌ Ошибка парсинга переменной ${variableName}:`, e);
+        }
+    }
+    
+    return null;
+}
+
+function fallbackPlotlyRender(graphData, graphId) {
+    console.log('🔄 Fallback рендер Plotly');
+    
+    // Просто вставляем HTML и пытаемся выполнить скрипты
+    const tempContainer = document.createElement('div');
+    tempContainer.innerHTML = graphData;
+    
+    // Находим оригинальный div Plotly
+    const originalPlotlyDiv = tempContainer.querySelector('.js-plotly-plot');
+    
+    if (originalPlotlyDiv && originalPlotlyDiv.id) {
+        // Если у оригинального div есть ID, используем его
+        const targetDiv = document.getElementById(graphId);
+        if (targetDiv) {
+            targetDiv.id = originalPlotlyDiv.id;
+            targetDiv.innerHTML = originalPlotlyDiv.innerHTML;
+            targetDiv.className = originalPlotlyDiv.className;
+            
+            // Копируем все атрибуты
+            for (let attr of originalPlotlyDiv.attributes) {
+                targetDiv.setAttribute(attr.name, attr.value);
+            }
+            
+            // Выполняем скрипты
+            executePlotlyScriptsSimple(tempContainer);
+            console.log('✅ Fallback рендер завершен');
+        }
+    } else {
+        // Последняя попытка - простой HTML
+        document.getElementById(graphId).innerHTML = 
+            '<div class="alert alert-warning h-100 d-flex align-items-center justify-content-center">' +
+            '<div class="text-center"><i class="fas fa-exclamation-triangle fa-2x mb-2"></i>' +
+            '<p>Не удалось создать интерактивный график</p>' +
+            '<button class="btn btn-sm btn-outline-primary mt-2" onclick="retryPlotlyRender()">Попробовать снова</button>' +
+            '</div></div>';
+    }
+}
+
+function resizePlotlyGraph() {
+    const dynamicContainer = document.getElementById('dynamicGraphContainer');
+    if (!dynamicContainer) return;
+    
+    const plotlyGraphs = dynamicContainer.querySelectorAll('.js-plotly-plot, .plotly');
+    
+    plotlyGraphs.forEach((graph, index) => {
+        if (typeof Plotly !== 'undefined') {
+            setTimeout(() => {
+                try {
+                    Plotly.Plots.resize(graph);
+                    console.log(`✅ Размер Plotly графика ${index + 1} обновлен`);
+                } catch (error) {
+                    console.warn(`⚠️ Не удалось обновить размер графика ${index + 1}:`, error);
+                }
+            }, 100 * (index + 1));
+        }
+    });
+}
+
+
+
+function createMatplotlibGraph(graphData, container) {
+    container.innerHTML = `
+        <div class="h-100 d-flex align-items-center justify-content-center">
+            <img src="data:image/png;base64,${graphData}" 
+                 class="img-fluid rounded shadow-sm" 
+                 alt="График" 
+                 style="max-height: 100%; max-width: 100%; object-fit: contain;">
+        </div>
+    `;
+}
+
+function showErrorState(container, message) {
+    container.innerHTML = `
+        <div class="alert alert-warning h-100 d-flex align-items-center justify-content-center">
+            <div class="text-center">
+                <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                <p class="mb-2">${message}</p>
+                <button class="btn btn-sm btn-outline-primary mt-1" onclick="retryPlotlyRender()">
+                    <i class="fas fa-redo me-1"></i>Попробовать снова
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+function retryPlotlyRender() {
+    if (currentGraph && currentGraphType === 'plotly') {
+        console.log('🔄 Повторная попытка создания Plotly графика');
+        const dynamicContainer = document.getElementById('dynamicGraphContainer');
+        if (dynamicContainer) {
+            dynamicContainer.innerHTML = '';
+            createPlotlyGraph(currentGraph, dynamicContainer);
+        }
+    }
+}
+
+function showDefaultState() {
+    console.log('🔄 Показ состояния по умолчанию');
+    
+    const defaultState = document.getElementById('defaultState');
+    const dynamicContainer = document.getElementById('dynamicGraphContainer');
+    const graphArea = document.getElementById('graphArea');
+    
+    if (!defaultState || !dynamicContainer || !graphArea) {
+        console.error('❌ Элементы не найдены');
+        return;
+    }
+    
+    // ВАЖНО: Полностью показываем состояние по умолчанию
+    defaultState.style.display = 'flex';
+    defaultState.style.visibility = 'visible';
+    defaultState.style.opacity = '1';
+    defaultState.style.position = 'relative';
+    defaultState.style.zIndex = '1';
+    
+    // ВАЖНО: Полностью скрываем динамический контейнер
+    dynamicContainer.style.display = 'none';
+    dynamicContainer.style.visibility = 'hidden';
+    dynamicContainer.style.opacity = '0';
+    dynamicContainer.style.position = 'absolute';
+    dynamicContainer.style.zIndex = '-1';
+    dynamicContainer.innerHTML = '';
+    
+    // Восстанавливаем стили graphArea
+    graphArea.style.overflow = 'hidden';
+    
+    // Очищаем Plotly если есть
+    if (typeof Plotly !== 'undefined') {
+        const plotlyGraphs = dynamicContainer.querySelectorAll('.js-plotly-plot, .plotly');
+        plotlyGraphs.forEach(graph => {
+            try {
+                Plotly.purge(graph);
+            } catch (e) {
+                // Игнорируем ошибки очистки
+            }
+        });
+    }
+}
+
+function safeDisplayGraph(graphData, graphType) {
+    try {
+        console.log('🛡️ Безопасное отображение графика');
+        displayGraph(graphData, graphType);
+    } catch (error) {
+        console.error('❌ Ошибка в safeDisplayGraph:', error);
+        showDefaultState();
+        showMessage('Ошибка при отображении графика', 'danger');
+    }
+}
+
+function showEmptyState() {
+    const graphContent = document.getElementById('graphContent');
+    const emptyState = document.getElementById('emptyState');
+    const universalArea = document.getElementById('universalGraphArea');
+    
+    graphContent.style.display = 'none';
+    emptyState.style.display = 'flex';
+    universalArea.classList.remove('has-graph');
+}
+
+
+function updateStatistics(stats) {
+    const statsContainer = document.getElementById('dataStats');
+    
+    if (stats && Object.keys(stats).length > 0) {
+        let html = `
+            <div class="table-responsive h-100 w-100">
+                <table class="table table-sm table-hover mb-0">
+                    <thead style="position: sticky; top: 0; background: #f8f9fa; z-index: 10;">
+                        <tr>
+                            <th>Параметр</th>
+                            <th>Среднее</th>
+                            <th>Std</th>
+                            <th>Min</th>
+                            <th>Max</th>
+                            <th>Count</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        
+        for (const [param, values] of Object.entries(stats)) {
+            html += `
+                <tr>
+                    <td><small class="fw-bold text-dark">${param}</small></td>
+                    <td><small>${values.mean !== null ? values.mean.toFixed(2) : 'N/A'}</small></td>
+                    <td><small>${values.std !== null ? values.std.toFixed(2) : 'N/A'}</small></td>
+                    <td><small>${values.min !== null ? values.min.toFixed(2) : 'N/A'}</small></td>
+                    <td><small>${values.max !== null ? values.max.toFixed(2) : 'N/A'}</small></td>
+                    <td><small class="badge bg-primary">${values.count}</small></td>
+                </tr>
+            `;
+        }
+        
+        html += '</tbody></table></div>';
+        statsContainer.innerHTML = html;
+    }
+}
+
+function resetForm() {
+    console.log('🔄 Сброс формы');
+    
+    document.getElementById('graph-form').reset();
+    initializeForm();
+    updateFormOptions();
+    clearMessages();
+    
+    // Скрываем кнопки управления
+    const graphControls = document.getElementById('graphControls');
+    if (graphControls) {
+        graphControls.style.display = 'none';
+    }
+    
+    // Сбрасываем график к состоянию по умолчанию
+    showDefaultState();
+    
+    showMessage('Форма сброшена', 'info');
+}
+
+function downloadGraph() {
+    if (!currentGraph) {
+        showMessage('Нет графика для скачивания', 'warning');
+        return;
+    }
+    
+    try {
+        if (currentGraphType === 'plotly') {
+            // Для Plotly графиков
+            const plotlyContainer = document.getElementById('plotlyContainer');
+            const plotlyGraph = plotlyContainer.querySelector('.js-plotly-plot');
+            
+            if (plotlyGraph) {
+                Plotly.downloadImage(plotlyGraph, {
+                    format: 'png',
+                    filename: 'plotly_graph',
+                    width: 800,
+                    height: 600
+                });
+                showMessage('График Plotly скачан', 'success');
+            }
+        } else {
+            // Для matplotlib/seaborn графиков
+            const link = document.createElement('a');
+            link.download = `graph_${new Date().getTime()}.png`;
+            link.href = `data:image/png;base64,${currentGraph}`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showMessage('График скачан', 'success');
+        }
+    } catch (error) {
+        console.error('Ошибка скачивания:', error);
+        showMessage('Ошибка при скачивании графика', 'danger');
+    }
+}
+
+function toggleFullscreen() {
+    console.log('🖥️ Переключение полноэкранного режима');
+    
+    const dynamicContainer = document.getElementById('dynamicGraphContainer');
+    if (!dynamicContainer) {
+        showMessage('Контейнер графика не найден', 'warning');
+        return;
+    }
+    
+    // Ищем активный Plotly график
+    const plotlyGraph = dynamicContainer.querySelector('.js-plotly-plot, .plotly');
+    const matplotlibImage = dynamicContainer.querySelector('img');
+    
+    if (plotlyGraph && typeof Plotly !== 'undefined') {
+        // Для Plotly графиков
+        handlePlotlyFullscreen(plotlyGraph);
+    } else if (matplotlibImage) {
+        // Для matplotlib графиков
+        handleImageFullscreen(matplotlibImage);
+    } else {
+        // Для любого другого контента
+        handleContainerFullscreen(dynamicContainer);
+    }
+}
+
+function handlePlotlyFullscreen(plotlyGraph) {
+    if (!document.fullscreenElement) {
+        // Вход в полноэкранный режим
+        if (plotlyGraph.requestFullscreen) {
+            plotlyGraph.requestFullscreen();
+        } else if (plotlyGraph.webkitRequestFullscreen) {
+            plotlyGraph.webkitRequestFullscreen();
+        } else if (plotlyGraph.msRequestFullscreen) {
+            plotlyGraph.msRequestFullscreen();
+        }
+        
+        // Обновляем размер Plotly после входа в полноэкранный режим
+        setTimeout(() => {
+            Plotly.Plots.resize(plotlyGraph);
+            showMessage('Полноэкранный режим активирован. Нажмите ESC для выхода.', 'info');
+        }, 300);
+        
+    } else {
+        // Выход из полноэкранного режима
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) {
+            document.webkitExitFullscreen();
+        } else if (document.msExitFullscreen) {
+            document.msExitFullscreen();
+        }
+        showMessage('Полноэкранный режим отключен', 'info');
+    }
+}
+
+function handleImageFullscreen(image) {
+    if (!document.fullscreenElement) {
+        // Вход в полноэкранный режим
+        if (image.requestFullscreen) {
+            image.requestFullscreen();
+        } else if (image.webkitRequestFullscreen) {
+            image.webkitRequestFullscreen();
+        } else if (image.msRequestFullscreen) {
+            image.msRequestFullscreen();
+        }
+        showMessage('Полноэкранный режим активирован. Нажмите ESC для выхода.', 'info');
+    } else {
+        // Выход из полноэкранного режима
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) {
+            document.webkitExitFullscreen();
+        } else if (document.msExitFullscreen) {
+            document.msExitFullscreen();
+        }
+        showMessage('Полноэкранный режим отключен', 'info');
+    }
+}
+
+function handleContainerFullscreen(container) {
+    if (!document.fullscreenElement) {
+        // Вход в полноэкранный режим
+        if (container.requestFullscreen) {
+            container.requestFullscreen();
+        } else if (container.webkitRequestFullscreen) {
+            container.webkitRequestFullscreen();
+        } else if (container.msRequestFullscreen) {
+            container.msRequestFullscreen();
+        }
+        showMessage('Полноэкранный режим активирован. Нажмите ESC для выхода.', 'info');
+        
+        // Для Plotly обновляем размер
+        setTimeout(() => {
+            const plotlyGraph = container.querySelector('.js-plotly-plot');
+            if (plotlyGraph && typeof Plotly !== 'undefined') {
+                Plotly.Plots.resize(plotlyGraph);
+            }
+        }, 300);
+        
+    } else {
+        // Выход из полноэкранного режима
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) {
+            document.webkitExitFullscreen();
+        } else if (document.msExitFullscreen) {
+            document.msExitFullscreen();
+        }
+        showMessage('Полноэкранный режим отключен', 'info');
+    }
+}
+
+function handleKeyboardShortcuts(e) {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') {
+        return;
+    }
+    
+    switch(e.key) {
+        case 'Enter':
+            e.preventDefault();
+            document.getElementById('graph-form').dispatchEvent(new Event('submit'));
+            break;
+        case 'r':
+        case 'R':
+            e.preventDefault();
+            resetForm();
+            break;
+        case 'f':
+        case 'F':
+            e.preventDefault();
+            // Проверяем что есть активный график
+            const dynamicContainer = document.getElementById('dynamicGraphContainer');
+            if (dynamicContainer && dynamicContainer.style.display !== 'none') {
+                toggleFullscreen();
+            }
+            break;
+        case 'Escape':
+            // Выход из полноэкранного режима по ESC
+            if (document.fullscreenElement || 
+                document.webkitFullscreenElement || 
+                document.msFullscreenElement) {
+                toggleFullscreen();
+            }
+            break;
+    }
+}
+
+// Вспомогательные функции для сообщений
+function showMessage(message, type = 'info', duration = 3000) {
+    const messagesContainer = document.getElementById('graphMessages');
+    
+    const alert = document.createElement('div');
+    alert.className = `alert alert-${type} alert-dismissible fade show`;
+    alert.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    messagesContainer.appendChild(alert);
+    
+    // Автоматическое скрытие для информационных сообщений
+    if (type === 'info' && duration > 0) {
+        setTimeout(() => {
+            if (alert.parentNode) {
+                alert.remove();
+            }
+        }, duration);
+    }
+}
+
+function clearMessages() {
+    document.getElementById('graphMessages').innerHTML = '';
+}
+</script>
 {% endblock %}

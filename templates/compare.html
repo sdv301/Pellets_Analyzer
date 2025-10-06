@@ -361,15 +361,6 @@
     justify-content: center;
 }
 
-.checkbox-icon::after {
-    content: "✓";
-    color: white;
-    font-size: 12px;
-    font-weight: bold;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-}
-
 .form-check-input:checked + .custom-checkbox-label .checkbox-icon {
     background-color: #11c611;
     border-color: #dee2e6;
@@ -428,6 +419,54 @@
     border-color: #007bff;
     box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
 }
+
+/* Стили для сортировки таблиц */
+.sorted-asc::after { 
+    content: " ▲"; 
+    font-size: 12px;
+    margin-left: 5px;
+}
+
+.sorted-desc::after { 
+    content: " ▼"; 
+    font-size: 12px;
+    margin-left: 5px;
+}
+
+th.sorted-asc, 
+th.sorted-desc { 
+    background-color: #e3f2fd !important;
+    position: relative;
+}
+
+th[style*="cursor: pointer"]:hover {
+    background-color: #f8f9fa !important;
+}
+
+/* Улучшенные стили для таблицы сравнения */
+.comparison-table {
+    width: 100%;
+    font-size: 14px;
+}
+
+.comparison-table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    padding: 12px 8px;
+    border-bottom: 2px solid #dee2e6;
+}
+
+.comparison-table td {
+    padding: 10px 8px;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.comparison-table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+
+
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -444,8 +483,250 @@ document.addEventListener('DOMContentLoaded', function() {
     initializePage();
     loadComparisonHistory();
     setupEventListeners();
-     updateCheckboxIcons();
+    updateCheckboxIcons();
 });
+
+// Добавьте этот код в секцию <script> в compare.html
+
+// Функция для обновления кастомных чекбоксов
+function updateCheckboxIcons() {
+    document.querySelectorAll('.form-check-input').forEach(checkbox => {
+        const label = checkbox.nextElementSibling;
+        if (!label) return;
+        
+        const icon = label.querySelector('.checkbox-icon');
+        if (icon) {
+            if (checkbox.checked) {
+                icon.style.backgroundColor = '#11c611';
+                icon.style.borderColor = '#dee2e6';
+                icon.innerHTML = '✓';
+                icon.style.color = 'white';
+                icon.style.fontWeight = 'bold';
+                icon.style.display = 'flex';
+                icon.style.alignItems = 'center';
+                icon.style.justifyContent = 'center';
+            } else {
+                icon.style.backgroundColor = '';
+                icon.style.borderColor = '#dee2e6';
+                icon.innerHTML = '';
+            }
+        }
+    });
+}
+
+// Функция для безопасной инициализации
+function safeInitialize() {
+    try {
+        initializePage();
+        loadComparisonHistory();
+        setupEventListeners();
+        updateCheckboxIcons();
+        
+        // Добавляем обработчики для чекбоксов
+        document.querySelectorAll('.form-check-input').forEach(checkbox => {
+            checkbox.addEventListener('change', updateCheckboxIcons);
+        });
+    } catch (error) {
+        console.error('Ошибка инициализации:', error);
+        showNotification('Ошибка инициализации страницы', 'danger');
+    }
+}
+
+// Заменяем вызов в DOMContentLoaded
+document.addEventListener('DOMContentLoaded', safeInitialize);
+
+// Улучшенная функция создания визуализаций с реальными данными
+function createVisualizations(data) {
+    try {
+        // Уничтожаем старые графики если они есть
+        if (comparisonChart) {
+            comparisonChart.destroy();
+        }
+        if (differenceChart) {
+            differenceChart.destroy();
+        }
+        
+        const comparisonCtx = document.getElementById('comparisonChart');
+        const differenceCtx = document.getElementById('differenceChart');
+        
+        if (!comparisonCtx || !differenceCtx) {
+            console.error('Canvas elements not found');
+            return;
+        }
+        
+        const compositions = data.compositions || [];
+        if (compositions.length === 0) {
+            console.warn('No compositions data available');
+            return;
+        }
+
+        // Пытаемся извлечь реальные данные из таблицы
+        const tableData = extractDataFromComparisonTable();
+        
+        comparisonChart = new Chart(comparisonCtx.getContext('2d'), {
+            type: 'bar',
+            data: tableData.barChartData || getFallbackBarData(compositions),
+            options: {
+                responsive: true,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Сравнение основных параметров'
+                    },
+                    legend: {
+                        position: 'top',
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Значения параметров'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Параметры'
+                        }
+                    }
+                }
+            }
+        });
+        
+        differenceChart = new Chart(differenceCtx.getContext('2d'), {
+            type: 'bar',
+            data: tableData.differenceData || getFallbackDifferenceData(compositions),
+            options: {
+                responsive: true,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Различия между составами (%)'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Разница, %'
+                        }
+                    }
+                }
+            }
+        });
+        
+    } catch (error) {
+        console.error('Ошибка создания графиков:', error);
+        showNotification('Ошибка при создании графиков', 'danger');
+    }
+}
+
+// Функция для извлечения данных из таблицы сравнения
+function extractDataFromComparisonTable() {
+    const table = document.querySelector('.comparison-table');
+    if (!table) return null;
+    
+    const headers = Array.from(table.querySelectorAll('th')).map(th => th.textContent.trim());
+    const rows = Array.from(table.querySelectorAll('tbody tr'));
+    
+    const barChartData = {
+        labels: headers.slice(1), // исключаем первый столбец (composition)
+        datasets: []
+    };
+    
+    const differenceData = {
+        labels: headers.slice(1),
+        datasets: [{
+            label: 'Разница в %',
+            data: [],
+            backgroundColor: []
+        }]
+    };
+    
+    // Цвета для составов
+    const colors = [
+        'rgba(54, 162, 235, 0.8)',
+        'rgba(255, 99, 132, 0.8)',
+        'rgba(75, 192, 192, 0.8)',
+        'rgba(255, 159, 64, 0.8)',
+        'rgba(153, 102, 255, 0.8)'
+    ];
+    
+    rows.forEach((row, rowIndex) => {
+        const cells = Array.from(row.querySelectorAll('td'));
+        const composition = cells[0]?.textContent.trim() || `Состав ${rowIndex + 1}`;
+        const values = cells.slice(1).map(cell => {
+            const text = cell.textContent.trim();
+            return parseFloat(text) || 0;
+        });
+        
+        barChartData.datasets.push({
+            label: composition,
+            data: values,
+            backgroundColor: colors[rowIndex % colors.length],
+            borderColor: colors[rowIndex % colors.length].replace('0.8', '1'),
+            borderWidth: 1
+        });
+    });
+    
+    // Вычисляем разницы для второго графика
+    if (barChartData.datasets.length >= 2) {
+        const values1 = barChartData.datasets[0].data;
+        const values2 = barChartData.datasets[1].data;
+        
+        differenceData.datasets[0].data = values1.map((val1, index) => {
+            const val2 = values2[index] || 0;
+            if (val1 === 0 || val2 === 0) return 0;
+            return ((val1 - val2) / Math.max(val1, val2)) * 100;
+        });
+        
+        // Цвета в зависимости от знака разницы
+        differenceData.datasets[0].backgroundColor = differenceData.datasets[0].data.map(diff => 
+            diff > 0 ? 'rgba(75, 192, 192, 0.8)' : 
+            diff < 0 ? 'rgba(255, 99, 132, 0.8)' : 
+            'rgba(201, 203, 207, 0.8)'
+        );
+    }
+    
+    return { barChartData, differenceData };
+}
+
+// Фолбэк данные если не удалось извлечь из таблицы
+function getFallbackBarData(compositions) {
+    return {
+        labels: ['Теплота сгорания', 'Зольность', 'Плотность', 'Время горения'],
+        datasets: compositions.map((comp, index) => ({
+            label: comp.substring(0, 20) + '...',
+            data: [18 + index * 0.5, 1.5 - index * 0.3, 980 + index * 20, 180 - index * 10],
+            backgroundColor: index === 0 ? 'rgba(54, 162, 235, 0.8)' : 'rgba(255, 99, 132, 0.8)',
+            borderColor: index === 0 ? 'rgb(54, 162, 235)' : 'rgb(255, 99, 132)',
+            borderWidth: 1
+        }))
+    };
+}
+
+function getFallbackDifferenceData(compositions) {
+    return {
+        labels: ['Теплота сгорания', 'Зольность', 'Плотность', 'Время горения'],
+        datasets: [{
+            label: 'Разница в %',
+            data: [2.7, -20, 2.1, -5.6],
+            backgroundColor: [
+                'rgba(75, 192, 192, 0.8)',
+                'rgba(255, 159, 64, 0.8)',
+                'rgba(153, 102, 255, 0.8)',
+                'rgba(201, 203, 207, 0.8)'
+            ]
+        }]
+    };
+}
 
 function initializePage() {
     // Автозаполнение популярных параметров
@@ -846,52 +1127,88 @@ function sortTableByColumn(table, columnIndex) {
 }
 
 // Реализация функций экспорта
-function exportToExcel() {
-    if (!currentComparisonData) {
-        showNotification('Нет данных для экспорта', 'warning');
-        return;
-    }
-    
-    // Создаем простой CSV (в реальности можно использовать библиотеку)
-    let csvContent = "data:text/csv;charset=utf-8,";
-    
-    // Заголовки
-    const table = document.querySelector('.comparison-table');
-    if (table) {
+async function exportToExcel() {
+    try {
+        if (!currentComparisonData) {
+            showNotification('Нет данных для экспорта', 'warning');
+            return;
+        }
+        
+        const table = document.querySelector('.comparison-table');
+        if (!table) {
+            showNotification('Таблица для экспорта не найдена', 'warning');
+            return;
+        }
+        
+        let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; // BOM для Excel
+        
         const rows = table.querySelectorAll('tr');
         rows.forEach(row => {
             const cells = Array.from(row.querySelectorAll('th, td'));
-            const rowData = cells.map(cell => `"${cell.textContent.trim()}"`).join(',');
+            const rowData = cells.map(cell => {
+                let text = cell.textContent.trim();
+                // Экранируем кавычки и запятые для CSV
+                text = text.replace(/"/g, '""');
+                if (text.includes(',') || text.includes('"') || text.includes('\n')) {
+                    text = `"${text}"`;
+                }
+                return text;
+            }).join(',');
             csvContent += rowData + '\r\n';
         });
+        
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `comparison_${new Date().toISOString().split('T')[0]}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        showNotification('Данные экспортированы в CSV', 'success');
+    } catch (error) {
+        console.error('Ошибка экспорта:', error);
+        showNotification('Ошибка при экспорте данных', 'danger');
     }
-    
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "comparison_data.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    showNotification('Данные экспортированы в CSV', 'success');
 }
 
 function exportChartsAsImage() {
-    if (!comparisonChart && !differenceChart) {
-        showNotification('Нет графиков для экспорта', 'warning');
-        return;
+    try {
+        if (!comparisonChart && !differenceChart) {
+            showNotification('Нет графиков для экспорта', 'warning');
+            return;
+        }
+        
+        let exportedCount = 0;
+        
+        if (comparisonChart) {
+            const link = document.createElement('a');
+            link.download = `comparison_chart_${new Date().getTime()}.png`;
+            link.href = comparisonChart.toBase64Image();
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            exportedCount++;
+        }
+        
+        if (differenceChart) {
+            // Небольшая задержка между скачиваниями
+            setTimeout(() => {
+                const link = document.createElement('a');
+                link.download = `difference_chart_${new Date().getTime()}.png`;
+                link.href = differenceChart.toBase64Image();
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }, 100);
+            exportedCount++;
+        }
+        
+        showNotification(`Экспортировано ${exportedCount} графиков`, 'success');
+    } catch (error) {
+        console.error('Ошибка экспорта графиков:', error);
+        showNotification('Ошибка при экспорте графиков', 'danger');
     }
-    
-    // Экспорт первого графика
-    if (comparisonChart) {
-        const link = document.createElement('a');
-        link.download = 'comparison_chart.png';
-        link.href = comparisonChart.toBase64Image();
-        link.click();
-    }
-    
-    showNotification('Графики экспортированы как изображения', 'success');
 }
 
 function generateFullReport() {
