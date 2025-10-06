@@ -211,3 +211,4 @@ __marimo__/
 /uploads/
 /sessions/
 /__pycache__/
+pellets_data.db
