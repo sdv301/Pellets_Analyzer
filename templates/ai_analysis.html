@@ -1,33 +1,91 @@
-{% extends 'base.html' %}
-
-{% block title %}AI Analysis{% endblock %}
+{% extends "base.html" %}
 
 {% block content %}
-<div class="container-fluid py-4">
-    <div class="row">
-        <div class="col-12">
-            <div class="card mb-4">
-                <div class="card-header pb-0">
-                    <h6>AI Analysis</h6>
-                </div>
-                <div class="card-body">
-                    <!-- Flash messages -->
-                    {% for message in get_flashed_messages() %}
-                        <div class="alert alert-info">{{ message }}</div>
-                    {% endfor %}
-                    
-                    {% if ai_response %}
-                        <div class="alert alert-success">
-                            {{ ai_response | safe }}
-                        </div>
-                    {% else %}
-                        <div class="alert alert-warning">
-                            No data for analysis. Upload a file with data.
-                        </div>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
+<div class="container py-4">
+  <h1 class="text-center mb-4">Анализ данных с помощью ИИ</h1>
+  
+  {% if session.get('show_data', False) %}
+  <div class="card shadow-sm mb-4">
+    <div class="card-body">
+      <h4 class="card-title text-center">Запустить анализ</h4>
+      <form id="ai-analysis-form" class="ms-3">
+        <button type="submit" class="btn btn-primary">Анализировать данные</button>
+      </form>
     </div>
+  </div>
+  <div id="ai-response" class="card shadow-sm mb-4">
+    <div class="card-body ms-3">
+      <h4 class="card-title text-center">Результаты анализа</h4>
+      {{ ai_response | safe }}
+    </div>
+  </div>
+  {% else %}
+  <div class="card shadow-sm mb-4">
+    <div class="card-body text-center">
+      <p class="text-muted">Загрузите файл на главной странице, чтобы выполнить анализ.</p>
+      <a href="{{ url_for('index') }}" class="btn btn-primary">Перейти к загрузке</a>
+    </div>
+  </div>
+  {% endif %}
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const form = document.getElementById('ai-analysis-form');
+  if (form) {
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      fetch('/ai_analysis', {
+        method: 'POST'
+      })
+      .then(response => response.json())
+      .then(data => {
+        const responseDiv = document.getElementById('ai-response');
+        responseDiv.innerHTML = `
+          <div class="card-body ms-3">
+            <h4 class="card-title text-center">Результаты анализа</h4>
+            ${data.ai_response}
+          </div>
+        `;
+        
+        // Показываем тост-уведомление
+        const toastContainer = document.createElement('div');
+        toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+        toastContainer.innerHTML = `
+          <div class="toast show" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header ${data.success ? 'bg-success' : 'bg-danger'} text-white">
+              <strong class="me-auto">${data.success ? 'Успех' : 'Ошибка'}</strong>
+              <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+            <div class="toast-body">${data.message}</div>
+          </div>
+        `;
+        document.body.appendChild(toastContainer);
+        setTimeout(() => {
+          toastContainer.remove();
+        }, 3000);
+      })
+      .catch(error => {
+        console.error('Ошибка:', error);
+        const toastContainer = document.createElement('div');
+        toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+        toastContainer.innerHTML = `
+          <div class="toast show" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header bg-danger text-white">
+              <strong class="me-auto">Ошибка</strong>
+              <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+            <div class="toast-body">Ошибка при выполнении анализа: ${error}</div>
+          </div>
+        `;
+        document.body.appendChild(toastContainer);
+        setTimeout(() => {
+          toastContainer.remove();
+        }, 3000);
+      });
+    });
+  }
+});
+</script>
 {% endblock %}

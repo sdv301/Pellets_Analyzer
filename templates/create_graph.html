@@ -1,64 +1,487 @@
 {% extends 'base.html' %}
 
-{% block title %}Create Graph{% endblock %}
+{% block title %}Создание графика{% endblock %}
 
 {% block content %}
-<div class="container-fluid py-4">
-    <div class="row">
-        <div class="col-12">
-            <div class="card mb-4">
-                <div class="card-header pb-0">
-                    <h6>Create Graph</h6>
+    <div class="container-fluid py-4">
+        <div class="row">
+            <div class="col-12">
+                <!-- Форма создания графика -->
+                <div class="card mb-4">
+                    <div class="card-header pb-0 text-center">
+                        <h6>Расширенное создание графиков</h6>
+                    </div>
+                    <div class="card-body px-3 pt-0 pb-2">
+                        <form method="post" id="graphForm">
+                            <div class="row mb-3">
+                                <div class="col-md-3">
+                                    <label for="graph_type" class="form-label">Тип графика</label>
+                                    <select class="form-select" id="graph_type" name="graph_type">
+                                        <option value="" disabled selected>Выберите тип</option>
+                                        {% for graph in graphs %}
+                                            <option value="{{ graph }}">{{ graph.capitalize() }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <label for="x_param" class="form-label">Параметр X</label>
+                                    <select class="form-select" id="x_param" name="x_param">
+                                        <option value="" disabled selected>Выберите параметр</option>
+                                        {% for param in parameters %}
+                                            <option value="{{ param }}">{{ param.capitalize() }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <label for="y_param" class="form-label">Параметр Y</label>
+                                    <select class="form-select" id="y_param" name="y_param">
+                                        <option value="" disabled selected>Выберите параметр</option>
+                                        {% for param in parameters %}
+                                            <option value="{{ param }}">{{ param.capitalize() }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-2" id="z_param_container" style="display: none;">
+                                    <label for="z_param" class="form-label">Параметр Z (3D)</label>
+                                    <select class="form-select" id="z_param" name="z_param">
+                                        <option value="" selected>Выберите параметр</option>
+                                        {% for param in parameters %}
+                                            <option value="{{ param }}">{{ param.capitalize() }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="selected_file" class="form-label">Выберите файл</label>
+                                    <select class="form-select" id="selected_file" name="selected_file">
+                                        <option value="" disabled selected>Выберите файл</option>
+                                        {% for file in uploaded_files %}
+                                            <option value="{{ file }}">{{ file }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <!-- Дополнительные настройки -->
+                            <div class="row mb-3">
+                                <div class="col-md-3">
+                                    <label for="color_param" class="form-label">Цвет точек</label>
+                                    <select class="form-select" id="color_param" name="color_param">
+                                        <option value="" selected>Авто</option>
+                                        {% for param in parameters %}
+                                            <option value="{{ param }}">{{ param.capitalize() }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="theme" class="form-label">Тема графика</label>
+                                    <select class="form-select" id="theme" name="theme">
+                                        <option value="default" selected>Стандартная</option>
+                                        <option value="dark">Темная</option>
+                                        <option value="seaborn">Seaborn</option>
+                                        <option value="ggplot">ggplot</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="width" class="form-label">Ширина (px)</label>
+                                    <input type="number" class="form-control" id="width" name="width" value="800" min="400" max="2000">
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="height" class="form-label">Высота (px)</label>
+                                    <input type="number" class="form-control" id="height" name="height" value="600" min="300" max="1500">
+                                </div>
+                            </div>
+                            
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="title" class="form-label">Заголовок графика</label>
+                                    <input type="text" class="form-control" id="title" name="title" placeholder="Введите заголовок">
+                                </div>
+                                <div class="col-md-6 d-flex align-items-end">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="show_grid" name="show_grid" checked>
+                                        <label class="form-check-label" for="show_grid">Показать сетку</label>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn bg-gradient-primary" id="submitBtn">
+                                    <i class="fas fa-chart-line me-2"></i>Создать график
+                                </button>
+                                <button type="button" class="btn bg-gradient-info" id="previewBtn">
+                                    <i class="fas fa-eye me-2"></i>Предпросмотр
+                                </button>
+                                <button type="button" class="btn bg-gradient-success" id="exportBtn" disabled>
+                                    <i class="fas fa-download me-2"></i>Экспорт
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
-                <div class="card-body">
-                    <!-- Flash messages -->
-                    {% for message in get_flashed_messages() %}
-                        <div class="alert alert-info">{{ message }}</div>
-                    {% endfor %}
-                    
-                    <!-- Messages from route -->
+
+                <!-- Сообщения -->
+                <div id="messagesContainer">
                     {% for message in messages %}
-                        <div class="alert alert-success">{{ message }}</div>
+                        <div class="alert alert-{% if 'Ошибка' in message %}danger{% else %}success{% endif %} ms-3">
+                            {{ message }}
+                        </div>
                     {% endfor %}
-                    
-                    <!-- Form -->
-                    <form method="post">
-                        <div class="row">
-                            <div class="col-md-4">
-                                <label>Graph Type</label>
-                                <select name="graph_type" class="form-control">
-                                    {% for graph in graphs %}
-                                        <option value="{{ graph }}">{{ graph }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div class="col-md-4">
-                                <label>X Parameter</label>
-                                <input type="text" name="x_param" class="form-control" placeholder="e.g., Ad">
-                            </div>
-                            <div class="col-md-4">
-                                <label>Y Parameter</label>
-                                <input type="text" name="y_param" class="form-control" placeholder="e.g., Q">
-                            </div>
+                </div>
+
+                <!-- График -->
+                <div class="card mb-4" id="graphCard">
+                    <div class="card-header pb-0 d-flex justify-content-between align-items-center">
+                        <h6>Визуализация данных</h6>
+                        <div class="btn-group" id="graphControls" style="display: none;">
+                            <button class="btn btn-sm btn-outline-primary" id="fullscreenBtn">
+                                <i class="fas fa-expand"></i>
+                            </button>
                         </div>
-                        <div class="row mt-3">
-                            <div class="col-md-6">
-                                <label>Select File</label>
-                                <select name="file" class="form-control">
-                                    <option value="">Choose file</option>
-                                    {% for file in uploaded_files %}
-                                        <option value="{{ file }}">{{ file }}</option>
-                                    {% endfor %}
-                                </select>
+                    </div>
+                    <div class="card-body px-3 pt-0 pb-2" id="graphContainer">
+                        {% if graph %}
+                            <img src="data:image/png;base64,{{ graph }}" alt="Graph" class="img-fluid">
+                            <p class="mt-2 text-sm ms-3">Легенда: Каждая точка соответствует составу пеллет.</p>
+                        {% else %}
+                            <div class="text-center py-5">
+                                <i class="fas fa-chart-area fa-3x text-muted mb-3"></i>
+                                <p class="text-muted">График не создан. Выберите параметры и нажмите "Создать график".</p>
                             </div>
-                            <div class="col-md-6 d-flex align-items-end">
-                                <button type="submit" class="btn btn-primary">Create Graph</button>
-                            </div>
-                        </div>
-                    </form>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Статистика данных -->
+                <div class="card" id="statsCard" style="display: none;">
+                    <div class="card-header pb-0">
+                        <h6>Статистика данных</h6>
+                    </div>
+                    <div class="card-body" id="statsContainer">
+                        <!-- Статистика будет загружена динамически -->
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
+
+    <!-- Модальное окно для предпросмотра -->
+    <div class="modal fade" id="previewModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Предпросмотр графика</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body text-center" id="previewContainer">
+                    <!-- Контент предпросмотра -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% block extra_js %}
+    <style>
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1050;
+        }
+        .toast {
+            min-width: 300px;
+        }
+        #graphContainer {
+            position: relative;
+            min-height: 400px;
+        }
+        .graph-loading {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255,255,255,0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+        .stat-card {
+            background: #f8f9fa;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .stat-label {
+            font-size: 0.875rem;
+            color: #6c757d;
+        }
+    </style>
+    
+    <script>
+        let isSubmitting = false;
+
+        document.getElementById('graphForm')?.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            if (isSubmitting) return;
+            await createGraph();
+        });
+
+        document.getElementById('previewBtn')?.addEventListener('click', async function() {
+            if (isSubmitting) return;
+            await createGraph(true);
+        });
+
+        document.getElementById('exportBtn')?.addEventListener('click', function() {
+            exportGraph();
+        });
+
+        document.getElementById('fullscreenBtn')?.addEventListener('click', function() {
+            const graphContainer = document.getElementById('graphContainer');
+            if (graphContainer.requestFullscreen) {
+                graphContainer.requestFullscreen();
+            }
+        });
+
+        // Динамическое обновление параметров в зависимости от типа графика
+        document.getElementById('graph_type')?.addEventListener('change', function() {
+            const graphType = this.value;
+            const zParamContainer = document.getElementById('z_param_container');
+            
+            if (graphType === '3d_scatter') {
+                zParamContainer.style.display = 'block';
+            } else {
+                zParamContainer.style.display = 'none';
+            }
+        });
+
+        async function createGraph(isPreview = false) {
+            if (isSubmitting) return;
+            
+            isSubmitting = true;
+            const submitBtn = document.getElementById('submitBtn');
+            const previewBtn = document.getElementById('previewBtn');
+            
+            submitBtn.disabled = true;
+            previewBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Создание...';
+            previewBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Загрузка...';
+
+            showLoading();
+
+            try {
+                const formData = new FormData(document.getElementById('graphForm'));
+                if (isPreview) {
+                    formData.append('preview', 'true');
+                }
+
+                const response = await fetch('/create_graph', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                console.log('Response data:', data);
+                
+                hideLoading();
+                submitBtn.disabled = false;
+                previewBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-chart-line me-2"></i>Создать график';
+                previewBtn.innerHTML = '<i class="fas fa-eye me-2"></i>Предпросмотр';
+                isSubmitting = false;
+
+                if (data.success) {
+                    showToast(data.message, 'success');
+                    if (isPreview) {
+                        showPreview(data);
+                    } else {
+                        updateContent(data);
+                        document.getElementById('exportBtn').disabled = false;
+                    }
+                } else {
+                    showToast(data.message, 'danger');
+                }
+
+                if (data.messages) {
+                    data.messages.forEach(msg => {
+                        showToast(msg, msg.includes('Ошибка') ? 'danger' : 'success');
+                    });
+                }
+
+                if (data.stats) {
+                    updateStats(data.stats);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                hideLoading();
+                submitBtn.disabled = false;
+                previewBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-chart-line me-2"></i>Создать график';
+                previewBtn.innerHTML = '<i class="fas fa-eye me-2"></i>Предпросмотр';
+                isSubmitting = false;
+                showToast('Ошибка при создании графика: ' + error.message, 'danger');
+            }
+        }
+
+        function showLoading() {
+            const graphContainer = document.getElementById('graphContainer');
+            graphContainer.innerHTML = `
+                <div class="graph-loading">
+                    <div class="text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Загрузка...</span>
+                        </div>
+                        <p class="mt-2">Создание графика...</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        function hideLoading() {
+            const loading = document.querySelector('.graph-loading');
+            if (loading) {
+                loading.remove();
+            }
+        }
+
+        function updateContent(data) {
+            const graphContainer = document.getElementById('graphContainer');
+            if (data.graph) {
+                graphContainer.innerHTML = `
+                    <img src="data:image/png;base64,${data.graph}" alt="Graph" class="img-fluid">
+                    ${data.legend ? `<p class="mt-2 text-sm ms-3">${data.legend}</p>` : ''}
+                `;
+                document.getElementById('graphControls').style.display = 'flex';
+            } else {
+                graphContainer.innerHTML = `
+                    <div class="text-center py-5">
+                        <i class="fas fa-exclamation-triangle fa-2x text-warning mb-3"></i>
+                        <p class="text-muted">Не удалось создать график. Проверьте параметры.</p>
+                    </div>
+                `;
+            }
+        }
+
+        function showPreview(data) {
+            const previewContainer = document.getElementById('previewContainer');
+            if (data.graph) {
+                previewContainer.innerHTML = `
+                    <img src="data:image/png;base64,${data.graph}" alt="Preview" class="img-fluid">
+                    ${data.legend ? `<p class="mt-2 text-sm">${data.legend}</p>` : ''}
+                `;
+            } else {
+                previewContainer.innerHTML = '<p class="text-danger">График недоступен для предпросмотра</p>';
+            }
+            
+            const previewModal = new bootstrap.Modal(document.getElementById('previewModal'));
+            previewModal.show();
+        }
+
+        function updateStats(stats) {
+            const statsCard = document.getElementById('statsCard');
+            const statsContainer = document.getElementById('statsContainer');
+            
+            if (!stats || Object.keys(stats).length === 0) {
+                statsContainer.innerHTML = '<p class="text-muted">Статистика недоступна</p>';
+                statsCard.style.display = 'block';
+                return;
+            }
+            
+            let statsHTML = '<div class="stats-grid">';
+            for (const [param, values] of Object.entries(stats)) {
+                const mean = values.mean !== null && values.mean !== undefined ? values.mean.toFixed(2) : 'N/A';
+                const std = values.std !== null && values.std !== undefined ? values.std.toFixed(2) : 'N/A';
+                const min = values.min !== null && values.min !== undefined ? values.min.toFixed(2) : 'N/A';
+                const max = values.max !== null && values.max !== undefined ? values.max.toFixed(2) : 'N/A';
+                
+                statsHTML += `
+                    <div class="stat-card">
+                        <div class="stat-value">${mean}</div>
+                        <div class="stat-label">${param} (среднее)</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${std}</div>
+                        <div class="stat-label">${param} (станд. отклонение)</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${min}</div>
+                        <div class="stat-label">${param} (минимум)</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${max}</div>
+                        <div class="stat-label">${param} (максимум)</div>
+                    </div>
+                `;
+            }
+            statsHTML += '</div>';
+            
+            statsContainer.innerHTML = statsHTML;
+            statsCard.style.display = 'block';
+        }
+
+        function exportGraph() {
+            const graphImg = document.querySelector('#graphContainer img');
+            if (graphImg) {
+                const link = document.createElement('a');
+                link.download = 'graph.png';
+                link.href = graphImg.src;
+                link.click();
+            } else {
+                showToast('Нет графика для экспорта', 'warning');
+            }
+        }
+
+        function showToast(message, type) {
+            const toastContainer = document.querySelector('.toast-container') || document.createElement('div');
+            toastContainer.className = 'toast-container';
+            
+            const toastId = 'toast-' + Date.now();
+            const toastHTML = `
+                <div id="${toastId}" class="toast align-items-center text-white bg-${type} border-0" role="alert">
+                    <div class="d-flex">
+                        <div class="toast-body">${message}</div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                    </div>
+                </div>
+            `;
+            
+            toastContainer.innerHTML += toastHTML;
+            document.body.appendChild(toastContainer);
+            
+            const toastElement = document.getElementById(toastId);
+            const toast = new bootstrap.Toast(toastElement);
+            toast.show();
+            
+            toastElement.addEventListener('hidden.bs.toast', function() {
+                this.remove();
+            });
+        }
+
+        // Автозаполнение при загрузке
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(() => {
+                const xParam = document.getElementById('x_param');
+                const yParam = document.getElementById('y_param');
+                const graphType = document.getElementById('graph_type');
+                
+                if (xParam && yParam && graphType) {
+                    if (xParam.querySelector('option[value="ad"]')) xParam.value = 'ad';
+                    if (yParam.querySelector('option[value="q"]')) yParam.value = 'q';
+                    if (graphType.querySelector('option[value="scatter"]')) graphType.value = 'scatter';
+                }
+            }, 100);
+        });
+    </script>
+    {% endblock extra_js %}
 {% endblock %}

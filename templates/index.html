@@ -3,220 +3,271 @@
 {% block title %}Главная{% endblock %}
 
 {% block content %}
-    <div class="row">
-        <div class="col-12">
-            <div class="card mb-4">
-                <div class="card-header pb-0">
-                    <h6>Загрузка файла</h6>
-                </div>
-                <div class="card-body">
-                    {% for message in get_flashed_messages() %}
-                        <div class="alert alert-{{ 'danger' if 'Error' in message or 'Warning' in message else 'success' }} alert-dismissible fade show" role="alert">
-                            {{ message }}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                        </div>
-                    {% endfor %}
-                    <form method="post" enctype="multipart/form-data">
-                        <div class="mb-3">
-                            <label for="file" class="form-label">Выберите CSV или Excel файл</label>
-                            <input type="file" class="form-control" id="file" name="file" accept=".csv,.xlsx" required>
-                        </div>
-                        <button type="submit" class="btn btn-primary">Загрузить</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    {% if show_data %}
+    <div class="container-fluid py-4">
         <div class="row">
             <div class="col-12">
+                <!-- Форма загрузки и выбора файла -->
                 <div class="card mb-4">
-                    <div class="card-header pb-0">
-                        <h6>Загруженная таблица</h6>
+                    <div class="card-header pb-0 text-center">
+                        <h6>Загрузка и выбор файла</h6>
                     </div>
-                    <div class="card-body px-0 pt-0 pb-2">
-                        <div class="table-responsive p-0">
-                            {{ measured_data | safe }}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="row">
-            <div class="col-12">
-                <div class="card mb-4">
-                    <div class="card-header pb-0">
-                        <h6>Таблица компонентов</h6>
-                    </div>
-                    <div class="card-body px-0 pt-0 pb-2">
-                        <div class="table-responsive p-0">
-                            {{ components_data | safe }}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="row">
-            <div class="col-12">
-                <div class="card mb-4">
-                    <div class="card-header pb-0">
-                        <h6>График: Q vs Ad</h6>
-                    </div>
-                    <div class="card-body">
-                        {% if graph %}
-                            <img src="data:image/png;base64,{{ graph }}" alt="Q vs Ad Graph" class="img-fluid" style="max-width: 100%;">
-                        {% else %}
-                            <p>График недоступен. Проверьте данные.</p>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="row">
-            <div class="col-12">
-                <div class="card mb-4">
-                    <div class="card-header pb-0">
-                        <h6>Поиск по данным</h6>
-                    </div>
-                    <div class="card-body">
-                        <form method="post" class="row g-3">
-                            <div class="col-md-4">
-                                <label for="rho" class="form-label">ρ (не менее), кг/м3</label>
-                                <input type="number" class="form-control" id="rho" name="rho" step="any">
+                    <div class="card-body px-3 pt-0 pb-2">
+                        <form method="post" enctype="multipart/form-data" id="dataForm">
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="file" class="form-label">Выберите CSV или Excel файл</label>
+                                    <input type="file" class="form-control" id="file" name="file" accept=".csv,.xlsx">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="selected_file" class="form-label">Выберите загруженный файл</label>
+                                    <select class="form-select" id="selected_file" name="selected_file">
+                                        <option value="" disabled selected>Выберите файл</option>
+                                        {% for file in uploaded_files %}
+                                            <option value="{{ file }}">{{ file }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
                             </div>
-                            <div class="col-md-4">
-                                <label for="kt" class="form-label">Kt (не менее), %</label>
-                                <input type="number" class="form-control" id="kt" name="kt" step="any">
-                            </div>
-                            <div class="col-md-4">
-                                <label for="ad" class="form-label">Ad (не более), %</label>
-                                <input type="number" class="form-control" id="ad" name="ad" step="any">
-                            </div>
-                            <div class="col-md-4">
-                                <label for="q" class="form-label">Q (не менее), МДж/кг</label>
-                                <input type="number" class="form-control" id="q" name="q" step="any">
-                            </div>
-                            <div class="col-md-4">
-                                <label for="num_components" class="form-label">Компонентов (не более), шт</label>
-                                <input type="number" class="form-control" id="num_components" name="num_components">
-                            </div>
-                            <div class="col-12">
-                                <button type="submit" name="search" class="btn btn-primary">Найти</button>
-                            </div>
+                            <button type="submit" class="btn bg-gradient-primary">Загрузить данные</button>
                         </form>
                     </div>
                 </div>
-            </div>
-        </div>
 
-        <div class="row">
-            <div class="col-12">
-                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addModal">Добавить данные</button>
-            </div>
-        </div>
-    {% else %}
-        <div class="row">
-            <div class="col-12">
-                <div class="card mb-4">
-                    <div class="card-body text-center">
-                        <p>Нет данных для отображения. Пожалуйста, загрузите файл.</p>
+                {% if show_data %}
+                    {% for table in tables %}
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                {{ table.name }}
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    {{ table.data | safe }}
+                                </div>
+                                
+                                <!-- Простая пагинация - только выбор количества строк -->
+                                <div class="d-flex justify-content-between align-items-center mt-3">
+                                    <div>
+                                        <span>Строк на странице:</span>
+                                        <form method="GET" class="d-inline">
+                                            <select name="per_page" class="form-select d-inline-block w-auto" onchange="this.form.submit()">
+                                                <option value="10" {% if per_page == 10 %}selected{% endif %}>10</option>
+                                                <option value="30" {% if per_page == 30 %}selected{% endif %}>30</option>
+                                                <option value="50" {% if per_page == 50 %}selected{% endif %}>50</option>
+                                                <option value="1000000" {% if per_page == 1000000 %}selected{% endif %}>Все</option>
+                                            </select>
+                                            <input type="hidden" name="page" value="1">
+                                        </form>
+                                    </div>
+                                    
+                                    <div>
+                                        <span class="text-muted">
+                                            Всего строк: {{ total_rows[loop.index0] }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                    
+                    {% if not tables %}
+                        <p>Таблицы отсутствуют. Загрузите данные.</p>
+                    {% endif %}
+                {% endif %}
+
+                <!-- Сообщения -->
+               {% for message in get_flashed_messages(with_categories=true) %}
+                    <div class="alert alert-{{ message[0] }} alert-dismissible fade show" role="alert">
+                        {{ message[1] }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
-                </div>
-            </div>
-        </div>
-    {% endif %}
-
-    <!-- Модальное окно для добавления данных -->
-    <div class="modal fade" id="addModal" tabindex="-1" aria-labelledby="addModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="addModalLabel">Добавить новый состав</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <form method="post" action="{{ url_for('add_data') }}">
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label for="composition" class="form-label">Составы</label>
-                                <input type="text" class="form-control" id="composition" name="composition" required>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="density" class="form-label">ρ, кг/м3</label>
-                                <input type="number" class="form-control" id="density" name="density" step="any" required>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="kf" class="form-label">Kf, %</label>
-                                <input type="number" class="form-control" id="kf" name="kf" step="any" required>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="kt" class="form-label">Kt, %</label>
-                                <input type="number" class="form-control" id="kt" name="kt" step="any" required>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="h" class="form-label">H, %</label>
-                                <input type="number" class="form-control" id="h" name="h" step="any" required>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="mass_loss" class="form-label">Mass loss, %</label>
-                                <input type="number" class="form-control" id="mass_loss" name="mass_loss" step="any" required>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="tign" class="form-label">Тign, °С</label>
-                                <input type="number" class="form-control" id="tign" name="tign" step="any" required>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="tb" class="form-label">Tb, °C</label>
-                                <input type="number" class="form-control" id="tb" name="tb" step="any" required>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="tau_d1" class="form-label">τd1, с</label>
-                                <input type="number" class="form-control" id="tau_d1" name="tau_d1" step="any" required>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="tau_d2" class="form-label">τd2, с</label>
-                                <input type="number" class="form-control" id="tau_d2" name="tau_d2" step="any" required>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="tau_b" class="form-label">τb, с</label>
-                                <input type="number" class="form-control" id="tau_b" name="tau_b" step="any" required>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="co2" class="form-label">CO2, %</label>
-                                <input type="number" class="form-control" id="co2" name="co2" step="any" required>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="co" class="form-label">CO, %</label>
-                                <input type="number" class="form-control" id="co" name="co" step="any" required>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="so2" class="form-label">SO2, ppm</label>
-                                <input type="number" class="form-control" id="so2" name="so2" step="any" required>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="nox" class="form-label">NOx, ppm</label>
-                                <input type="number" class="form-control" id="nox" name="nox" step="any" required>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="q" class="form-label">Q, МДж/кг</label>
-                                <input type="number" class="form-control" id="q" name="q" step="any" required>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="ad" class="form-label">Ad, %</label>
-                                <input type="number" class="form-control" id="ad" name="ad" step="any" required>
-                            </div>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
-                            <button type="submit" class="btn btn-primary">Добавить</button>
-                        </div>
-                    </form>
-                </div>
+                {% endfor %}
             </div>
         </div>
     </div>
+
+    {% block extra_js %}
+    <style>
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1050;
+        }
+        .toast {
+            min-width: 300px;
+        }
+        .table-responsive {
+            max-height: 400px;
+            max-width: 100%;
+            overflow-x: auto;
+            overflow-y: auto;
+        }
+        .table {
+            font-size: 0.9rem;
+        }
+        /* Стили только для пагинации */
+        .pagination {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            margin-top: 0.75rem;
+        }
+        .page-item {
+            margin: 0 0.15rem;
+        }
+        .page-item .page-link {
+            background: linear-gradient(90deg, #007bff, #0056b3);
+            color: white;
+            border: 1px solid #0056b3;
+            border-radius: 0.25rem;
+            padding: 0.35rem 0.75rem;
+            font-size: 0.8rem;
+            line-height: 1.4;
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+            text-decoration: none;
+        }
+        .page-item .page-link:hover {
+            background: linear-gradient(90deg, #0056b3, #003087);
+            border-color: #003087;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+        }
+        .page-item.active .page-link {
+            background: linear-gradient(90deg, #28a745, #1e7e34);
+            border-color: #1e7e34;
+            color: white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+            z-index: 1;
+        }
+        .page-item.disabled .page-link {
+            background: linear-gradient(90deg, #6c757d, #495057);
+            border-color: #495057;
+            color: #adb5bd;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+    </style>
+    <script>
+        // Асинхронная отправка формы загрузки/выбора файла
+        document.getElementById('dataForm')?.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            const fileInput = document.getElementById('file');
+            const selectedFile = document.getElementById('selected_file').value;
+            const url = fileInput.files.length > 0 ? '/' : '/load_file';
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                if (data.success) {
+                    showToast(data.message, 'success');
+                    if (data.uploaded_files) {
+                        updateFileSelect(data.uploaded_files);
+                    }
+                    // ЕСЛИ ЕСТЬ refresh_page - перезагружаем страницу
+                    if (data.refresh_page) {
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1000);
+                    }
+                } else {
+                    showToast(data.message, 'danger');
+                }
+            } catch (error) {
+                showToast('Ошибка: ' + error.message, 'danger');
+            }
+        });
+
+        function showToast(message, type) {
+            const toastContainer = document.createElement('div');
+            toastContainer.className = 'toast-container';
+            toastContainer.innerHTML = `
+                <div class="toast align-items-center text-white bg-${type} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                    <div class="d-flex">
+                        <div class="toast-body">${message}</div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(toastContainer);
+            const toast = toastContainer.querySelector('.toast');
+            bootstrap.Toast.getOrCreateInstance(toast).show();
+            setTimeout(() => toastContainer.remove(), 3000);
+        }
+
+        function updateContent(data) {
+            let measuredDataCard = document.querySelector('#measuredDataCard');
+            let componentsDataCard = document.querySelector('#componentsDataCard');
+           
+
+            if (!measuredDataCard) {
+                measuredDataCard = document.createElement('div');
+                measuredDataCard.className = 'card mb-4';
+                measuredDataCard.id = 'measuredDataCard';
+                measuredDataCard.innerHTML = `
+                    <div class="card-header pb-0 text-center">
+                        <h6>Загруженная таблица (Измеренные параметры)</h6>
+                        <p class="text-sm ms-3">Характеристики составов пеллет, включая плотность (ρ), зольность (ad), теплоту сгорания (q) и другие параметры.</p>
+                    </div>
+                    <div class="card-body px-3 pt-0 pb-2" id="measuredDataContainer">
+                        <div class="table-responsive">
+                            <div class="alert alert-warning ms-3">Таблица измеренных параметров пуста. Загрузите данные.</div>
+                        </div>
+                    </div>
+                `;
+                document.querySelector('.col-12').appendChild(measuredDataCard);
+            }
+
+            if (!componentsDataCard) {
+                componentsDataCard = document.createElement('div');
+                componentsDataCard.className = 'card mb-4';
+                componentsDataCard.id = 'componentsDataCard';
+                componentsDataCard.innerHTML = `
+                    <div class="card-header pb-0 text-center">
+                        <h6>${data.components_sheet_name || 'Таблица компонентов'}</h6>
+                        <p class="text-sm ms-3">Характеристики отдельных компонентов пеллет (например, опилки, солома), включая зольность (ad), теплоту сгорания (q), влажность (war) и другие параметры.</p>
+                    </div>
+                    <div class="card-body px-3 pt-0 pb-2" id="componentsDataContainer">
+                        <div class="table-responsive">
+                            <div class="alert alert-warning ms-3">Таблица компонентов пуста. Загрузите данные.</div>
+                        </div>
+                    </div>
+                `;
+                document.querySelector('.col-12').appendChild(componentsDataCard);
+            }
+
+
+
+            const measuredDataContainer = document.querySelector('#measuredDataContainer');
+            const componentsDataContainer = document.querySelector('#componentsDataContainer');
+            
+
+            if (data.measured_data) {
+                measuredDataContainer.innerHTML = `<div class="table-responsive">${data.measured_data}</div>`;
+            } else {
+                measuredDataContainer.innerHTML = '<div class="table-responsive"><div class="alert alert-warning ms-3">Таблица измеренных параметров пуста. Загрузите данные.</div></div>';
+            }
+
+            if (data.components_data) {
+                componentsDataContainer.innerHTML = `<div class="table-responsive">${data.components_data}</div>`;
+            } else {
+                componentsDataContainer.innerHTML = '<div class="table-responsive"><div class="alert alert-warning ms-3">Таблица компонентов пуста. Загрузите данные.</div></div>';
+            }
+
+        }
+
+        function updateFileSelect(files) {
+            const select = document.querySelector('#selected_file');
+            select.innerHTML = '<option value="" disabled selected>Выберите файл</option>';
+            files.forEach(file => {
+                const option = document.createElement('option');
+                option.value = file;
+                option.textContent = file;
+                select.appendChild(option);
+            });
+        }
+    </script>
+    {% endblock extra_js %}
 {% endblock %}

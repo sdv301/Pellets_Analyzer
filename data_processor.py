@@ -1,206 +1,219 @@
 import pandas as pd
 import os
 import re
-from database import insert_data
-
+from database import insert_data, init_db
 
 def normalize_column_name(col):
     if not isinstance(col, str):
         col = str(col)
+    
+    # Приводим к нижнему регистру и убираем пробелы
     col = col.strip().lower()
     col = re.sub(r'\s+', ' ', col)
-    col = col.replace(', ', ',').replace(' ,', ',').replace('°с', '°c').replace('°C', '°c')
-    if col.endswith(','):
-        base_name = col.rstrip(',')
-        if 'so2' in base_name or 'nox' in base_name:
-            return f"{base_name}, ppm"
-        return f"{base_name}, %"
-    mappings = {
+    
+    # Основные замены
+    replacements = {
         'составы': 'composition',
-        'компоненты': 'component',
-        'q': 'q',
-        'ad': 'ad',
+        'компоненты': 'component', 
         'ρ': 'density',
-        'density': 'density',
-        'kf': 'kf',
-        'kt': 'kt',
-        'h': 'h',  # Оставляем 'h' для measured_parameters
-        'hd': 'hd',  # Добавляем для components
-        'mass loss': 'mass_loss',
-        'mass_loss': 'mass_loss',
-        'тign': 'tign',
-        'тign,°c': 'tign',  # Добавляем точное совпадение
-        'tb': 'tb',
-        'tau_d1': 'tau_d1',
-        'τd1': 'tau_d1',
-        'tau_d2': 'tau_d2',
-        'τd2': 'tau_d2',
-        'tau_b': 'tau_b',
-        'τb': 'tau_b',
-        'co2': 'co2',
-        'co': 'co',
-        'so2': 'so2',
-        'nox': 'nox',
-        'war': 'war',
-        'vd': 'vd',
-        'cd': 'cd',
-        'nd': 'nd',
-        'sd': 'sd',
-        'od': 'od'
+        'ρ, кг/м3': 'density',
+        'kf, %': 'kf',
+        'kt, %': 'kt', 
+        'h, %': 'h',
+        'mass loss, %': 'mass_loss',
+        'тign, °c': 'tign',  # ИСПРАВЛЕНО: было 'тign_с'
+        'тign, °с': 'tign',  # ДОБАВЛЕНО: для русского 'с'
+        'tb, °c': 'tb',
+        'τd1, с': 'tau_d1',
+        'τd2, с': 'tau_d2', 
+        'τb, с': 'tau_b',
+        'co2,': 'co2',
+        'co,': 'co',
+        'so2,': 'so2',
+        'nox,': 'nox',
+        'q, мдж/кг': 'q',
+        'ad, %': 'ad',
+        'war, %': 'war',
+        'vd, %': 'vd',
+        'cd, %': 'cd',
+        'hd, %': 'hd', 
+        'nd, %': 'nd',
+        'sd, %': 'sd',
+        'od, %': 'od'
     }
-    for key, value in mappings.items():
+    
+    # Ищем точное соответствие
+    for key, value in replacements.items():
         if key in col:
             return value
-    return col
+    
+    # Если не нашли, возвращаем очищенное название
+    col = re.sub(r'[^\w]', '_', col)  # заменяем спецсимволы на _
+    col = re.sub(r'_+', '_', col)     # убираем повторяющиеся _
+    return col.strip('_')
 
 def validate_data(df, expected_columns, table_name):
     messages = []
-    missing_cols = [col for col in expected_columns if col not in df.columns]
-    if missing_cols:
-        messages.append(f"Missing columns for {table_name}: {missing_cols}")
-        return False, messages
-    df = df.dropna(how='all')  # Удаляем пустые строки
-    df = df.drop_duplicates()  # Удаляем дубликаты
+    df = df.loc[:, ~df.columns.duplicated()]  # Удаляем дублирующиеся столбцы
+    
+    # УДАЛЯЕМ ЛИШНИЕ СТОЛБЦЫ, которые не входят в expected_columns
+    columns_to_keep = [col for col in df.columns if col in expected_columns]
+    df = df[columns_to_keep]
+    
     for col in expected_columns:
-        if col in ('composition', 'component'):
-            continue
-        try:
-            df[col] = pd.to_numeric(df[col], errors='coerce')
-            if df[col].isna().any():
-                messages.append(f"Warning: Column {col} contains non-numeric values or NaNs. Filled with 0.")
-                df[col] = df[col].fillna(0)
-        except Exception as e:
-            messages.append(f"Error in column {col}: {str(e)}")
-            return False, messages
-    return True, messages
-
-def process_data_source(source_file, db_path, chunk_size=1000):
-    messages = []
-    try:
-        if not os.path.exists(source_file):
-            messages.append(f"Файл не найден: {source_file}")
-            return messages
-
-        file_ext = os.path.splitext(source_file)[1].lower()
-        if file_ext not in ['.csv', '.xlsx']:
-            messages.append(f"Неподдерживаемый формат файла: {file_ext}. Используйте .csv или .xlsx")
-            return messages
-        messages.append(f"Обработка файла: {source_file} с расширением {file_ext}")
-
-        column_map = {
-            'составы': 'composition',
-            'ρ, кг/м3': 'density',
-            'kf, %': 'kf',
-            'kt, %': 'kt',
-            'h, %': 'h',
-            'mass loss, %': 'mass_loss',
-            'тign, °c': 'tign',
-            'тign,°c': 'tign',  # Добавляем вариант без пробела
-            'tb, °c': 'tb',
-            'τd1, с': 'tau_d1',
-            'τd2, с': 'tau_d2',
-            'τb, с': 'tau_b',
-            'co2, %': 'co2',
-            'co, %': 'co',
-            'so2, ppm': 'so2',
-            'nox, ppm': 'nox',
-            'q, мдж/кг': 'q',
-            'ad, %': 'ad',
-            'компоненты': 'component',
-            'war, %': 'war',
-            'vd, %': 'vd',
-            'cd, %': 'cd',
-            'hd, %': 'hd',  # Исправляем для components
-            'nd, %': 'nd',
-            'sd, %': 'sd',
-            'od, %': 'od'
-        }
-
-        measured_params_cols = ['composition', 'density', 'kf', 'kt', 'h', 'mass_loss', 'tign', 'tb', 
-                               'tau_d1', 'tau_d2', 'tau_b', 'co2', 'co', 'so2', 'nox', 'q', 'ad']
-        components_cols = ['component', 'war', 'ad', 'vd', 'q', 'cd', 'hd', 'nd', 'sd', 'od']
-
-        def process_df(df, source_name):
-            nonlocal messages
-            # Нормализация столбцов
-            df.columns = [normalize_column_name(col) for col in df.columns]
-            # Удаляем дублирующиеся столбцы, оставляя первый
-            df = df.loc[:, ~df.columns.duplicated()]
-            df = df.rename(columns={k.lower(): v for k, v in column_map.items()})
-            messages.append(f"Переименованные столбцы в {source_name}: {list(df.columns)}")
-
-            # Проверяем, есть ли минимально необходимые столбцы
-            if all(col in df.columns for col in ['composition', 'q', 'ad']) and len(set(measured_params_cols).intersection(df.columns)) >= 10:
-                is_valid, validation_msgs = validate_data(df, measured_params_cols, "measured_parameters")
-                messages.extend(validation_msgs)
-                if is_valid:
-                    insert_data(db_path, "measured_parameters", df[measured_params_cols])
-                    messages.append(f"Данные успешно вставлены в measured_parameters из {source_name}")
-                    # Проверка количества строк после вставки
-                    conn = sqlite3.connect(db_path)
-                    row_count = conn.execute(f"SELECT COUNT(*) FROM measured_parameters").fetchone()[0]
-                    messages.append(f"Строк в measured_parameters после вставки: {row_count}")
-                    conn.close()
-                else:
-                    messages.append(f"Ошибка вставки данных в measured_parameters из {source_name}")
-            elif all(col in df.columns for col in ['component', 'q', 'ad']) and len(set(components_cols).intersection(df.columns)) >= 7:
-                is_valid, validation_msgs = validate_data(df, components_cols, "components")
-                messages.extend(validation_msgs)
-                if is_valid:
-                    insert_data(db_path, "components", df[components_cols])
-                    messages.append(f"Данные успешно вставлены в components из {source_name}")
-                    conn = sqlite3.connect(db_path)
-                    row_count = conn.execute(f"SELECT COUNT(*) FROM components").fetchone()[0]
-                    messages.append(f"Строк в components после вставки: {row_count}")
-                    conn.close()
-                else:
-                    messages.append(f"Ошибка вставки данных в components из {source_name}")
-            else:
-                messages.append(f"Предупреждение: {source_name} не соответствует ожидаемой структуре. Требуемые столбцы: {measured_params_cols} или {components_cols}. Доступные: {list(df.columns)}")
-
-        if file_ext == '.xlsx':
-            try:
-                xl = pd.ExcelFile(source_file, engine='openpyxl')
-                for sheet_name in xl.sheet_names:
-                    messages.append(f"Обработка листа: {sheet_name}")
-                    df = pd.read_excel(source_file, sheet_name=sheet_name, engine='openpyxl')
-                    messages.append(f"Обработка листа с {len(df)} строками в {sheet_name}")
-                    process_df(df, f"лист {sheet_name}")
-            except Exception as e:
-                messages.append(f"Ошибка чтения Excel-листа: {str(e)}")
-        elif file_ext == '.csv':
-            try:
-                for chunk in pd.read_csv(source_file, chunksize=chunk_size, encoding='utf-8'):
-                    messages.append(f"Обработка части CSV с {len(chunk)} строками")
-                    process_df(chunk, f"CSV {source_file}")
-            except Exception as e:
-                messages.append(f"Ошибка чтения CSV: {str(e)}")
-        return messages
-    except Exception as e:
-        messages.append(f"Ошибка обработки {source_file}: {str(e)}")
-        return messages
-
-def validate_data(df, expected_columns, table_name):
-    messages = []
-    df.columns = [col.strip().lower() for col in df.columns]
-    missing_cols = [col for col in expected_columns if col not in df.columns]
-    if missing_cols:
-        messages.append(f"Отсутствуют столбцы для {table_name}: {missing_cols}. Доступные: {list(df.columns)}")
-        return False, messages
+        if col not in df.columns:
+            df[col] = None
+            messages.append(f"Предупреждение: Столбец '{col}' отсутствует в {table_name}. Заполнен значениями None.")
+    
     df = df.dropna(how='all')
     df = df.drop_duplicates()
+    
     for col in expected_columns:
         if col in ('composition', 'component'):
             continue
         try:
             df[col] = pd.to_numeric(df[col], errors='coerce')
-            if df[col].isna().any():
-                messages.append(f"Предупреждение в {col}: найдены нечисловые значения или NaN. Подробности: {df[col].isna().sum()} проблем. Заполнено нулями.")
-                df[col] = df[col].fillna(0)
         except Exception as e:
-            messages.append(f"Ошибка в столбце {col}: {str(e)}")
-            return False, messages
-    return True, messages
+            messages.append(f"Ошибка преобразования столбца '{col}' в {table_name}: {str(e)}")
+    
+    return df, messages
+
+def process_data_source(file_path, db_path):
+    messages = []
+    sheet_data = []
+    components_sheet_name = 'Таблица компонентов'
+    
+    print(f"=== ОТЛАДКА: Начало обработки файла {file_path} ===")
+    
+    init_db(db_path)
+    expected_measured_columns = [
+        'composition', 'density', 'kf', 'kt', 'h', 'mass_loss', 
+        'tign', 'tb', 'tau_d1', 'tau_d2', 'tau_b', 
+        'co2', 'co', 'so2', 'nox', 'q', 'ad'
+    ]
+    expected_components_columns = [
+        'component', 'war', 'ad', 'vd', 'q', 'cd', 'hd', 'nd', 'sd', 'od'
+    ]
+
+    try:
+        if file_path.endswith('.csv'):
+            df = pd.read_csv(file_path)
+            print(f"=== ОТЛАДКА CSV: Прочитано {len(df)} строк ===")
+            print(f"=== ОТЛАДКА CSV: Колонки до нормализации: {list(df.columns)}")
+            
+            df.columns = [normalize_column_name(col) for col in df.columns]
+            print(f"=== ОТЛАДКА CSV: Колонки после нормализации: {list(df.columns)}")
+            
+            # Удаляем полностью пустые столбцы и дублирующиеся
+            df = df.dropna(axis=1, how='all')
+            df = df.loc[:, ~df.columns.duplicated()]
+            
+            messages.append(f"Успешно загружен CSV-файл: {os.path.basename(file_path)}")
+            df, validation_messages = validate_data(df, expected_measured_columns, "measured_parameters")
+            messages.extend(validation_messages)
+            
+            print(f"=== ОТЛАДКА CSV: DataFrame после валидации: {len(df)} строк, {len(df.columns)} колонок")
+            if not df.empty:
+                print(f"=== ОТЛАДКА CSV: Первые 3 строки данных:")
+                print(df.head(3))
+            
+            if not df.empty:
+                insert_data(db_path, "measured_parameters", df)
+                messages.append("Данные измеренных параметров сохранены в базу данных")
+                sheet_data.append({'name': 'Измеренные параметры', 'data': df})
+            else:
+                messages.append("CSV-файл не содержит валидных данных")
+                sheet_data.append({'name': 'Измеренные параметры', 'data': pd.DataFrame()})
+            return messages, components_sheet_name, sheet_data
+        
+        elif file_path.endswith('.xlsx'):
+            xls = pd.ExcelFile(file_path)
+            sheet_names = xls.sheet_names
+            print(f"=== ОТЛАДКА Excel: Листы в файле: {sheet_names}")
+            
+            if not sheet_names:
+                messages.append("Excel-файл не содержит листов")
+                return messages, components_sheet_name, sheet_data
+                
+            for sheet_name in sheet_names:
+                print(f"=== ОТЛАДКА Excel: Обрабатываем лист '{sheet_name}'")
+                df = pd.read_excel(file_path, sheet_name=sheet_name)
+                print(f"=== ОТЛАДКА Excel: Прочитано {len(df)} строк ===")
+                print(f"=== ОТЛАДКА Excel: Колонки до нормализации: {list(df.columns)}")
+                
+                # Пропускаем полностью пустые листы
+                if df.empty or df.shape[0] == 0:
+                    messages.append(f"Лист '{sheet_name}' пуст - пропускаем")
+                    continue
+                    
+                df.columns = [normalize_column_name(col) for col in df.columns]
+                print(f"=== ОТЛАДКА Excel: Колонки после нормализации: {list(df.columns)}")
+                
+                # Удаляем полностью пустые столбцы и дублирующиеся
+                df = df.dropna(axis=1, how='all')
+                df = df.loc[:, ~df.columns.duplicated()]
+                print(f"=== ОТЛАДКА Excel: Колонки после очистки: {list(df.columns)}")
+                
+                messages.append(f"Успешно загружен лист '{sheet_name}' из Excel-файла: {os.path.basename(file_path)}")
+                
+                # Определяем тип данных по наличию ключевых столбцов
+                table_name = None
+                if 'composition' in df.columns:
+                    print(f"=== ОТЛАДКА Excel: Определен как measured_parameters (есть composition)")
+                    df, validation_messages = validate_data(df, expected_measured_columns, f"measured_parameters ({sheet_name})")
+                    table_name = "measured_parameters"
+                elif 'component' in df.columns:
+                    print(f"=== ОТЛАДКА Excel: Определен как components (есть component)")
+                    df, validation_messages = validate_data(df, expected_components_columns, f"components ({sheet_name})")
+                    table_name = "components"
+                else:
+                    # Если не можем определить тип, пробуем оба варианта
+                    print(f"=== ОТЛАДКА Excel: Не удалось определить тип - пробуем measured_parameters")
+                    messages.append(f"Не удалось определить тип данных для листа '{sheet_name}' - пробуем как измеренные параметры")
+                    df, validation_messages = validate_data(df, expected_measured_columns, f"measured_parameters ({sheet_name})")
+                    table_name = "measured_parameters"
+                
+                messages.extend(validation_messages)
+                print(f"=== ОТЛАДКА Excel: После валидации: {len(df)} строк")
+                
+                if not df.empty:
+                    print(f"=== ОТЛАДКА Excel: Сохраняем в таблицу {table_name}")
+                    print(f"=== ОТЛАДКА Excel: Первые 3 строки данных:")
+                    print(df.head(3))
+                    
+                    insert_data(db_path, table_name, df)
+                    messages.append(f"Данные листа '{sheet_name}' сохранены в таблицу {table_name}")
+                    # Добавляем в sheet_data только если данные не пустые
+                    sheet_data.append({'name': sheet_name, 'data': df})
+                else:
+                    messages.append(f"Лист '{sheet_name}' не содержит валидных данных после обработки")
+            
+            # Устанавливаем имя листа компонентов
+            if len(sheet_names) > 1:
+                components_sheet_name = sheet_names[1]
+            else:
+                components_sheet_name = 'Характеристики компонентов'
+                
+            if not sheet_data:
+                messages.append("Excel-файл не содержит валидных данных для отображения")
+            else:
+                messages.append(f"Обработано {len(sheet_data)} листов из Excel-файла")
+                
+            print(f"=== ОТЛАДКА Excel: Итог - {len(sheet_data)} листов с данными")
+            return messages, components_sheet_name, sheet_data
+        
+        else:
+            messages.append(f"Ошибка: Формат файла {file_path} не поддерживается")
+            return messages, components_sheet_name, sheet_data
+            
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"=== ОШИБКА в process_data_source: {str(e)}")
+        print(f"=== ДЕТАЛИ ОШИБКИ: {error_details}")
+        messages.append(f"Ошибка обработки файла {file_path}: {str(e)}")
+        return messages, components_sheet_name, sheet_data
+
 
 def load_sample_data():
     measured_params_data = {

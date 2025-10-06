@@ -56,12 +56,27 @@ def insert_data(db_path, table, data):
     cursor = conn.cursor()
 
     if table == "measured_parameters":
+        # ПРОВЕРЯЕМ, что данные содержат только нужные столбцы
+        expected_columns = ['composition', 'density', 'kf', 'kt', 'h', 'mass_loss', 
+                          'tign', 'tb', 'tau_d1', 'tau_d2', 'tau_b', 
+                          'co2', 'co', 'so2', 'nox', 'q', 'ad']
+        
+        # Оставляем только нужные столбцы в правильном порядке
+        data = data[expected_columns] if all(col in data.columns for col in expected_columns) else data
+        
         query = '''
         INSERT OR REPLACE INTO measured_parameters VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         '''
         records = [tuple(row) for _, row in data.iterrows()]
         cursor.executemany(query, records)
+        
     elif table == "components":
+        # ПРОВЕРЯЕМ, что данные содержат только нужные столбцы
+        expected_columns = ['component', 'war', 'ad', 'vd', 'q', 'cd', 'hd', 'nd', 'sd', 'od']
+        
+        # Оставляем только нужные столбцы в правильном порядке
+        data = data[expected_columns] if all(col in data.columns for col in expected_columns) else data
+        
         query = '''
         INSERT OR REPLACE INTO components VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         '''
@@ -71,12 +86,12 @@ def insert_data(db_path, table, data):
     conn.commit()
     conn.close()
 
-def query_db(db_path, table, condition=None):
+def query_db(db_path, table, query="SELECT * FROM {}", params=None):
     """Запрос данных из таблицы."""
     conn = sqlite3.connect(db_path)
-    query = f"SELECT * FROM {table}"
-    if condition:
-        query += f" WHERE {condition}"
-    df = pd.read_sql_query(query, conn)
+    if params:
+        df = pd.read_sql_query(query.format(table), conn, params=params)
+    else:
+        df = pd.read_sql_query(query.format(table), conn)
     conn.close()
     return df
