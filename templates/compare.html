@@ -14,11 +14,8 @@
                         </div>
                         <div class="col-md-4 text-end">
                             <div class="btn-group">
-                                <button class="btn btn-outline-primary btn-sm border-radius-lg" id="helpBtn">
-                                    <i class="fas fa-question-circle me-1"></i>Помощь
-                                </button>
-                                <button class="btn btn-outline-secondary btn-sm border-radius-lg" id="toggleAdvanced">
-                                    <i class="fas fa-cog me-1"></i>Настройки
+                                <button class="btn btn-outline-primary btn-sm border-radius-lg me-2" id="helpBtn">
+                                    <i class="fas fa-question-circle me-1 "></i>Помощь
                                 </button>
                             </div>
                         </div>
@@ -386,6 +383,7 @@
     position: relative;
     padding-left: 0;
 }
+
 /* Улучшенные карточки */
 .card {
     border: none;
@@ -513,6 +511,8 @@ function updateCheckboxIcons() {
         }
     });
 }
+
+
 
 // Функция для безопасной инициализации
 function safeInitialize() {
@@ -755,16 +755,11 @@ function setupEventListeners() {
 
     // Кнопки управления
     document.getElementById('helpBtn').addEventListener('click', () => {
-        new bootstrap.Modal(document.getElementById('helpModal')).show();
+    const modalElement = document.getElementById('helpModal');
+    const modal = bootstrap.Modal.getInstance(modalElement) || new bootstrap.Modal(modalElement);
+    modal.show();
     });
 
-    document.getElementById('toggleAdvanced').addEventListener('click', function() {
-        const settings = document.getElementById('advancedSettings');
-        settings.style.display = settings.style.display === 'none' ? 'block' : 'none';
-        this.innerHTML = settings.style.display === 'none' ? 
-            '<i class="fas fa-cog me-1"></i>Настройки' : 
-            '<i class="fas fa-times me-1"></i>Скрыть настройки';
-    });
 
     document.getElementById('addComposition').addEventListener('click', addCompositionSelector);
     document.getElementById('differenceThreshold').addEventListener('input', function() {

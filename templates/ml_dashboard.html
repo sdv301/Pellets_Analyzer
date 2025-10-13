@@ -1,0 +1,657 @@
+<!-- templates/ml_dashboard.html -->
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Хедер -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-lg bg-gradient-primary1 text-white">
+                <div class="card-body p-4">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h1 class="display-6 fw-bold mb-2">🤖 ML Анализ Пеллет</h1>
+                            <p class="lead mb-0 opacity-8">Интеллектуальное прогнозирование и оптимизация свойств</p>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="bg-white bg-opacity-10 rounded-pill px-3 py-2 d-inline-block">
+                                <i class="fas fa-brain me-2"></i>
+                                <span id="modelsCount">0</span> моделей обучено
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Статус системы -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-0 shadow-sm h-100 hover-lift">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-3">
+                            <div class="bg-gradient-info1 rounded-circle p-3 text-center">
+                                <i class="fas fa-database text-white fs-4"></i>
+                            </div>
+                        </div>
+                        <div class="col-9">
+                            <h6 class="text-muted mb-1">Данные</h6>
+                            <h4 class="mb-0" id="dataCount">0</h4>
+                            <small class="text-success">записей</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-0 shadow-sm h-100 hover-lift">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-3">
+                            <div class="bg-gradient-success1 rounded-circle p-3 text-center">
+                                <i class="fas fa-cogs text-white fs-4"></i>
+                            </div>
+                        </div>
+                        <div class="col-9">
+                            <h6 class="text-muted mb-1">Модели</h6>
+                            <h4 class="mb-0" id="activeModels">0</h4>
+                            <small class="text-success">активных</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-0 shadow-sm h-100 hover-lift">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-3">
+                            <div class="bg-gradient-warning1 rounded-circle p-3 text-center">
+                                <i class="fas fa-bolt text-white fs-4"></i>
+                            </div>
+                        </div>
+                        <div class="col-9">
+                            <h6 class="text-muted mb-1">Точность</h6>
+                            <h4 class="mb-0" id="avgAccuracy">0%</h4>
+                            <small class="text-success">R² score</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-0 shadow-sm h-100 hover-lift">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-3">
+                            <div class="bg-gradient-danger1 rounded-circle p-3 text-center">
+                                <i class="fas fa-rocket text-white fs-4"></i>
+                            </div>
+                        </div>
+                        <div class="col-9">
+                            <h6 class="text-muted mb-1">Оптимизация</h6>
+                            <h4 class="mb-0" id="optimizations">0</h4>
+                            <small class="text-success">выполнено</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Левая колонка - Обучение моделей -->
+        <div class="col-lg-6 mb-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white py-3 border-0">
+                    <h5 class="mb-0 text-gradient1 text-primary">
+                        <i class="fas fa-graduation-cap me-2"></i>Обучение моделей
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form id="ml-training-form" class="needs-validation" novalidate>
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label class="form-label fw-semibold">🎯 Целевое свойство</label>
+                                <select name="target_property" class="form-select form-select-lg border-0 bg-light" required>
+                                    <option value="">Выберите свойство для прогноза...</option>
+                                    <option value="q" data-icon="🔥">Теплота сгорания (Q)</option>
+                                    <option value="density" data-icon="⚖️">Плотность</option>
+                                    <option value="ad" data-icon="🌫️">Зольность (Ad)</option>
+                                    <option value="kf" data-icon="📐">Коэффициент формы (Kf)</option>
+                                    <option value="tign" data-icon="🌡️">Температура воспламенения</option>
+                                    <option value="tb" data-icon="💥">Температура горения</option>
+                                </select>
+                            </div>
+
+                            <div class="col-12">
+                                <label class="form-label fw-semibold">⚙️ Алгоритм обучения</label>
+                                <select name="algorithm" class="form-select form-select-lg border-0 bg-light">
+                                    <option value="random_forest">🌲 Random Forest (рекомендуется)</option>
+                                    <option value="gradient_boosting">🚀 Gradient Boosting</option>
+                                </select>
+                            </div>
+
+                            <div class="col-12">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="advancedSettings" name="advanced_settings">
+                                    <label class="form-check-label" for="advancedSettings">
+                                        <i class="fas fa-cog me-1"></i>Расширенные настройки
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="col-12 mt-4">
+                                <button type="submit" class="btn btn-primary btn-lg w-100 py-3 fw-semibold border-0">
+                                    <i class="fas fa-brain me-2"></i>
+                                    <span class="btn-text">Обучить модель</span>
+                                    <div class="spinner-border spinner-border-sm ms-2 d-none" role="status"></div>
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+
+                    <!-- Результаты обучения -->
+                    <div id="trainingResults" class="mt-4" style="display: none;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Правая колонка - Оптимизация -->
+        <div class="col-lg-6 mb-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white py-3 border-0">
+                    <h5 class="mb-0 text-gradient1 text-success">
+                        <i class="fas fa-magic me-2"></i>Оптимизация составов
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form id="optimization-form" class="needs-validation" novalidate>
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label class="form-label fw-semibold">🎯 Целевая функция</label>
+                                <select name="target_property" class="form-select form-select-lg border-0 bg-light" required>
+                                    <option value="">Выберите свойство для оптимизации...</option>
+                                    <option value="q">🔥 Максимизировать теплоту сгорания</option>
+                                    <option value="ad">🌫️ Минимизировать зольность</option>
+                                    <option value="density">⚖️ Максимизировать плотность</option>
+                                </select>
+                            </div>
+
+                            <div class="col-12">
+                                <label class="form-label fw-semibold">📈 Направление оптимизации</label>
+                                <select name="maximize" class="form-select form-select-lg border-0 bg-light">
+                                    <option value="true">📈 Максимизировать (увеличить значение)</option>
+                                    <option value="false">📉 Минимизировать (уменьшить значение)</option>
+                                </select>
+                            </div>
+
+                            <div class="col-12">
+                                <div class="alert alert-info border-0 bg-light">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    <small>Система найдет оптимальное соотношение компонентов для достижения цели</small>
+                                </div>
+                            </div>
+
+                            <div class="col-12 mt-2">
+                                <button type="submit" class="btn btn-success btn-lg w-100 py-3 fw-semibold border-0">
+                                    <i class="fas fa-bolt me-2"></i>
+                                    <span class="btn-text">Найти оптимальный состав</span>
+                                    <div class="spinner-border spinner-border-sm ms-2 d-none" role="status"></div>
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+
+                    <!-- Результаты оптимизации -->
+                    <div id="optimizationResults" class="mt-4" style="display: none;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Статус моделей -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 text-gradient1 text-info">
+                        <i class="fas fa-chart-line me-2"></i>Статус ML моделей
+                    </h5>
+                    <button class="btn btn-sm btn-outline-primary" id="refreshModels">
+                        <i class="fas fa-sync-alt me-1"></i>Обновить
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="mlSystemStatus" class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Загрузка...</span>
+                        </div>
+                        <p class="mt-2 text-muted">Загрузка статуса моделей...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Стили -->
+<style>
+.hover-lift {
+    transition: all 0.3s ease;
+}
+.hover-lift:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
+}
+
+.text-gradient1 {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.bg-gradient-primary1 {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+}
+
+.bg-gradient-info1 {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%) !important;
+}
+
+.bg-gradient-success1 {
+    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%) !important;
+}
+
+.bg-gradient-warning1 {
+    background: linear-gradient(135deg, #fa709a 0%, #fee140 100%) !important;
+}
+
+.bg-gradient-danger1 {
+    background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%) !important;
+}
+
+.card {
+    border-radius: 16px !important;
+}
+
+.form-select, .form-control {
+    border-radius: 12px !important;
+    border: 1px solid #e9ecef;
+    transition: all 0.3s ease;
+}
+
+.form-select:focus, .form-control:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+
+.btn {
+    border-radius: 12px !important;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+}
+
+.model-card {
+    border-left: 4px solid #667eea;
+    transition: all 0.3s ease;
+}
+
+.model-card:hover {
+    background-color: #f8f9fe;
+}
+
+.progress {
+    border-radius: 10px;
+    height: 8px;
+}
+
+.progress-bar {
+    border-radius: 10px;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Инициализация
+    loadMLStatus();
+    updateSystemStats();
+    
+    // Обработчики событий
+    document.getElementById('ml-training-form').addEventListener('submit', handleMLTraining);
+    document.getElementById('optimization-form').addEventListener('submit', handleOptimization);
+    document.getElementById('refreshModels').addEventListener('click', loadMLStatus);
+    
+    // Анимация выбора свойств
+    initSelectEnhancements();
+});
+
+function initSelectEnhancements() {
+    // Добавляем иконки к опциям select
+    const selects = document.querySelectorAll('select');
+    selects.forEach(select => {
+        select.addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            const icon = selectedOption.getAttribute('data-icon');
+            if (icon) {
+                this.style.backgroundImage = `url('data:image/svg+xml;utf8,<svg>${icon}</svg>')`;
+            }
+        });
+    });
+}
+
+function updateSystemStats() {
+    // Обновляем счетчики на основе данных
+    fetch('/ml_status')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('modelsCount').textContent = data.models_trained;
+                document.getElementById('activeModels').textContent = data.models_trained;
+                document.getElementById('dataCount').textContent = '33'; // Из вашего лога
+                
+                // Вычисляем среднюю точность
+                let totalR2 = 0;
+                let count = 0;
+                Object.values(data.model_status).forEach(model => {
+                    if (model.r2_score) {
+                        totalR2 += model.r2_score;
+                        count++;
+                    }
+                });
+                const avgAccuracy = count > 0 ? (totalR2 / count * 100).toFixed(1) : 0;
+                document.getElementById('avgAccuracy').textContent = avgAccuracy + '%';
+            }
+        });
+}
+
+function loadMLStatus() {
+    const statusContainer = document.getElementById('mlSystemStatus');
+    statusContainer.innerHTML = `
+        <div class="text-center py-3">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Загрузка...</span>
+            </div>
+            <p class="mt-2 text-muted">Загрузка статуса моделей...</p>
+        </div>
+    `;
+    
+    fetch('/ml_status')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                let html = '';
+                
+                if (data.models_trained > 0) {
+                    html = '<div class="row g-3">';
+                    for (const [prop, status] of Object.entries(data.model_status)) {
+                        const r2Percent = (status.r2_score * 100).toFixed(1);
+                        const maeValue = status.mae?.toFixed(3) || 'N/A';
+                        
+                        html += `
+                            <div class="col-xl-4 col-md-6">
+                                <div class="card model-card border-0 shadow-sm h-100">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-start mb-3">
+                                            <h6 class="fw-bold text-primary mb-0">${getPropertyDisplayName(prop)}</h6>
+                                            <span class="badge bg-success">Активна</span>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <div class="d-flex justify-content-between mb-1">
+                                                <small class="text-muted">Точность (R²)</small>
+                                                <small class="fw-bold">${r2Percent}%</small>
+                                            </div>
+                                            <div class="progress" style="height: 6px;">
+                                                <div class="progress-bar bg-success" style="width: ${r2Percent}%"></div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="row text-center">
+                                            <div class="col-6">
+                                                <small class="text-muted d-block">MAE</small>
+                                                <strong class="text-dark">${maeValue}</strong>
+                                            </div>
+                                            <div class="col-6">
+                                                <small class="text-muted d-block">Обучена</small>
+                                                <strong class="text-dark">✓</strong>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                    html += '</div>';
+                } else {
+                    html = `
+                        <div class="text-center py-5">
+                            <i class="fas fa-robot fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">Модели не обучены</h5>
+                            <p class="text-muted mb-3">Обучите первую модель для начала работы</p>
+                            <div class="alert alert-info border-0 bg-light">
+                                <i class="fas fa-lightbulb me-2"></i>
+                                <small>Для обучения нужны данные в базе и корректные составы</small>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                statusContainer.innerHTML = html;
+                updateSystemStats();
+            } else {
+                statusContainer.innerHTML = `
+                    <div class="alert alert-danger text-center">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Ошибка загрузки статуса: ${data.error}
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            statusContainer.innerHTML = `
+                <div class="alert alert-danger text-center">
+                    <i class="fas fa-wifi me-2"></i>
+                    Ошибка соединения с сервером
+                </div>
+            `;
+        });
+}
+
+// Остальные функции handleMLTraining и handleOptimization остаются аналогичными предыдущей версии
+// но с улучшенным UI обратной связью
+
+function handleMLTraining(e) {
+    e.preventDefault();
+    
+    const form = e.target;
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const btnText = submitBtn.querySelector('.btn-text');
+    const spinner = submitBtn.querySelector('.spinner-border');
+    
+    // Показываем загрузку
+    btnText.textContent = 'Обучение...';
+    spinner.classList.remove('d-none');
+    submitBtn.disabled = true;
+    
+    const formData = new FormData(form);
+    
+    fetch('/ml_training', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        const resultsContainer = document.getElementById('trainingResults');
+        resultsContainer.style.display = 'block';
+        
+        if (data.success) {
+            resultsContainer.innerHTML = `
+                <div class="alert alert-success border-0">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-check-circle fa-2x text-success me-3"></i>
+                        <div>
+                            <h5 class="alert-heading mb-1">✅ Модель обучена!</h5>
+                            <p class="mb-1">${data.message}</p>
+                            <div class="row mt-2">
+                                <div class="col-6">
+                                    <strong>R² Score:</strong> ${data.r2_score?.toFixed(3) || 'N/A'}
+                                </div>
+                                <div class="col-6">
+                                    <strong>MAE:</strong> ${data.mae?.toFixed(3) || 'N/A'}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            loadMLStatus();
+        } else {
+            resultsContainer.innerHTML = `
+                <div class="alert alert-danger border-0">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-exclamation-triangle fa-2x text-danger me-3"></i>
+                        <div>
+                            <h5 class="alert-heading mb-1">❌ Ошибка обучения</h5>
+                            <p class="mb-0">${data.error}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+    })
+    .catch(error => {
+        document.getElementById('trainingResults').innerHTML = `
+            <div class="alert alert-danger border-0">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-wifi fa-2x text-danger me-3"></i>
+                    <div>
+                        <h5 class="alert-heading mb-1">❌ Ошибка сети</h5>
+                        <p class="mb-0">${error.message}</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    })
+    .finally(() => {
+        // Восстанавливаем кнопку
+        btnText.textContent = 'Обучить модель';
+        spinner.classList.add('d-none');
+        submitBtn.disabled = false;
+    });
+}
+
+function handleOptimization(e) {
+    e.preventDefault();
+    
+    const form = e.target;
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const btnText = submitBtn.querySelector('.btn-text');
+    const spinner = submitBtn.querySelector('.spinner-border');
+    
+    // Показываем загрузку
+    btnText.textContent = 'Оптимизация...';
+    spinner.classList.remove('d-none');
+    submitBtn.disabled = true;
+    
+    const formData = new FormData(form);
+    
+    fetch('/optimize', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        const resultsContainer = document.getElementById('optimizationResults');
+        resultsContainer.style.display = 'block';
+        
+        if (data.success) {
+            let compositionHtml = '<div class="mt-3"><h6>🧩 Оптимальный состав:</h6><div class="row g-2">';
+            for (const [comp, percent] of Object.entries(data.optimal_composition)) {
+                if (percent > 0.1) {
+                    compositionHtml += `
+                        <div class="col-6">
+                            <div class="card bg-light border-0">
+                                <div class="card-body py-2">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span class="fw-semibold">${comp}</span>
+                                        <span class="badge bg-primary">${percent.toFixed(1)}%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+            compositionHtml += '</div></div>';
+            
+            resultsContainer.innerHTML = `
+                <div class="alert alert-success border-0">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-bolt fa-2x text-warning me-3"></i>
+                        <div class="flex-grow-1">
+                            <h5 class="alert-heading mb-1">⚡ Оптимизация завершена!</h5>
+                            <p class="mb-2"><strong>🎯 Целевое значение:</strong> ${data.predicted_value?.toFixed(3)}</p>
+                            ${compositionHtml}
+                        </div>
+                    </div>
+                </div>
+            `;
+        } else {
+            resultsContainer.innerHTML = `
+                <div class="alert alert-danger border-0">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-exclamation-triangle fa-2x text-danger me-3"></i>
+                        <div>
+                            <h5 class="alert-heading mb-1">❌ Ошибка оптимизации</h5>
+                            <p class="mb-0">${data.error}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+    })
+    .catch(error => {
+        document.getElementById('optimizationResults').innerHTML = `
+            <div class="alert alert-danger border-0">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-wifi fa-2x text-danger me-3"></i>
+                    <div>
+                        <h5 class="alert-heading mb-1">❌ Ошибка сети</h5>
+                        <p class="mb-0">${error.message}</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    })
+    .finally(() => {
+        // Восстанавливаем кнопку
+        btnText.textContent = 'Найти оптимальный состав';
+        spinner.classList.add('d-none');
+        submitBtn.disabled = false;
+    });
+}
+
+function getPropertyDisplayName(prop) {
+    const names = {
+        'q': '🔥 Теплота сгорания',
+        'density': '⚖️ Плотность', 
+        'ad': '🌫️ Зольность',
+        'kf': '📐 Коэффициент формы',
+        'tign': '🌡️ Темп. воспламенения',
+        'tb': '💥 Темп. горения'
+    };
+    return names[prop] || prop;
+}
+</script>
+{% endblock %}

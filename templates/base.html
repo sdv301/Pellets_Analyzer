@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 
 <head>
   {% include "includes/head.html" %}
@@ -11,10 +11,6 @@
     {% include "includes/sidebar.html" %}
   {% endblock sidebar %}
   <main class="main-content position-relative max-height-vh-100 h-100 border-radius-lg">
-    <!-- Кнопка для разворачивания боковой панели -->
-    <button class="btn bg-gradient-dark ms-3 mt-3 d-lg-none" id="sidebarToggle" aria-label="Toggle sidebar">
-      <i class="material-icons opacity-10">menu</i>
-    </button>
     {% block navigation %}
       {% include "includes/navigation.html" %}
     {% endblock navigation %}

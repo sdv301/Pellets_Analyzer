@@ -1,91 +1,186 @@
+<!-- templates/ai_analysis.html -->
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container py-4">
-  <h1 class="text-center mb-4">Анализ данных с помощью ИИ</h1>
-  
-  {% if session.get('show_data', False) %}
-  <div class="card shadow-sm mb-4">
-    <div class="card-body">
-      <h4 class="card-title text-center">Запустить анализ</h4>
-      <form id="ai-analysis-form" class="ms-3">
-        <button type="submit" class="btn btn-primary">Анализировать данные</button>
-      </form>
+<div class="container-fluid py-4">
+    <h1 class="text-center mb-4">Интеллектуальный ИИ Анализ</h1>
+    
+    <!-- Статус системы -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-info text-white">
+            <h5 class="card-title mb-0">Статус системы</h5>
+        </div>
+        <div class="card-body">
+            <div id="system-status">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Данные:</h6>
+                        <ul id="data-status" class="list-unstyled">
+                            <li><i class="fas fa-spinner fa-spin me-2"></i>Загрузка...</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>ML Модели:</h6>
+                        <ul id="ml-status" class="list-unstyled">
+                            <li><i class="fas fa-spinner fa-spin me-2"></i>Загрузка...</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
-  </div>
-  <div id="ai-response" class="card shadow-sm mb-4">
-    <div class="card-body ms-3">
-      <h4 class="card-title text-center">Результаты анализа</h4>
-      {{ ai_response | safe }}
+
+    <!-- Блок анализа -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Интеллектуальный анализ</h5>
+        </div>
+        <div class="card-body">
+            <form id="ai-ml-analysis-form">
+                <div class="mb-3">
+                    <label class="form-label">Запрос к ИИ-аналитику:</label>
+                    <textarea class="form-control" name="query" rows="4" placeholder="Примеры запросов:
+• Проанализируй зависимости в данных и предложи оптимальный состав
+• Какие компоненты лучше всего влияют на теплоту сгорания?
+• Найди компромисс между прочностью и экологичностью
+• Предскажи свойства для состава: 70% опилок, 30% соломы
+• Какие тенденции наблюдаются в данных?"></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-robot me-2"></i>Выполнить интеллектуальный анализ
+                </button>
+            </form>
+            
+            <div id="ai-ml-results" class="mt-4"></div>
+        </div>
     </div>
-  </div>
-  {% else %}
-  <div class="card shadow-sm mb-4">
-    <div class="card-body text-center">
-      <p class="text-muted">Загрузите файл на главной странице, чтобы выполнить анализ.</p>
-      <a href="{{ url_for('index') }}" class="btn btn-primary">Перейти к загрузке</a>
+
+    <!-- Быстрые запросы -->
+    <div class="card shadow-sm">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Быстрые запросы</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3 mb-2">
+                    <button class="btn btn-outline-primary w-100 quick-query" data-query="Проанализируй основные закономерности в данных">
+                        Анализ закономерностей
+                    </button>
+                </div>
+                <div class="col-md-3 mb-2">
+                    <button class="btn btn-outline-success w-100 quick-query" data-query="Найди оптимальный состав для максимальной теплоты сгорания">
+                        Оптимальный состав
+                    </button>
+                </div>
+                <div class="col-md-3 mb-2">
+                    <button class="btn btn-outline-info w-100 quick-query" data-query="Какие компоненты лучше всего влияют на прочность?">
+                        Анализ компонентов
+                    </button>
+                </div>
+                <div class="col-md-3 mb-2">
+                    <button class="btn btn-outline-warning w-100 quick-query" data-query="Предложи направления для дальнейших исследований">
+                        Рекомендации
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
-  </div>
-  {% endif %}
 </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-  const form = document.getElementById('ai-analysis-form');
-  if (form) {
-    form.addEventListener('submit', function(e) {
-      e.preventDefault();
-      
-      fetch('/ai_analysis', {
-        method: 'POST'
-      })
-      .then(response => response.json())
-      .then(data => {
-        const responseDiv = document.getElementById('ai-response');
-        responseDiv.innerHTML = `
-          <div class="card-body ms-3">
-            <h4 class="card-title text-center">Результаты анализа</h4>
-            ${data.ai_response}
-          </div>
-        `;
-        
-        // Показываем тост-уведомление
-        const toastContainer = document.createElement('div');
-        toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
-        toastContainer.innerHTML = `
-          <div class="toast show" role="alert" aria-live="assertive" aria-atomic="true">
-            <div class="toast-header ${data.success ? 'bg-success' : 'bg-danger'} text-white">
-              <strong class="me-auto">${data.success ? 'Успех' : 'Ошибка'}</strong>
-              <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
-            </div>
-            <div class="toast-body">${data.message}</div>
-          </div>
-        `;
-        document.body.appendChild(toastContainer);
-        setTimeout(() => {
-          toastContainer.remove();
-        }, 3000);
-      })
-      .catch(error => {
-        console.error('Ошибка:', error);
-        const toastContainer = document.createElement('div');
-        toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
-        toastContainer.innerHTML = `
-          <div class="toast show" role="alert" aria-live="assertive" aria-atomic="true">
-            <div class="toast-header bg-danger text-white">
-              <strong class="me-auto">Ошибка</strong>
-              <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
-            </div>
-            <div class="toast-body">Ошибка при выполнении анализа: ${error}</div>
-          </div>
-        `;
-        document.body.appendChild(toastContainer);
-        setTimeout(() => {
-          toastContainer.remove();
-        }, 3000);
-      });
+    // Загрузка статуса системы
+    loadSystemStatus();
+    
+    // Быстрые запросы
+    document.querySelectorAll('.quick-query').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelector('textarea[name="query"]').value = this.dataset.query;
+        });
     });
-  }
+    
+    // Основная форма анализа
+    document.getElementById('ai-ml-analysis-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        const query = formData.get('query');
+        
+        if (!query.trim()) {
+            alert('Введите запрос для анализа');
+            return;
+        }
+        
+        const button = this.querySelector('button');
+        button.disabled = true;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Анализ...';
+        
+        fetch('/ai_ml_analysis', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({query: query})
+        })
+        .then(response => response.json())
+        .then(data => {
+            const resultsDiv = document.getElementById('ai-ml-results');
+            if (data.success) {
+                resultsDiv.innerHTML = `
+                    <div class="alert alert-success">
+                        <h6>Результаты анализа:</h6>
+                        <div class="mt-3">${data.analysis}</div>
+                        ${data.recommendations ? `
+                        <div class="mt-3">
+                            <h6>Рекомендации:</h6>
+                            <div>${data.recommendations}</div>
+                        </div>
+                        ` : ''}
+                        ${data.optimal_composition ? `
+                        <div class="mt-3">
+                            <h6>Оптимальный состав:</h6>
+                            <div class="bg-light p-3 rounded">
+                                ${Object.entries(data.optimal_composition).map(([comp, percent]) => 
+                                    percent > 1 ? `<span class="badge bg-primary me-2">${comp}: ${percent}%</span>` : ''
+                                ).join('')}
+                            </div>
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+            } else {
+                resultsDiv.innerHTML = `<div class="alert alert-danger">${data.message}</div>`;
+            }
+        })
+        .finally(() => {
+            button.disabled = false;
+            button.innerHTML = '<i class="fas fa-robot me-2"></i>Выполнить интеллектуальный анализ';
+        });
+    });
+    
+    function loadSystemStatus() {
+        fetch('/ai_ml_system_status')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Обновляем статус данных
+                const dataStatus = document.getElementById('data-status');
+                dataStatus.innerHTML = `
+                    <li><i class="fas fa-database text-success me-2"></i>Образцов: ${data.data_summary.total_samples}</li>
+                    <li><i class="fas fa-cube text-success me-2"></i>Компонентов: ${data.data_summary.total_components}</li>
+                    <li><i class="fas fa-chart-line text-success me-2"></i>Параметров: ${data.data_summary.available_properties.length}</li>
+                `;
+                
+                // Обновляем статус ML моделей
+                const mlStatus = document.getElementById('ml-status');
+                if (data.ml_status.trained_models.length > 0) {
+                    mlStatus.innerHTML = data.ml_status.trained_models.map(model => 
+                        `<li><i class="fas fa-brain text-success me-2"></i>${model}: R² = ${data.ml_status.model_performance[model].r2_score.toFixed(3)}</li>`
+                    ).join('');
+                } else {
+                    mlStatus.innerHTML = '<li><i class="fas fa-exclamation-triangle text-warning me-2"></i>Модели не обучены</li>';
+                }
+            }
+        });
+    }
 });
 </script>
 {% endblock %}

@@ -6,3 +6,6 @@ pandas==2.3.3
 plotly==5.24.1
 Requests==2.32.5
 seaborn==0.13.2
+sklearn
+scipy
+openpyxl==3.1.5
