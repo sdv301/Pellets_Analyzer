@@ -320,12 +320,12 @@ def create_correlation_heatmap(data, template, title):
     
     return fig
 
-def create_animated_scatter(data, x_param, y_param, animation_param, template, title):
+def create_animated_scatter(data, x_param, y_param, animation_param, template, title, color_param=None, size_param=None):
     """Создает анимированный scatter plot"""
     fig = px.scatter(data, x=x_param, y=y_param,
                    animation_frame=animation_param,
-                   color=color_param if color_param in data.columns else None,
-                   size=size_param if size_param in data.columns else None,
+                   color=color_param if color_param and color_param in data.columns else None,
+                   size=size_param if size_param and size_param in data.columns else None,
                    hover_name=data.index if hasattr(data, 'index') else None,
                    title=title or f"Анимированный график по {get_param_display_name(animation_param)}",
                    template=template)
