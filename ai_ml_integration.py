@@ -80,9 +80,9 @@ class AIMLAnalyzer:
         АНАЛИЗ ДАННЫХ ПЕЛЛЕТ:
         
         ДАННЫЕ:
-        - Количество образцов: {data_summary['total_samples']}
-        - Исследуемые свойства: {', '.join(data_summary['available_properties'])}
-        - Компоненты: {', '.join(data_summary['components_list'])}
+        - Количество образцов: {data_summary.get('total_samples', 0)}
+        - Исследуемые свойства: {', '.join(data_summary.get('trained_models', []))}
+        - Компоненты: {', '.join(data_summary.get('available_components', []))}
         
         ML АНАЛИЗ:
         {json.dumps(ml_trends, indent=2, ensure_ascii=False)}

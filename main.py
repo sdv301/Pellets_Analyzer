@@ -5,7 +5,6 @@ import pandas as pd
 import os
 from data_processor import process_data_source
 from database import query_db, insert_data, init_db
-from ml_optimizer import ml_system
 from ai_ml_integration import AIMLAnalyzer
 from gui import *
 
@@ -661,42 +660,72 @@ def ml_dashboard():
     uploaded_files = os.listdir(app.config['UPLOAD_FOLDER']) if os.path.exists(app.config['UPLOAD_FOLDER']) else []
     measured_data = query_db(db_path, "measured_parameters")
     
+    # Lazy import: Импортируем внутри роута, чтобы избежать цикла
+    from ml_optimizer import get_ml_system
+    ml_system = get_ml_system()  # Получаем глобальный экземпляр
+    
     # Получаем статус ML моделей
     ml_status = {}
     try:
-        from ml_optimizer import ml_optimizer
-        ml_status = ml_optimizer.get_model_status()
+        ml_status = ml_system.get_ml_system_status()
     except Exception as e:
         print(f"Ошибка получения статуса ML: {e}")
-    
+        print(f"Training data size: {len(ml_system.training_data) if ml_system.training_data is not None else 'None'}")
+
     return render_template(
         'ml_dashboard.html', 
         segment='ML Анализ',
         uploaded_files=uploaded_files,
         compositions=measured_data['composition'].tolist() if not measured_data.empty else [],
         ml_status=ml_status
+        
     )
-
 
 @app.route('/ml_system_train', methods=['POST'])
 def ml_system_train():
     """Обучает всю ML систему"""
     try:
+        from ml_optimizer import get_ml_system
+        ml_system = get_ml_system()
+        
+        # Получаем target_properties из формы
         target_properties = request.form.getlist('target_properties[]')
         if not target_properties:
-            target_properties = ['q', 'density', 'ad', 'kf']
+            from ml_optimizer import PelletPropertyPredictor
+            target_properties = list(PelletPropertyPredictor().target_properties_mapping.keys())
         
         print(f"🚀 Запуск обучения ML системы для свойств: {target_properties}")
         
-        success = ml_system.train_models(target_properties)
+        # Получаем алгоритм из запроса
+        algorithm = request.form.get('algorithm', 'random_forest').lower()
+        
+        # Обучаем модель
+        success = ml_system.train_models(target_properties, algorithm)
         
         if success:
-            status = ml_system.get_system_status()
-            return jsonify({
+            status = ml_system.get_ml_system_status()
+            
+            # ФОРМИРУЕМ ОТВЕТ ДЛЯ ФРОНТЕНДА
+            response_data = {
                 'success': True,
                 'message': 'ML система успешно обучена!',
-                'status': status
-            })
+                'status': status,
+                'trained_count': len(status.get('trained_models', [])),
+                'metrics': {}
+            }
+            
+            # Добавляем метрики для каждой обученной модели
+            for prop in status.get('trained_models', []):
+                metrics = status['model_metrics'].get(prop, {})
+                training_metrics = metrics.get('training_metrics', {})
+                response_data['metrics'][prop] = {
+                    'r2_score': training_metrics.get('r2_score', 0),
+                    'mae': training_metrics.get('mae', 0),
+                    'cv_r2': training_metrics.get('cv_r2', 0)
+                }
+            
+            print(f"✅ Обучение завершено. Метрики: {response_data['metrics']}")
+            return jsonify(response_data)
         else:
             return jsonify({
                 'success': False,
@@ -704,6 +733,7 @@ def ml_system_train():
             })
             
     except Exception as e:
+        print(f"❌ Ошибка обучения системы: {str(e)}")
         return jsonify({
             'success': False,
             'error': f'Ошибка обучения системы: {str(e)}'
@@ -711,8 +741,10 @@ def ml_system_train():
 
 @app.route('/ml_optimize', methods=['POST'])
 def ml_optimize():
-    """Оптимизирует состав с использованием обученной ML системы"""
     try:
+        from ml_optimizer import get_ml_system
+        ml_system = get_ml_system()
+        
         target_property = request.form.get('target_property')
         maximize = request.form.get('maximize', 'true').lower() == 'true'
         
@@ -722,10 +754,21 @@ def ml_optimize():
         # Получаем ограничения из формы
         constraints = {}
         for key in request.form:
-            if key.startswith('constraint_'):
-                comp = key.replace('constraint_', '')
-                min_val = float(request.form.get(f'min_{comp}', 0))
-                max_val = float(request.form.get(f'max_{comp}', 100))
+            if key.startswith('min_'):
+                comp = key.replace('min_', '')
+                min_val_str = request.form.get(key, '0')  # По умолчанию 0, если пусто
+                max_val_str = request.form.get(f'max_{comp}', '100')  # По умолчанию 100, если пусто
+                
+                # Обрабатываем пустые строки
+                try:
+                    min_val = float(min_val_str) if min_val_str.strip() else 0.0
+                    max_val = float(max_val_str) if max_val_str.strip() else 100.0
+                except ValueError:
+                    return jsonify({
+                        'success': False,
+                        'error': f'Некорректное значение для компонента {comp}: min={min_val_str}, max={max_val_str}'
+                    })
+                
                 constraints[comp] = (min_val, max_val)
         
         print(f"🎯 Запуск оптимизации для {target_property} (maximize: {maximize})")
@@ -779,10 +822,13 @@ def ml_predict():
 def ml_system_status():
     """Возвращает полный статус ML системы"""
     try:
-        status = ml_system.get_system_status()
+        # Lazy import внутри роута
+        from ml_optimizer import get_ml_system
+        ml_system = get_ml_system()
+        status = ml_system.get_ml_system_status()
         return jsonify({
             'success': True,
-            'system_status': status
+            'system_status': status  # Для совместимости с JS
         })
     except Exception as e:
         return jsonify({
