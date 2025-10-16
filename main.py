@@ -419,6 +419,10 @@ def compare_data():
                 'message': 'Выберите хотя бы два состава для сравнения.'
             })
         
+        # Получаем выбранные критерии
+        selected_criteria = request.form.getlist('criteria[]')
+        print(f"=== ВЫБРАННЫЕ КРИТЕРИИ: {selected_criteria}")
+        
         # Получаем данные из базы
         measured_data = query_db(db_path, "measured_parameters")
         
@@ -454,8 +458,13 @@ def compare_data():
         show_diff = request.form.get('show_diff') == 'on'
         param_group = request.form.get('paramGroup', 'all')
         
-        # Применяем фильтрацию параметров
-        filtered_data = filter_parameters(comparison_data, param_group, show_diff and not show_all)
+        # Применяем фильтрацию параметров с учетом выбранных критериев
+        filtered_data = filter_parameters_with_criteria(
+            comparison_data, 
+            param_group, 
+            show_diff and not show_all,
+            selected_criteria
+        )
         
         # Если после фильтрации данных нет
         if filtered_data.empty:
@@ -489,6 +498,101 @@ def compare_data():
             'success': False,
             'message': f'Ошибка при сравнении: {str(e)}'
         })
+
+def filter_parameters_with_criteria(data, param_group, show_diff_only=False, selected_criteria=None):
+    """Фильтрует параметры по группам и выбранным критериям"""
+    
+    # Сохраняем оригинальные названия колонок для внутренней обработки
+    original_data = data.copy()
+    
+    # Русские названия колонок для отображения
+    COLUMN_NAMES = {
+        'composition': 'Состав',
+        'density': 'Плотность, кг/м³',
+        'q': 'Теплота сгорания, МДж/кг',
+        'ad': 'Зольность, %',
+        'kf': 'Ударопрочность, %',
+        'kt': 'Устойчивость к нагрузкам, %',
+        'h': 'Гигроскопичность, %',
+        'mass_loss': 'Потеря массы, %',
+        'tign': 'Температура зажигания, °C',
+        'tb': 'Температура выгорания, °C',
+        'tau_d1': 'Задержка газофазного зажигания, с',
+        'tau_d2': 'Задержка гетерогенного зажигания, с',
+        'tau_b': 'Время горения, с',
+        'co2': 'Концентрация CO₂, %',
+        'co': 'Концентрация CO, %',
+        'so2': 'Концентрация SO₂, ppm',
+        'nox': 'Концентрация NOx, ppm',
+        'war': 'Влажность, %',
+        'vd': 'Летучие вещества, %',
+        'cd': 'Содержание углерода, %',
+        'hd': 'Содержание водорода, %',
+        'nd': 'Содержание азота, %',
+        'sd': 'Содержание серы, %',
+        'od': 'Содержание кислорода, %'
+    }
+    
+    # Группы параметров
+    param_groups = {
+        'thermal': ['q', 'tign', 'tb', 'tau_b', 'tau_d1', 'tau_d2'],
+        'mechanical': ['density', 'kf', 'kt', 'h', 'mass_loss'],
+        'chemical': ['ad', 'cd', 'hd', 'nd', 'sd', 'od', 'vd', 'war'],
+        'emissions': ['co2', 'co', 'so2', 'nox'],
+        'combustion': ['mass_loss', 'tau_b', 'tau_d1', 'tau_d2', 'tign', 'tb']
+    }
+    
+    # Определяем какие колонки оставить
+    if selected_criteria:
+        # Используем выбранные критерии
+        selected_params = ['composition'] + selected_criteria
+    elif param_group != 'all' and param_group in param_groups:
+        # Используем группу параметров
+        selected_params = ['composition'] + param_groups[param_group]
+    else:
+        # Все параметры
+        selected_params = original_data.columns.tolist()
+    
+    # Оставляем только существующие колонки
+    existing_params = [col for col in selected_params if col in original_data.columns]
+    
+    if not existing_params:
+        return pd.DataFrame()
+        
+    filtered_data = original_data[existing_params].copy()
+    
+    # Переименовываем колонки для отображения (только если есть что переименовывать)
+    rename_dict = {col: COLUMN_NAMES.get(col, col) for col in filtered_data.columns if col in COLUMN_NAMES}
+    filtered_data = filtered_data.rename(columns=rename_dict)
+    
+    # Дополнительная логика для показа только значимых различий
+    if show_diff_only and len(original_data['composition'].unique()) >= 2:
+        try:
+            numeric_cols = [col for col in existing_params if col != 'composition' and col in original_data.select_dtypes(include=[np.number]).columns]
+            significant_cols = ['composition']
+            
+            for col in numeric_cols:
+                if col != 'composition':
+                    composition_stats = original_data.groupby('composition')[col].mean()
+                    if len(composition_stats) >= 2:
+                        max_val = composition_stats.max()
+                        min_val = composition_stats.min()
+                        if max_val > 0:
+                            difference_pct = ((max_val - min_val) / max_val) * 100
+                            if difference_pct >= 10:
+                                significant_cols.append(col)
+            
+            if len(significant_cols) > 1:
+                # Фильтруем по значимым колонкам, но сохраняем оригинальные названия для фильтрации
+                temp_data = original_data[significant_cols].copy()
+                # Переименовываем после фильтрации
+                temp_rename_dict = {col: COLUMN_NAMES.get(col, col) for col in temp_data.columns if col in COLUMN_NAMES}
+                filtered_data = temp_data.rename(columns=temp_rename_dict)
+                
+        except Exception as e:
+            print(f"Ошибка при фильтрации значимых различий: {e}")
+    
+    return filtered_data
 
 @app.route('/ai_analysis')
 def ai_analysis():

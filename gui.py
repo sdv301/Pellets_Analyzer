@@ -1240,14 +1240,25 @@ def get_comparison_stats(data):
     if data.empty:
         return {}
     
+    # Определяем имя колонки с составами (может быть 'composition' или 'Состав')
+    composition_column = 'composition' if 'composition' in data.columns else 'Состав'
+    
+    if composition_column not in data.columns:
+        return {
+            'compositions_count': 0,
+            'parameters_count': len(data.select_dtypes(include=[np.number]).columns),
+            'total_rows': len(data)
+        }
+    
     numeric_data = data.select_dtypes(include=[np.number])
     stats = {
-        'compositions_count': len(data['composition'].unique()),
+        'compositions_count': len(data[composition_column].unique()),
         'parameters_count': len(numeric_data.columns),
         'total_rows': len(data)
     }
 
     return stats
+
 def get_compact_composition_table(data, max_compositions=10):
     """Создает компактную таблицу составов для легенды"""
     if data.empty or 'composition' not in data.columns:
