@@ -148,6 +148,60 @@
         }
     </style>
     <script>
+
+        document.addEventListener('DOMContentLoaded', function() {
+        console.log('=== ОТЛАДКА JS: Начало замены заголовков ===');
+    
+            const headerMapping = {
+                'composition': 'Составы',
+                'density': 'Плотность, кг/м3',
+                'kf': 'Ударопрочность, %',
+                'kt': 'Устойчивость к колебательным нагрузкам, %', 
+                'h': 'Гигроскопичность, %',
+                'mass_loss': 'Потеря массы, %',
+                'tign': 'Температура зажигания, °С',
+                'tb': 'Температура выгорания, °C',
+                'tau_d1': 'Задержка газофазного зажигания, C',
+                'tau_d2': 'Задержка гетерогенного зажигания, C',
+                'tau_b': 'Время горения, С',
+                'co2': 'Концентрации диоксида углерода, %',
+                'co': 'Концентрации монооксида углерода, %', 
+                'so2': 'Концентрации оксидов серы, ppm',
+                'nox': 'Концентрации оксидов азота, ppm',
+                'q': 'Теплота сгорания, МДж/кг',
+                'ad': 'Содержание золы на сухую массу, %',
+                'component': 'Компоненты',
+                'war': 'Влажность на аналитическую массу, %',
+                'vd': 'Содержание летучих на сухую массу, %',
+                'cd': 'Содержание углерода на сухую массу, %',
+                'hd': 'Содержание водорода на сухую массу, %', 
+                'nd': 'Содержание азота на сухую массу, %',
+                'sd': 'Содержание серы на сухую массу, %',
+                'od': 'Содержание кислорода на сухую массу, %'
+            };
+
+            // Находим все таблицы и заменяем заголовки
+            const tables = document.querySelectorAll('table');
+            console.log(`=== ОТЛАДКА JS: Найдено таблиц: ${tables.length}`);
+            
+            tables.forEach((table, index) => {
+                const headers = table.querySelectorAll('thead th');
+                console.log(`=== ОТЛАДКА JS: Таблица ${index + 1}, заголовков: ${headers.length}`);
+                
+                headers.forEach((th, thIndex) => {
+                    const englishHeader = th.textContent.trim();
+                    console.log(`=== ОТЛАДКА JS: Заголовок ${thIndex}: "${englishHeader}"`);
+                    
+                    if (headerMapping[englishHeader]) {
+                        console.log(`=== ОТЛАДКА JS: Заменяем "${englishHeader}" на "${headerMapping[englishHeader]}"`);
+                        th.textContent = headerMapping[englishHeader];
+                    }
+                });
+            });
+            
+            console.log('=== ОТЛАДКА JS: Замена заголовков завершена ===');
+        });
+
         // Асинхронная отправка формы загрузки/выбора файла
         document.getElementById('dataForm')?.addEventListener('submit', async function(e) {
             e.preventDefault();

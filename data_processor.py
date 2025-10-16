@@ -52,6 +52,47 @@ def normalize_column_name(col):
     col = re.sub(r'_+', '_', col)     # убираем повторяющиеся _
     return col.strip('_')
 
+def prepare_data_for_display(df, table_type):
+    """Подготавливает данные для отображения с русскими названиями колонок"""
+    
+    # Создаем копию DataFrame чтобы не менять оригинал
+    df_display = df.copy()
+    
+    # Словарь замены заголовков
+    header_replacements = {
+        'composition': 'Составы',
+        'density': 'Плотность, кг/м3',
+        'kf': 'Ударопрочность, %',
+        'kt': 'Устойчивость к колебательным нагрузкам, %', 
+        'h': 'Гигроскопичность, %',
+        'mass_loss': 'Потеря массы, %',
+        'tign': 'Температура зажигания, °С',
+        'tb': 'Температура выгорания, °C',
+        'tau_d1': 'Задержка газофазного зажигания, C',
+        'tau_d2': 'Задержка гетерогенного зажигания, C',
+        'tau_b': 'Время горения, С',
+        'co2': 'Концентрации диоксида углерода, %',
+        'co': 'Концентрации монооксида углерода, %', 
+        'so2': 'Концентрации оксидов серы, ppm',
+        'nox': 'Концентрации оксидов азота, ppm',
+        'q': 'Теплота сгорания, МДж/кг',
+        'ad': 'Содержание золы на сухую массу, %',
+        'component': 'Компоненты',
+        'war': 'Влажность на аналитическую массу, %',
+        'vd': 'Содержание летучих на сухую массу, %',
+        'cd': 'Содержание углерода на сухую массу, %',
+        'hd': 'Содержание водорода на сухую массу, %', 
+        'nd': 'Содержание азота на сухую массу, %',
+        'sd': 'Содержание серы на сухую массу, %',
+        'od': 'Содержание кислорода на сухую массу, %'
+    }
+    
+    # Переименовываем только те колонки, которые существуют в DataFrame
+    existing_columns = {k: v for k, v in header_replacements.items() if k in df_display.columns}
+    df_display = df_display.rename(columns=existing_columns)
+    
+    return df_display
+
 def validate_data(df, expected_columns, table_name):
     messages = []
     df = df.loc[:, ~df.columns.duplicated()]  # Удаляем дублирующиеся столбцы
@@ -183,8 +224,26 @@ def process_data_source(file_path, db_path):
                     
                     insert_data(db_path, table_name, df)
                     messages.append(f"Данные листа '{sheet_name}' сохранены в таблицу {table_name}")
+                    
+                    # ПОДГОТАВЛИВАЕМ ДАННЫЕ ДЛЯ ОТОБРАЖЕНИЯ С РУССКИМИ ЗАГОЛОВКАМИ
+                    df_display = prepare_data_for_display(df, table_name)
+                    
+                    print(f"=== ОТЛАДКА DISPLAY: Колонки после переименования: {list(df_display.columns)}")
+                    
+                    # Создаем HTML таблицу с русскими заголовками
+                    html_table = df_display.to_html(
+                        classes='table table-striped table-sm',
+                        index=False,
+                        escape=False,
+                        border=1
+                    )
+                    
+                    # Добавляем отладочный вывод HTML
+                    print(f"=== ОТЛАДКА HTML: Первые 500 символов HTML:")
+                    print(html_table[:500])
+                    
                     # Добавляем в sheet_data только если данные не пустые
-                    sheet_data.append({'name': sheet_name, 'data': df})
+                    sheet_data.append({'name': sheet_name, 'data': html_table})
                 else:
                     messages.append(f"Лист '{sheet_name}' не содержит валидных данных после обработки")
             

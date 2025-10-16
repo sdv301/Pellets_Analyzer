@@ -504,7 +504,8 @@ class PelletMLSystem:
         self.ml_optimizer = MLCompositionOptimizer(self.predictor)
         self.training_data = self.load_training_data()
         self.components = self.load_components()
-    
+        self.load_saved_models()
+
     def load_components(self) -> pd.DataFrame:
         """Загружает свойства компонентов из БД"""
         try:
@@ -536,48 +537,40 @@ class PelletMLSystem:
         return None
     
     def load_training_data(self) -> pd.DataFrame:
-        """Загружает тренировочные данные из БД"""
+        """Загружает тренировочные данные из БД, включая ML оптимизации"""
         try:
-            from database import query_db
+            from database import query_db, get_ml_optimizations
+            
+            # Основные данные
             training_data = query_db(self.db_path, "measured_parameters")
-            if training_data.empty:
-                print("⚠️ Таблица measured_parameters пуста")
-            else:
-                print(f"📊 Загружено тренировочных данных: {len(training_data)} записей")
+            
+            # Добавляем успешные ML оптимизации
+            ml_optimizations = get_ml_optimizations(self.db_path, limit=100)
+            
+            if not ml_optimizations.empty:
+                print(f"📊 Добавляю {len(ml_optimizations)} ML оптимизаций к тренировочным данным")
+                
+                for _, opt in ml_optimizations.iterrows():
+                    # Создаем запись для ML оптимизации
+                    composition_text = ", ".join([f"{v}% {k}" for k, v in opt['optimal_composition'].items()])
+                    
+                    # Создаем новую строку с предсказанными значениями
+                    new_row = {
+                        'composition': composition_text,
+                        'q': opt['optimal_value'] if opt['target_property'] == 'q' else None,
+                        'ad': opt['optimal_value'] if opt['target_property'] == 'ad' else None,
+                        # Добавьте другие свойства по аналогии
+                    }
+                    
+                    training_data = pd.concat([training_data, pd.DataFrame([new_row])], ignore_index=True)
+            
+            print(f"📊 Итоговый размер тренировочных данных: {len(training_data)} записей")
             return training_data
+            
         except Exception as e:
             print(f"❌ Ошибка загрузки тренировочных данных: {e}")
             return pd.DataFrame()
-    
-    def train_models(self, target_properties: List[str] = None, algorithm: str = 'random_forest') -> Dict:
-        """Обучает ML модели для предсказания свойств"""
-        if self.training_data.empty:
-            print("❌ Нет данных для ML обучения")
-            return {'success': False, 'error': 'Нет данных для обучения'}
-        
-        if target_properties is None:
-            target_properties = self.predictor.main_target_properties
-        
-        success = self.predictor.train(self.training_data, target_properties, algorithm)
-        
-        if success:
-            print("✅ ML система готова к работе!")
-            print("🤖 ML Agent может создавать новые оптимальные составы")
-            status = self.get_ml_system_status()
-            return {
-                'success': True,
-                'message': 'ML система успешно обучена!',
-                'status': status,
-                'trained_count': len(status['trained_models']),
-                'metrics': {prop: status['model_metrics'][prop] for prop in status['trained_models']}
-            }
-        else:
-            print("❌ Обучение ML моделей не удалось")
-            return {'success': False, 'error': 'Обучение не удалось'}
-    
-    def optimize_composition(self, target_property: str, maximize: bool = True, constraints: Dict[str, Tuple[float, float]] = None) -> Dict:
-        return self.ml_optimizer.optimize_composition(target_property, maximize, constraints)
-    
+ 
     def get_ml_system_status(self) -> Dict:
         status = {
             'is_trained': self.predictor.is_trained,
@@ -604,6 +597,108 @@ class PelletMLSystem:
         status['target_properties_mapping'] = self.predictor.target_properties_mapping
         
         return status
+    def load_saved_models(self):
+        """Загружает сохраненные ML модели из базы данных"""
+        try:
+            from database import get_active_ml_models
+            saved_models = get_active_ml_models(self.db_path)
+            
+            if not saved_models.empty:
+                print("🔍 Загружаю сохраненные ML модели из базы...")
+                for _, model_row in saved_models.iterrows():
+                    prop = model_row['target_property']
+                    print(f"   📊 Модель для {prop}: R²={model_row['r2_score']:.3f}")
+                
+                # Можно добавить логику загрузки весов моделей
+                # Пока просто информируем о наличии сохраненных моделей
+                
+        except Exception as e:
+            print(f"⚠️ Не удалось загрузить сохраненные модели: {e}")
+
+    def train_models(self, target_properties: List[str] = None, algorithm: str = 'gradient_boosting') -> Dict:
+        """Обучает ML модели и сохраняет результаты в базу"""
+        if self.training_data.empty:
+            print("❌ Нет данных для ML обучения")
+            return {'success': False, 'error': 'Нет данных для обучения'}
+        
+        if target_properties is None:
+            target_properties = self.predictor.main_target_properties
+        
+        success = self.predictor.train(self.training_data, target_properties, algorithm)
+        
+        if success:
+            print("✅ ML система готова к работе!")
+            
+            # СОХРАНЯЕМ МЕТРИКИ МОДЕЛЕЙ В БАЗУ
+            try:
+                from database import insert_ml_model_metrics
+                
+                for prop in self.predictor.models.keys():
+                    metrics = self.predictor.training_metrics.get(prop, {})
+                    metrics_data = {
+                        'target_property': prop,
+                        'algorithm': algorithm,
+                        'r2_score': metrics.get('r2_score'),
+                        'mae': metrics.get('mae'),
+                        'cv_r2': metrics.get('cv_r2'),
+                        'feature_importance': metrics.get('feature_importance', {}),
+                        'training_data_size': len(self.training_data)
+                    }
+                    insert_ml_model_metrics(self.db_path, metrics_data)
+                    print(f"💾 Сохранены метрики для {prop} в базу")
+                    
+            except Exception as e:
+                print(f"⚠️ Не удалось сохранить метрики в базу: {e}")
+            
+            status = self.get_ml_system_status()
+            return {
+                'success': True,
+                'message': 'ML система успешно обучена!',
+                'status': status,
+                'trained_count': len(status['trained_models']),
+                'metrics': {prop: status['model_metrics'][prop] for prop in status['trained_models']}
+            }
+        else:
+            print("❌ Обучение ML моделей не удалось")
+            return {'success': False, 'error': 'Обучение не удалось'}
+
+    def optimize_composition(self, target_property: str, maximize: bool = True, constraints: Dict[str, Tuple[float, float]] = None) -> Dict:
+        """Оптимизирует состав и сохраняет результат в базу"""
+        result = self.ml_optimizer.optimize_composition(target_property, maximize, constraints)
+        
+        if result.get('success'):
+            try:
+                from database import insert_ml_optimization, add_ml_optimization_to_training_data
+                
+                optimization_data = {
+                    'target_property': target_property,
+                    'maximize': maximize,
+                    'optimal_composition': result['optimal_composition'],
+                    'optimal_value': result['optimal_value'],
+                    'constraints': constraints or {},
+                    'algorithm': 'gradient_boosting',
+                    'model_metrics': self.predictor.training_metrics.get(target_property, {})
+                }
+                
+                # Сохраняем оптимизацию
+                insert_ml_optimization(self.db_path, optimization_data)
+                
+                # ДОБАВЛЯЕМ В ТРЕНИРОВОЧНЫЕ ДАННЫЕ для самоулучшения
+                add_ml_optimization_to_training_data(self.db_path, optimization_data)
+                print(f"💾 Сохранен результат оптимизации для {target_property} в базу и тренировочные данные")
+                
+                # Перезагружаем тренировочные данные для следующего обучения
+                self.training_data = self.load_training_data()
+                
+            except Exception as e:
+                print(f"⚠️ Не удалось сохранить оптимизацию в базу: {e}")
+        
+        return result
+
+    def retrain_on_new_data(self, target_properties: List[str] = None, algorithm: str = 'gradient_boosting') -> Dict:
+        """Переобучает модели на обновленных данных"""
+        print("🔄 Переобучение моделей на новых данных...")
+        return self.train_models(target_properties, algorithm)
 
 # Глобальный экземпляр ML системы
 ml_system = PelletMLSystem()

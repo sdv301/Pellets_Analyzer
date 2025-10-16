@@ -20,8 +20,6 @@
                     </div>
                 </div>
             </div>
-
-
             <div class="row h-80">
                 <!-- Левая колонка - Форма настроек и статистика -->
                 <div class="col-lg-4 h-100 d-flex flex-column">
@@ -200,10 +198,10 @@
                                                 <tr>
                                                     <th>Параметр</th>
                                                     <th>Среднее</th>
-                                                    <th>Std</th>
-                                                    <th>Min</th>
-                                                    <th>Max</th>
-                                                    <th>Count</th>
+                                                    <th>Стандартный</th>
+                                                    <th>Минимальный</th>
+                                                    <th>Максимальный</th>
+                                                    <th>Количество</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -263,6 +261,32 @@
                                 
                                 <!-- Динамический контейнер для графиков -->
                                 <div id="dynamicGraphContainer" class="w-100 h-100" style="display: none;"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- НОВАЯ КАРТОЧКА: Управление составами - ПОД ГРАФИКОМ -->
+                    <div class="card border-radius-lg shadow-sm mt-2" id="compositionControlsCard" style="display: none;">
+                        <div class="card-header bg-gradient-warning border-radius-lg-top py-2">
+                            <h6 class="mb-0 text-white">
+                                <i class="fas fa-layer-group me-2"></i>Составы на графике
+                                <small class="badge bg-primary ms-2">0/0</small>
+                            </h6>
+                        </div>
+                        <div class="card-body p-2 d-flex flex-column">
+                            <div class="d-flex justify-content-between align-items-center mb-2 flex-shrink-0">
+                                <small class="text-muted">Выберите составы:</small>
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-outline-primary border-radius-lg" id="selectAllCompositions">
+                                        <i class="fas fa-check-double me-1"></i>Все
+                                    </button>
+                                    <button class="btn btn-outline-secondary border-radius-lg" id="deselectAllCompositions">
+                                        <i class="fas fa-ban me-1"></i>Ничего
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="compositionControls" class="flex-grow-1">
+                                <!-- Динамически заполняемые переключатели -->
                             </div>
                         </div>
                     </div>
@@ -356,7 +380,7 @@
 #create-graph-page .card-body {
     flex: 1 !important;
     overflow: hidden !important;
-    padding: 0.5rem !important; /* УМЕНЬШЕНО */
+    padding: 0.5rem !important;
 }
 
 /* ЛЕВАЯ КОЛОНКА - ФОРМА И СТАТИСТИКА */
@@ -364,7 +388,7 @@
     height: 100% !important;
     display: flex !important;
     flex-direction: column !important;
-    gap: 8px !important; /* УМЕНЬШЕНО */
+    gap: 8px !important;
     padding-right: 5px !important;
 }
 
@@ -378,7 +402,7 @@
     min-height: 0 !important;
 }
 
-/* ПРАВАЯ КОЛОНКА - ГРАФИК (КОМПАКТНАЯ) */
+/* ПРАВАЯ КОЛОНКА - ГРАФИК */
 #create-graph-page .col-lg-8 {
     height: 100% !important;
     padding-left: 5px !important;
@@ -390,18 +414,18 @@
 
 /* КОМПАКТНЫЙ HEADER ДЛЯ КАРТОЧКИ ГРАФИКА */
 #create-graph-page .col-lg-8 .card-header {
-    padding: 0.4rem 0.75rem !important; /* УМЕНЬШЕНО */
+    padding: 0.4rem 0.75rem !important;
     min-height: auto !important;
 }
 
 #create-graph-page .col-lg-8 .card-header h5 {
-    font-size: 0.9rem !important; /* УМЕНЬШЕНО */
+    font-size: 0.9rem !important;
     margin: 0 !important;
 }
 
 /* ЗАГОЛОВОЧНАЯ КАРТОЧКА */
 #create-graph-page .card.mb-4 {
-    margin-bottom: 8px !important; /* УМЕНЬШЕНО */
+    margin-bottom: 8px !important;
     flex: 0 0 auto !important;
     height: auto !important;
 }
@@ -416,10 +440,10 @@
 #create-graph-page #graph-form .card-body {
     overflow-y: auto !important;
     flex: 1 !important;
-    padding: 0.75rem !important; /* УМЕНЬШЕНО */
+    padding: 0.75rem !important;
 }
 
-/* СТАТИСТИКА ДАННЫХ - ЗАНИМАЕТ ВСЁ ОСТАВШЕЕСЯ МЕСТО */
+/* СТАТИСТИКА ДАННЫХ */
 #create-graph-page #dataStats {
     height: 100% !important;
     max-height: none !important;
@@ -470,41 +494,77 @@
     padding: 20px !important;
 }
 
-/* КОНТЕЙНЕРЫ ГРАФИКОВ - КОМПАКТНЫЕ БЕЗ ОТСТУПОВ */
-#create-graph-page #graphContainer, 
-#create-graph-page #plotlyContainer {
-    height: 100% !important;
-    min-height: 450px !important; /* УМЕНЬШЕНО */
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    padding: 0 !important; /* ДОБАВЛЕНО */
-    margin: 0 !important; /* ДОБАВЛЕНО */
-}
-
-#create-graph-page #graphContainer img {
-    max-height: 100% !important;
-    max-width: 100% !important;
-    object-fit: contain !important;
-    padding: 0 !important; /* ДОБАВЛЕНО */
-    margin: 0 !important; /* ДОБАВЛЕНО */
-}
-
-/* PLOTLY ГРАФИКИ - КОМПАКТНЫЕ */
-#create-graph-page #plotlyContainer .js-plotly-plot {
+/* КОНТЕЙНЕРЫ ГРАФИКОВ */
+#graphArea {
+    position: relative !important;
     width: 100% !important;
     height: 100% !important;
-    min-height: 450px !important; /* УМЕНЬШЕНО */
-    padding: 0 !important; /* ДОБАВЛЕНО */
-    margin: 0 !important; /* ДОБАВЛЕНО */
+    min-height: 450px !important;
+    overflow: visible !important;
+    flex: 1 !important;
 }
 
-/* КОНТЕЙНЕР ДЛЯ СООБЩЕНИЙ - КОМПАКТНЫЙ */
-#create-graph-page #graphMessages {
-    flex: 0 0 auto !important;
-    padding: 0.25rem 0 !important; /* УМЕНЬШЕНО */
-    margin-bottom: 0.25rem !important; /* УМЕНЬШЕНО */
-    min-height: auto !important;
+#defaultState {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: all 0.3s ease !important;
+    z-index: 1 !important;
+}
+
+#dynamicGraphContainer {
+    position: relative !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 450px !important;
+    overflow: visible !important;
+    z-index: 2 !important;
+    padding: 10px !important;
+}
+
+/* PLOTLY ГРАФИКИ */
+#dynamicGraphContainer .js-plotly-plot,
+#dynamicGraphContainer .plotly,
+#dynamicGraphContainer .plot-container {
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 450px !important;
+    overflow: visible !important;
+}
+
+/* ОСНОВНОЙ SVG PLOTLY */
+#dynamicGraphContainer .main-svg {
+    width: 100% !important;
+    height: 100% !important;
+    overflow: visible !important;
+}
+
+/* КОНТЕЙНЕР SVG */
+#dynamicGraphContainer .svg-container {
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 450px !important;
+    overflow: visible !important;
+}
+
+/* Улучшения для легенды Plotly */
+.js-plotly-plot .legend {
+    font-size: 12px !important;
+    background-color: rgba(255, 255, 255, 0.9) !important;
+    border: 1px solid #dee2e6 !important;
+    border-radius: 4px !important;
+}
+
+/* Подсказки */
+.hovertext {
+    font-family: Arial, sans-serif !important;
+    font-size: 12px !important;
 }
 
 /* ТАБЛИЦА СТАТИСТИКИ */
@@ -514,28 +574,28 @@
 
 #create-graph-page .table {
     margin-bottom: 0 !important;
-    font-size: 0.75rem !important; /* УМЕНЬШЕНО */
+    font-size: 0.75rem !important;
 }
 
 #create-graph-page .table th, 
 #create-graph-page .table td {
-    padding: 0.25rem 0.15rem !important; /* УМЕНЬШЕНО */
+    padding: 0.25rem 0.15rem !important;
     white-space: nowrap !important;
 }
 
 /* СКРОЛЛБАРЫ */
 #create-graph-page .card-body::-webkit-scrollbar {
-    width: 4px; /* УМЕНЬШЕНО */
+    width: 4px;
 }
 
 #create-graph-page .card-body::-webkit-scrollbar-track {
     background: #f1f1f1;
-    border-radius: 2px; /* УМЕНЬШЕНО */
+    border-radius: 2px;
 }
 
 #create-graph-page .card-body::-webkit-scrollbar-thumb {
     background: #c1c1c1;
-    border-radius: 2px; /* УМЕНЬШЕНО */
+    border-radius: 2px;
 }
 
 #create-graph-page .card-body::-webkit-scrollbar-thumb:hover {
@@ -552,51 +612,34 @@
     #create-graph-page .col-lg-4, 
     #create-graph-page .col-lg-8 {
         height: auto !important;
-        min-height: 45vh !important; /* УМЕНЬШЕНО */
+        min-height: 45vh !important;
     }
     
     #create-graph-page .col-lg-4 > .card:first-child {
         flex: 0 0 auto !important;
         height: auto !important;
-        min-height: 350px !important; /* УМЕНЬШЕНО */
+        min-height: 350px !important;
     }
-    
-    /* КОМПАКТНЫЕ ГРАФИКИ НА МОБИЛЬНЫХ */
-    #create-graph-page #graphContainer, 
-    #create-graph-page #plotlyContainer {
-        min-height: 350px !important; /* УМЕНЬШЕНО */
-    }
-}
-
-#defaultState, #dynamicGraphContainer {
-    transition: opacity 0.3s ease, visibility 0.3s ease;
-}
-
-#defaultState {
-    display: flex !important;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
 }
 
 /* УЛУЧШЕНИЯ ДЛЯ ФОРМЫ */
 #create-graph-page .form-select, 
 #create-graph-page .form-control {
-    font-size: 0.8rem !important; /* УМЕНЬШЕНО */
+    font-size: 0.8rem !important;
 }
 
 #create-graph-page .btn {
-    font-size: 0.85rem !important; /* УМЕНЬШЕНО */
+    font-size: 0.85rem !important;
 }
 
 /* ЗАГОЛОВКИ КАРТОЧЕК */
 #create-graph-page .card-header {
-    padding: 0.5rem 0.75rem !important; /* УМЕНЬШЕНО */
+    padding: 0.5rem 0.75rem !important;
     flex: 0 0 auto !important;
 }
 
 #create-graph-page .card-header h5 {
-    font-size: 0.9rem !important; /* УМЕНЬШЕНО */
+    font-size: 0.9rem !important;
     margin: 0 !important;
 }
 
@@ -604,12 +647,12 @@
 #create-graph-page .mb-4, 
 #create-graph-page .mb-3, 
 #create-graph-page .mb-2 {
-    margin-bottom: 0.4rem !important; /* УМЕНЬШЕНО */
+    margin-bottom: 0.4rem !important;
 }
 
 #create-graph-page .row {
-    --bs-gutter-x: 0.4rem !important; /* УМЕНЬШЕНО */
-    --bs-gutter-y: 0.4rem !important; /* УМЕНЬШЕНО */
+    --bs-gutter-x: 0.4rem !important;
+    --bs-gutter-y: 0.4rem !important;
 }
 
 /* УЛУЧШЕНИЯ ДЛЯ ТАБЛИЦЫ СТАТИСТИКИ */
@@ -630,67 +673,227 @@
 }
 
 #create-graph-page #graphControls .btn {
-    padding: 0.25rem 0.5rem !important; /* УМЕНЬШЕНО */
-    font-size: 0.75rem !important; /* УМЕНЬШЕНО */
+    padding: 0.25rem 0.5rem !important;
+    font-size: 0.75rem !important;
 }
 
-/* ОБЕСПЕЧИВАЕМ ПРАВИЛЬНОЕ РАСПРЕДЕЛЕНИЕ ПРОСТРАНСТВА */
-#create-graph-page .d-flex {
+/* КОМПАКТНЫЕ ФОРМЫ */
+#create-graph-page .form-label {
+    margin-bottom: 0.3rem !important;
+    font-size: 0.8rem !important;
+}
+
+#create-graph-page .form-check {
+    margin-bottom: 0.3rem !important;
+    min-height: auto !important;
+}
+
+/* КОМПАКТНЫЕ КНОПКИ В ФОРМЕ */
+#create-graph-page #graph-form .btn {
+    padding: 0.4rem 0.75rem !important;
+    margin-top: 0.5rem !important;
+}
+
+/* УПРАВЛЕНИЕ СОСТАВАМИ */
+#compositionControlsCard {
+    max-height: 300px !important; /* УВЕЛИЧИЛИ высоту */
+    height: auto !important;
+    min-height: 200px !important; /* УВЕЛИЧИЛИ минимальную высоту */
+    margin-top: 12px !important;
     display: flex !important;
-}
-
-#create-graph-page .flex-column {
     flex-direction: column !important;
 }
 
-#create-graph-page .flex-grow-1 {
-    flex-grow: 1 !important;
+#compositionControlsCard .card-body {
+    flex: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    padding: 12px !important; /* УВЕЛИЧИЛИ отступы */
+    min-height: 150px !important; /* УВЕЛИЧИЛИ минимальную высоту */
+    overflow: hidden !important; /* Убираем скролл у body */
 }
 
-#create-graph-page .flex-shrink-0 {
-    flex-shrink: 0 !important;
+#compositionControlsCard .card-header {
+    padding: 0.6rem 0.75rem !important; /* УВЕЛИЧИЛИ отступы */
+    flex: 0 0 auto !important;
 }
 
-#create-graph-page .h-100 {
-    height: 100% !important;
+#compositionControlsCard .card-header h6 {
+    font-size: 0.9rem !important; /* УВЕЛИЧИЛИ шрифт */
+    margin: 0 !important;
 }
 
-#create-graph-page .w-100 {
-    width: 100% !important;
+#compositionControls {
+    flex: 1 !important;
+    max-height: none !important;
+    min-height: 120px !important; /* УВЕЛИЧИЛИ минимальную высоту */
+    overflow-y: auto !important; /* ОСТАВЛЯЕМ ТОЛЬКО ОДИН СКРОЛЛБАР */
+    gap: 4px !important; /* УВЕЛИЧИЛИ расстояние между элементами */
+    padding: 4px !important; /* УВЕЛИЧИЛИ отступы */
+    scrollbar-width: thin !important;
+    scrollbar-color: #adb5bd #f8f9fa !important;
 }
 
-/* УЛУЧШЕНИЯ ДЛЯ SCROLLABLE КОНТЕЙНЕРОВ */
-#create-graph-page .overflow-auto {
-    overflow: auto !important;
+
+/* Стили для Webkit браузеров (Chrome, Safari, Edge) */
+#compositionControls::-webkit-scrollbar {
+    width: 8px !important;
 }
 
-#create-graph-page .overflow-hidden {
-    overflow: hidden !important;
+#compositionControls::-webkit-scrollbar-track {
+    background: #f8f9fa !important;
+    border-radius: 4px !important;
+    border: 1px solid #e9ecef !important;
 }
 
-/* ФИКС ДЛЯ ИЗОБРАЖЕНИЙ ГРАФИКОВ */
-#create-graph-page .img-fluid {
-    max-height: 100% !important;
-    width: auto !important;
+#compositionControls::-webkit-scrollbar-thumb {
+    background: #adb5bd !important;
+    border-radius: 4px !important;
+    border: 2px solid #f8f9fa !important; /* УВЕЛИЧИЛИ границу */
+    transition: all 0.3s ease !important;
 }
 
-/* КОМПАКТНЫЕ РАДИУСЫ */
-.border-radius-lg {
-    border-radius: 8px !important; /* УМЕНЬШЕНО */
+#compositionControls::-webkit-scrollbar-thumb:hover {
+    background: #6c757d !important;
+    border: 1px solid #f8f9fa !important; /* Уменьшаем границу при hover */
 }
 
-.border-radius-lg-top {
-    border-radius: 8px 8px 0 0 !important; /* УМЕНЬШЕНО */
+#compositionControls::-webkit-scrollbar-thumb:active {
+    background: #495057 !important;
 }
 
-/* ОБЩИЕ СТИЛИ КОТОРЫЕ НЕ ЛОМАЮТ NAVBAR */
+/* Компактные чекбоксы */
+.composition-checkbox {
+    transform: scale(1) !important; /* ВОЗВРАЩАЕМ нормальный размер */
+    margin-right: 6px !important; /* УВЕЛИЧИЛИ отступ */
+    transition: transform 0.1s ease !important;
+}
+
+.composition-checkbox:checked {
+    transform: scale(1.1) !important; /* Легкое увеличение при выборе */
+}
+
+.form-check-label {
+    font-size: 0.8rem !important; /* УВЕЛИЧИЛИ шрифт */
+    padding: 4px 6px !important; /* УВЕЛИЧИЛИ отступы */
+    line-height: 1.3 !important;
+}
+
+.form-check-label:hover {
+    background-color: rgba(0, 123, 255, 0.05) !important;
+}
+
+/* Анимации для плавного переключения */
+.composition-active, .composition-inactive {
+    transition: all 0.2s ease-in-out !important;
+}
+
+/* Улучшаем отображение состояний */
+.composition-active {
+    background-color: rgba(40, 167, 69, 0.12) !important; /* УВЕЛИЧИЛИ прозрачность */
+    border-left: 4px solid #28a745 !important; /* УВЕЛИЧИЛИ границу */
+    border-radius: 4px !important; /* Добавили скругление */
+}
+
+.composition-inactive {
+    background-color: rgba(108, 117, 125, 0.08) !important; /* УВЕЛИЧИЛИ прозрачность */
+    border-left: 4px solid #6c757d !important; /* УВЕЛИЧИЛИ границу */
+    border-radius: 4px !important; /* Добавили скругление */
+    opacity: 0.8;
+}
+
+.composition-active .form-check-label {
+    color: #28a745 !important;
+    font-weight: 600 !important;
+}
+
+.composition-inactive .form-check-label {
+    color: #6c757d !important;
+    font-weight: 500 !important;
+}
+
+/* Более компактные строки */
+#compositionControls .col-12 {
+    margin-bottom: 2px !important; /* УВЕЛИЧИЛИ отступ между строками */
+    padding: 0 6px !important; /* УВЕЛИЧИЛИ отступы */
+}
+
+#compositionControls .form-check {
+    margin-bottom: 2px !important; /* УВЕЛИЧИЛИ отступ */
+    padding: 3px 4px !important; /* УВЕЛИЧИЛИ отступы */
+    min-height: auto !important;
+}
+
+/* КНОПКИ УПРАВЛЕНИЯ */
+#compositionControlsCard .btn-group-sm {
+    gap: 8px !important;
+}
+
+#compositionControlsCard .btn-group-sm .btn {
+    padding: 0.4rem 0.8rem !important; /* УВЕЛИЧИЛИ размер кнопок */
+    font-size: 0.85rem !important; /* УВЕЛИЧИЛИ шрифт */
+}
+
+#compositionControlsCard .btn-outline-primary {
+    border-color: #007bff !important;
+    color: #007bff !important;
+    background-color: transparent !important;
+}
+
+#compositionControlsCard .btn-outline-primary:hover {
+    background-color: #007bff !important;
+    color: white !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 2px 4px rgba(0, 123, 255, 0.3) !important;
+}
+
+#compositionControlsCard .btn-outline-secondary {
+    border-color: #6c757d !important;
+    color: #6c757d !important;
+    background-color: transparent !important;
+}
+
+#compositionControlsCard .btn-outline-secondary:hover {
+    background-color: #6c757d !important;
+    color: white !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 2px 4px rgba(108, 117, 125, 0.3) !important;
+}
+
+/* АДАПТИВНОСТЬ ДЛЯ УПРАВЛЕНИЯ СОСТАВАМИ */
+@media (max-width: 768px) {
+    #compositionControlsCard {
+        min-height: 120px !important;
+        max-height: 200px !important;
+    }
+    
+    #compositionControls {
+        min-height: 80px !important;
+    }
+}
+
+@media (max-height: 700px) {
+    #compositionControlsCard {
+        max-height: 180px !important;
+        min-height: 120px !important;
+    }
+}
+
+@media (min-height: 800px) {
+    #compositionControlsCard {
+        max-height: 220px !important;
+        min-height: 180px !important;
+    }
+}
+
+/* ОБЩИЕ СТИЛИ */
 .card {
     border: none;
-    box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.06); /* УМЕНЬШЕНО */
+    box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.06);
 }
 
 .btn {
-    border-radius: 6px; /* УМЕНЬШЕНО */
+    border-radius: 6px;
     font-weight: 500;
     transition: all 0.3s ease;
 }
@@ -700,146 +903,18 @@
 }
 
 .form-select {
-    border-radius: 6px; /* УМЕНЬШЕНО */
+    border-radius: 6px;
     border: 1px solid #e2e8f0;
     transition: all 0.3s ease;
 }
 
 .form-select:focus {
     border-color: #007bff;
-    box-shadow: 0 0 0 0.15rem rgba(0, 123, 255, 0.25); /* УМЕНЬШЕНО */
+    box-shadow: 0 0 0 0.15rem rgba(0, 123, 255, 0.25);
 }
 
-/* УБИРАЕМ КОНФЛИКТЫ С ТЕМОЙ */
 .modebar {
     z-index: 1000 !important;
-}
-
-/* ДОПОЛНИТЕЛЬНЫЕ КОМПАКТНЫЕ СТИЛИ ДЛЯ ГРАФИКОВ */
-#create-graph-page .col-lg-8 .card-body {
-    padding: 0.25rem !important; /* МИНИМАЛЬНЫЙ ОТСТУП */
-}
-
-#create-graph-page #graphContainer .text-muted,
-#create-graph-page #plotlyContainer .text-muted {
-    padding: 0.5rem !important; /* КОМПАКТНЫЕ ОТСТУПЫ ДЛЯ СООБЩЕНИЙ */
-}
-
-/* КОМПАКТНЫЕ ФОРМЫ */
-#create-graph-page .form-label {
-    margin-bottom: 0.3rem !important; /* УМЕНЬШЕНО */
-    font-size: 0.8rem !important; /* УМЕНЬШЕНО */
-}
-
-#create-graph-page .form-check {
-    margin-bottom: 0.3rem !important; /* УМЕНЬШЕНО */
-    min-height: auto !important;
-}
-
-/* КОМПАКТНЫЕ КНОПКИ В ФОРМЕ */
-#create-graph-page #graph-form .btn {
-    padding: 0.4rem 0.75rem !important; /* УМЕНЬШЕНО */
-    margin-top: 0.5rem !important; /* УМЕНЬШЕНО */
-}
-
-#defaultState {
-    position: absolute !important;
-    top: 0 !important;
-    left: 0 !important;
-    width: 100% !important;
-    height: 100% !important;
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: center !important;
-    transition: all 0.3s ease !important;
-    z-index: 1 !important;
-}
-
-/* ОСНОВНЫЕ СТИЛИ ДЛЯ PLOTLY КОНТЕЙНЕРА */
-#dynamicGraphContainer {
-    position: relative !important;
-    width: 100% !important;
-    height: 100% !important;
-    min-height: 500px !important;
-    overflow: visible !important; /* ВАЖНО: разрешаем overflow */
-    z-index: 2 !important;
-    padding: 10px !important; /* Добавляем немного отступов */
-}
-
-/* СТИЛИ ДЛЯ PLOTLY ГРАФИКОВ - УБИРАЕМ ВСЕ ОГРАНИЧЕНИЯ */
-#dynamicGraphContainer .js-plotly-plot,
-#dynamicGraphContainer .plotly,
-#dynamicGraphContainer .plot-container {
-    width: 100% !important;
-    height: 100% !important;
-    min-height: 450px !important;
-    overflow: visible !important; /* ВАЖНО */
-}
-
-/* ОСНОВНОЙ SVG PLOTLY */
-#dynamicGraphContainer .main-svg {
-    width: 100% !important;
-    height: 100% !important;
-    overflow: visible !important;
-}
-
-/* КОНТЕЙНЕР SVG */
-#dynamicGraphContainer .svg-container {
-    width: 100% !important;
-    height: 100% !important;
-    min-height: 450px !important;
-    overflow: visible !important;
-}
-
-/* УВЕЛИЧИВАЕМ ОБЛАСТЬ ГРАФИКА */
-#dynamicGraphContainer .plotly .graph {
-    width: 100% !important;
-    height: 100% !important;
-}
-
-/* ДОПОЛНИТЕЛЬНЫЕ СТИЛИ ДЛЯ ЛЕГЕНДЫ И ОСЕЙ */
-#dynamicGraphContainer .plotly .legend {
-    max-width: 100% !important;
-    overflow: visible !important;
-}
-
-#dynamicGraphContainer .plotly .xaxislayer,
-#dynamicGraphContainer .plotly .yaxislayer {
-    overflow: visible !important;
-}
-
-/* УБЕРАЕМ ЛЮБЫЕ ОГРАНИЧЕНИЯ В CARD-BODY */
-.card-body {
-    min-height: 500px !important;
-    overflow: visible !important; /* ВАЖНО */
-    padding: 10px !important;
-}
-
-/* GRAPHAREA ДОЛЖНА БЫТЬ С OVERFLOW VISIBLE */
-#graphArea {
-    position: relative !important;
-    width: 100% !important;
-    height: 100% !important;
-    min-height: 450px !important;
-    overflow: visible !important; /* ВАЖНО */
-    flex: 1 !important;
-}
-
-/* ПРАВАЯ КОЛОНКА */
-.col-lg-8 {
-    height: 100% !important;
-    min-height: 500px !important;
-    overflow: visible !important;
-}
-
-/* УВЕЛИЧИМ РАЗМЕРЫ ДЛЯ ЛУЧШЕГО ОТОБРАЖЕНИЯ */
-#create-graph-page .col-lg-8 .card {
-    min-height: 550px !important;
-}
-
-#create-graph-page .col-lg-8 .card-body {
-    min-height: 500px !important;
 }
 
 </style>
@@ -878,6 +953,8 @@ function testPlotlyManually() {
 // Глобальные переменные
 let currentGraph = null;
 let currentGraphType = 'matplotlib';
+let availableCompositions = [];
+let selectedCompositions = [];
 
 // Списки графиков для каждого типа визуализации
 const GRAPHS_BY_TYPE = {
@@ -921,6 +998,7 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('=== УПРОЩЕННАЯ ИНИЦИАЛИЗАЦИЯ ===');
     
     try {
+        
         // Проверяем загрузку Plotly
         setTimeout(() => {
             if (typeof Plotly !== 'undefined') {
@@ -947,9 +1025,12 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
 
+        availableCompositions = [];
+        selectedCompositions = [];
         initializeForm();
         setupEventListeners();
         updateFormOptions();
+        setupCompositionControls();
         
     } catch (error) {
         console.error('❌ Ошибка инициализации:', error);
@@ -957,6 +1038,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     console.log('✅ Инициализация завершена');
 });
+
 
 function initializeForm() {
     console.log('=== Инициализация формы ===');
@@ -1106,11 +1188,11 @@ function updateFormOptions() {
     }
 
     // Для круговых диаграмм скрываем Y параметр
-    if (graphType === 'pie' || graphType === 'sunburst' || graphType === 'treemap') {
-        yParamGroup.style.display = 'none';
-    } else {
-        yParamGroup.style.display = 'flex';
-    }
+    // if (graphType === 'pie' || graphType === 'sunburst' || graphType === 'treemap') {
+    //     yParamGroup.style.display = 'none';
+    // } else {
+    //     yParamGroup.style.display = 'flex';
+    // }
 
     // Опции для 3D графиков
     if (graphType === '3d_scatter') {
@@ -1121,7 +1203,6 @@ function updateFormOptions() {
 }
 
 async function handleGraphCreation(e) {
-    // ВАЖНО: Полностью предотвращаем поведение по умолчанию
     e.preventDefault();
     e.stopPropagation();
     
@@ -1137,14 +1218,25 @@ async function handleGraphCreation(e) {
     
     const formData = new FormData(form);
     
-    console.log('📊 Form data:', Object.fromEntries(formData));
-    console.log('🔍 Проверка элементов ДО запроса:', {
-        graphArea: !!document.getElementById('graphArea'),
-        defaultState: !!document.getElementById('defaultState'),
-        dynamicContainer: !!document.getElementById('dynamicGraphContainer'),
-        form: !!form
-    });
+     // ВАЖНОЕ ИСПРАВЛЕНИЕ: Добавляем selected_compositions в formData
+    let compositionsInput = document.getElementById('selectedCompositionsInput');
+    if (!compositionsInput) {
+        compositionsInput = document.createElement('input');
+        compositionsInput.type = 'hidden';
+        compositionsInput.id = 'selectedCompositionsInput';
+        compositionsInput.name = 'selected_compositions';
+        form.appendChild(compositionsInput);
+    }
+
+    // Если selectedCompositions пустой, отправляем все доступные
+    if (selectedCompositions.length === 0 && availableCompositions.length > 0) {
+        selectedCompositions = [...availableCompositions];
+        console.log('🔄 Автоматически выбраны все составы:', selectedCompositions);
+    }
     
+    compositionsInput.value = JSON.stringify(selectedCompositions);
+    console.log('📤 Отправляемые составы:', selectedCompositions);
+
     // Показываем загрузку
     submitBtn.disabled = true;
     submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Создание...';
@@ -1169,23 +1261,45 @@ async function handleGraphCreation(e) {
         console.log('✅ Ответ сервера получен:', data);
         
         if (data.success) {
-            console.log('🎯 Вызов displayGraph...');
-            safeDisplayGraph(data.graph, data.graph_type);
-            showMessage(data.message, 'success');
-            updateStatistics(data.stats);
-            
-            // Показываем кнопки управления
-            const graphControls = document.getElementById('graphControls');
-            if (graphControls) {
-                graphControls.style.display = 'flex';
+            // ОБНОВЛЕНИЕ: Сохраняем доступные составы
+            if (data.available_compositions) {
+                updateCompositionControls(data.available_compositions);
+                // Показываем сообщение о доступных составах
+                showMessage(`График создан! Доступно ${data.available_compositions.length} составов для управления.`, 'success', 4000);
             }
+            
+            // Если график None, показываем пустое состояние
+            if (!data.graph) {
+                console.log('📭 График пустой, показываем состояние по умолчанию');
+                showMessage(data.message || 'Нет данных для отображения с выбранными составами', 'warning');
+                showDefaultState();
+                
+                // Скрываем кнопки управления
+                const graphControls = document.getElementById('graphControls');
+                if (graphControls) {
+                    graphControls.style.display = 'none';
+                }
+            } else {
+                console.log('📈 График есть, отображаем его');
+                safeDisplayGraph(data.graph, data.graph_type);
+                
+                // Показываем кнопки управления
+                const graphControls = document.getElementById('graphControls');
+                if (graphControls) {
+                    graphControls.style.display = 'flex';
+                }
+            }
+            
+            updateStatistics(data.stats);
         } else {
             showMessage(data.message, 'danger');
             console.error('❌ Ошибка сервера:', data.message);
+            showDefaultState();
         }
     } catch (error) {
         console.error('❌ Ошибка запроса:', error);
         showMessage('Ошибка при создании графика: ' + error.message, 'danger');
+        showDefaultState();
     } finally {
         submitBtn.disabled = false;
         submitBtn.innerHTML = '<i class="fas fa-chart-line me-2"></i>Создать график';
@@ -1892,10 +2006,10 @@ function updateStatistics(stats) {
                         <tr>
                             <th>Параметр</th>
                             <th>Среднее</th>
-                            <th>Std</th>
-                            <th>Min</th>
-                            <th>Max</th>
-                            <th>Count</th>
+                            <th>Стандартный</th>
+                            <th>Минимальный</th>
+                            <th>Максимальный</th>
+                            <th>Количество</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -2149,5 +2263,338 @@ function showMessage(message, type = 'info', duration = 3000) {
 function clearMessages() {
     document.getElementById('graphMessages').innerHTML = '';
 }
+
+// Функция для обновления панели управления составами
+function updateCompositionControls(compositions) {
+    const controlsContainer = document.getElementById('compositionControls');
+    const controlsCard = document.getElementById('compositionControlsCard');
+    
+    console.log('🔄 Обновление панели составов:', compositions);
+    
+    if (!compositions || compositions.length === 0) {
+        controlsCard.style.display = 'none';
+        return;
+    }
+    
+    availableCompositions = compositions;
+    
+    // Если selectedCompositions пуст, выбираем все составы по умолчанию
+    if (selectedCompositions.length === 0) {
+        selectedCompositions = [...compositions];
+    }
+    
+    let html = '';
+    compositions.forEach(composition => {
+        const isChecked = selectedCompositions.includes(composition);
+        const activeClass = isChecked ? 'composition-active' : 'composition-inactive';
+        const iconClass = isChecked ? 'fa-check-circle text-success' : 'fa-times-circle text-muted';
+        
+        // Экранируем специальные символы для ID
+        const safeId = composition.replace(/[^a-zA-Z0-9]/g, '-');
+        
+        html += `
+            <div class="col-12">
+                <div class="form-check ${activeClass}">
+                    <input class="form-check-input composition-checkbox d-none" 
+                        type="checkbox" 
+                        id="comp-${safeId}" 
+                        value="${composition}" 
+                        ${isChecked ? 'checked' : ''}>
+                    <label class="form-check-label w-100 d-flex align-items-center cursor-pointer" 
+                        for="comp-${safeId}">
+                        <!-- Одна иконка состояния (чек/не чек) -->
+                        <i class="fas ${isChecked ? 'fa-check-square text-primary' : 'fa-square text-secondary'} me-2 composition-icon" 
+                        style="width: 16px;"></i>
+                        <!-- Только текст без второй иконки -->
+                        <small class="flex-grow-1 text-truncate" title="${composition}">${composition}</small>
+                    </label>
+                </div>
+            </div>
+            `;
+    });
+    
+    controlsContainer.innerHTML = html;
+    controlsCard.style.display = 'flex'; // Меняем на flex
+    
+    // Обновляем счетчик
+    updateCompositionsCounter();
+    
+    // Добавляем обработчики событий для чекбоксов
+    addCheckboxEventListeners();
+    
+    console.log('✅ Панель составов обновлена. Выбрано:', selectedCompositions.length, 'из', compositions.length);
+}
+
+// Добавление обработчиков событий для чекбоксов
+function addCheckboxEventListeners() {
+    document.querySelectorAll('.composition-checkbox').forEach(checkbox => {
+        // Удаляем старые обработчики чтобы избежать дублирования
+        checkbox.removeEventListener('change', handleCheckboxChange);
+        // Добавляем новый обработчик
+        checkbox.addEventListener('change', handleCheckboxChange);
+    });
+}
+
+// Обработчик изменения чекбокса
+function handleCheckboxChange(event) {
+    const checkbox = event.target;
+    const composition = checkbox.value;
+    const isVisible = checkbox.checked;
+    
+    console.log(`🔄 Переключение состава: ${composition} -> ${isVisible}`);
+    
+    // МГНОВЕННОЕ обновление визуального состояния
+    const labelContainer = checkbox.closest('.form-check');
+    const icon = labelContainer?.querySelector('.composition-icon');
+    
+    if (labelContainer && icon) {
+        if (isVisible) {
+            labelContainer.classList.add('composition-active');
+            labelContainer.classList.remove('composition-inactive');
+            icon.classList.remove('fa-square', 'text-secondary');
+            icon.classList.add('fa-check-square', 'text-primary');
+        } else {
+            labelContainer.classList.add('composition-inactive');
+            labelContainer.classList.remove('composition-active');
+            icon.classList.remove('fa-check-square', 'text-primary');
+            icon.classList.add('fa-square', 'text-secondary');
+        }
+    }
+    
+    toggleComposition(composition, isVisible);
+    
+    // НЕ обновляем график автоматически при клике на чекбокс
+    // Пользователь сам нажмет "Создать график" когда будет готов
+    showMessage('Состав изменен. Нажмите "Создать график" для обновления.', 'info', 2000);
+}
+
+// Функция переключения состава
+function toggleComposition(composition, isVisible) {
+    if (isVisible) {
+        if (!selectedCompositions.includes(composition)) {
+            selectedCompositions.push(composition);
+        }
+    } else {
+        const index = selectedCompositions.indexOf(composition);
+        if (index > -1) {
+            selectedCompositions.splice(index, 1);
+        }
+    }
+    
+    // Мгновенно обновляем счетчик
+    updateCompositionsCounter();
+    
+    console.log(`📊 Выбранные составы:`, selectedCompositions);
+    
+    // Автоматически обновляем график если он уже был создан
+    const dynamicContainer = document.getElementById('dynamicGraphContainer');
+    if (dynamicContainer && dynamicContainer.style.display !== 'none') {
+        // Небольшая задержка для группировки множественных изменений
+        clearTimeout(window.compositionUpdateTimeout);
+        window.compositionUpdateTimeout = setTimeout(() => {
+            updateGraphWithSelectedCompositions();
+        }, 300);
+    }
+}
+
+function setupCompositionControls() {
+    const selectAllBtn = document.getElementById('selectAllCompositions');
+    const deselectAllBtn = document.getElementById('deselectAllCompositions');
+    
+    if (selectAllBtn) {
+        // Удаляем старые обработчики
+        selectAllBtn.replaceWith(selectAllBtn.cloneNode(true));
+        const newSelectAllBtn = document.getElementById('selectAllCompositions');
+        
+        newSelectAllBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            console.log('🎯 Нажата кнопка "Все"');
+            selectAllCompositions();
+        });
+    }
+    
+    if (deselectAllBtn) {
+        // Удаляем старые обработчики
+        deselectAllBtn.replaceWith(deselectAllBtn.cloneNode(true));
+        const newDeselectAllBtn = document.getElementById('deselectAllCompositions');
+        
+        newDeselectAllBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            console.log('🎯 Нажата кнопка "Ничего"');
+            deselectAllCompositions();
+        });
+    }
+    
+    console.log('✅ Обработчики кнопок управления составами установлены');
+}
+
+function selectAllCompositions() {
+    if (availableCompositions.length === 0) {
+        console.warn('⚠️ Нет доступных составов для выбора');
+        showMessage('Сначала создайте график чтобы увидеть составы', 'warning', 3000);
+        return;
+    }
+    
+    selectedCompositions = [...availableCompositions];
+    console.log('✅ Выбраны все составы:', selectedCompositions);
+    
+    // ОБНОВЛЯЕМ СКРЫТЫЕ ЧЕКБОКСЫ
+    document.querySelectorAll('.composition-checkbox').forEach(checkbox => {
+        checkbox.checked = true;
+    });
+    
+    // ОБНОВЛЯЕМ ВИЗУАЛЬНОЕ СОСТОЯНИЕ
+    document.querySelectorAll('.composition-icon').forEach(icon => {
+        icon.classList.remove('fa-square', 'text-secondary');
+        icon.classList.add('fa-check-square', 'text-primary');
+    });
+    
+    // ОБНОВЛЯЕМ КЛАССЫ КОНТЕЙНЕРОВ
+    document.querySelectorAll('.form-check').forEach(container => {
+        container.classList.remove('composition-inactive');
+        container.classList.add('composition-active');
+    });
+    
+    // Обновляем счетчик
+    updateCompositionsCounter();
+    
+    // НЕ обновляем график автоматически - пользователь сам нажмет "Создать график"
+    showMessage('Все составы выбраны. Нажмите "Создать график" для обновления.', 'info', 4000);
+}
+
+function deselectAllCompositions() {
+    if (availableCompositions.length === 0) {
+        console.warn('⚠️ Нет доступных составов');
+        showMessage('Сначала создайте график чтобы управлять составами', 'warning', 3000);
+        return;
+    }
+    
+    console.log('❌ Снимаем все галочки с составов');
+    
+    // Очищаем выбранные составы
+    selectedCompositions = [];
+    
+    // ОБНОВЛЯЕМ СКРЫТЫЕ ЧЕКБОКСЫ
+    document.querySelectorAll('.composition-checkbox').forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    
+    // ОБНОВЛЯЕМ ВИЗУАЛЬНОЕ СОСТОЯНИЕ
+    document.querySelectorAll('.composition-icon').forEach(icon => {
+        icon.classList.remove('fa-check-square', 'text-primary');
+        icon.classList.add('fa-square', 'text-secondary');
+    });
+    
+    // ОБНОВЛЯЕМ КЛАССЫ КОНТЕЙНЕРОВ
+    document.querySelectorAll('.form-check').forEach(container => {
+        container.classList.remove('composition-active');
+        container.classList.add('composition-inactive');
+    });
+    
+    // Обновляем счетчик
+    updateCompositionsCounter();
+    
+    // НЕ обновляем график автоматически - оставляем пустой для выбора
+    showMessage('Все составы сняты. Выберите нужные составы и нажмите "Создать график".', 'info', 4000);
+    
+    console.log('✅ Все галочки сняты, selectedCompositions очищен:', selectedCompositions);
+}
+
+// Обновление состояния чекбоксов
+function updateCompositionCheckboxes() {
+    console.log('🔄 Обновление состояния чекбоксов. Выбрано:', selectedCompositions.length, 'составов');
+    
+    document.querySelectorAll('.composition-checkbox').forEach(checkbox => {
+        const composition = checkbox.value;
+        const isChecked = selectedCompositions.includes(composition);
+        
+        // Устанавливаем состояние чекбокса
+        checkbox.checked = isChecked;
+        
+        // Визуальная обратная связь
+        const labelContainer = checkbox.closest('.form-check');
+        const icon = labelContainer.querySelector('.composition-icon');
+        
+        if (labelContainer && icon) {
+            if (isChecked) {
+                labelContainer.classList.add('composition-active');
+                labelContainer.classList.remove('composition-inactive');
+                icon.classList.remove('fa-square', 'text-secondary');
+                icon.classList.add('fa-check-square', 'text-primary');
+            } else {
+                labelContainer.classList.add('composition-inactive');
+                labelContainer.classList.remove('composition-active');
+                icon.classList.remove('fa-check-square', 'text-primary');
+                icon.classList.add('fa-square', 'text-secondary');
+            }
+        }
+    });
+    
+    // Обновляем счетчик выбранных составов в заголовке
+    updateCompositionsCounter();
+}
+
+function updateCompositionsCounter() {
+    const cardHeader = document.querySelector('#compositionControlsCard .card-header h6');
+    if (cardHeader) {
+        const total = availableCompositions.length;
+        const selected = selectedCompositions.length;
+        
+        if (total > 0) {
+            cardHeader.innerHTML = `
+                <i class="fas fa-layer-group me-2"></i>
+                Составы на графике 
+                <small class="badge bg-primary ms-2">${selected}/${total}</small>
+            `;
+            
+            // Меняем цвет заголовка в зависимости от выбора
+            if (selected === 0) {
+                cardHeader.classList.add('text-warning');
+                cardHeader.classList.remove('text-white');
+            } else {
+                cardHeader.classList.remove('text-warning');
+                cardHeader.classList.add('text-white');
+            }
+        }
+    }
+}
+
+function updateGraphWithSelectedCompositions() {
+    console.log('🔄 Обновление графика с выбранными составами:', selectedCompositions);
+    
+    // Если нет выбранных составов, показываем сообщение
+    if (selectedCompositions.length === 0) {
+        console.log('⚠️ Нет выбранных составов');
+        showMessage('Выберите хотя бы один состав для отображения', 'warning', 3000);
+        showDefaultState();
+        return;
+    }
+    
+    // Показываем индикатор загрузки
+    showMessage(`Обновление графика с ${selectedCompositions.length} составами...`, 'info', 2000);
+    
+    // Добавляем параметр selected_compositions в форму
+    const form = document.getElementById('graph-form');
+    let compositionsInput = document.getElementById('selectedCompositionsInput');
+    
+    if (!compositionsInput) {
+        compositionsInput = document.createElement('input');
+        compositionsInput.type = 'hidden';
+        compositionsInput.id = 'selectedCompositionsInput';
+        compositionsInput.name = 'selected_compositions';
+        form.appendChild(compositionsInput);
+    }
+    
+    compositionsInput.value = JSON.stringify(selectedCompositions);
+    
+    // Создаем и отправляем событие формы
+    const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
+    
+    // Используем setTimeout чтобы дать время обновиться интерфейсу
+    setTimeout(() => {
+        form.dispatchEvent(submitEvent);
+    }, 100);
+}
+
 </script>
 {% endblock %}

@@ -81,6 +81,21 @@ PLOTLY_GRAPHS = [
     ('animated_scatter', 'Анимированный график')
 ]
 
+SPECIAL_GRAPH_PARAMS = {
+    'pie': {
+        'x_description': 'Категория (текстовый параметр)',
+        'y_description': 'Значение (числовой параметр)'
+    },
+    'sunburst': {
+        'x_description': 'Вторичная категория',
+        'y_description': 'Значение для отображения'
+    },
+    'treemap': {
+        'x_description': 'Вторичная категория', 
+        'y_description': 'Значение для отображения'
+    }
+}
+
 SEABORN_GRAPHS = [
     ('scatter', 'Точечная диаграмма'),
     ('line', 'Линейный график'),
@@ -157,114 +172,272 @@ def create_radar_chart(data, color_param, template, title):
     return fig
 
 def generate_plotly_graph(data, x_param='ad', y_param='q', graph_type='scatter',
-                         z_param=None, color_param=None, size_param=None,
-                         animation_param=None, theme='default', title=None,
-                         width=800, height=600, show_grid=True):
+                         z_param=None, color_param=None, *args, **kwargs):
     """Создает интерактивные графики с использованием Plotly"""
     
-    if data.empty:
-        return None, "Нет данных для построения графика"
+    # Обработка старых параметров для обратной совместимости
+    theme = kwargs.get('theme', 'default')
+    title = kwargs.get('title', None)
+    width = kwargs.get('width', 800)
+    height = kwargs.get('height', 600)
+    show_grid = kwargs.get('show_grid', True)
+    selected_compositions = kwargs.get('selected_compositions', None)
     
-    if x_param not in data.columns:
-        return None, f"Параметр X '{x_param}' не найден в данных"
+    if data.empty or x_param not in data.columns:
+        return None, "Нет данных для построения графика", []
     
     try:
+        # ФИЛЬТРАЦИЯ ПО ВЫБРАННЫМ СОСТАВАМ
+        filtered_data = data.copy()
+        available_compositions = []
+        
+        if 'composition' in data.columns:
+            available_compositions = data['composition'].unique().tolist()
+            
+            if selected_compositions is not None:
+                if len(selected_compositions) == 0:
+                    selected_compositions = available_compositions
+                
+                if len(selected_compositions) > 0:
+                    filtered_data = data[data['composition'].isin(selected_compositions)]
+            
+            if filtered_data.empty and available_compositions:
+                filtered_data = data[data['composition'] == available_compositions[0]]
+        
+        if filtered_data.empty:
+            return None, "Нет данных для отображения", available_compositions
+        
         # Настройка темы
         template = get_plotly_theme(theme)
         
         fig = None
         
         if graph_type == 'scatter':
-            fig = px.scatter(data, x=x_param, y=y_param,
-                           color=color_param if color_param and color_param in data.columns else None,
-                           size=size_param if size_param and size_param in data.columns else None,
+            # УЛУЧШЕННАЯ ЛЕГЕНДА И ПОДСКАЗКИ
+            hover_data = {}
+            if 'composition' in filtered_data.columns:
+                hover_data['composition'] = True
+            
+            fig = px.scatter(filtered_data, x=x_param, y=y_param,
+                           color='composition' if 'composition' in filtered_data.columns else None,
+                           hover_name='composition' if 'composition' in filtered_data.columns else None,
+                           hover_data=hover_data,
                            title=title or f"{get_param_display_name(y_param)} vs {get_param_display_name(x_param)}")
             
+            # УЛУЧШЕНИЕ ПОДСКАЗОК
+            fig.update_traces(
+                hovertemplate=(
+                    "<b>%{hovertext}</b><br>" +
+                    f"{get_param_display_name(x_param)}: %{{x}}<br>" +
+                    f"{get_param_display_name(y_param)}: %{{y}}<br>" +
+                    "<extra></extra>"
+                ) if 'composition' in filtered_data.columns else None
+            )
+            
         elif graph_type == 'line':
-            sorted_data = data.sort_values(by=x_param)
+            sorted_data = filtered_data.sort_values(by=x_param)
             fig = px.line(sorted_data, x=x_param, y=y_param,
-                         color=color_param if color_param and color_param in data.columns else None,
+                         color='composition' if 'composition' in filtered_data.columns else None,
+                         hover_name='composition' if 'composition' in filtered_data.columns else None,
                          title=title or f"Линейный график: {get_param_display_name(y_param)} vs {get_param_display_name(x_param)}")
             
         elif graph_type == 'bar':
-            if data[x_param].dtype == 'object' or len(data[x_param].unique()) <= 20:
-                grouped = data.groupby(x_param)[y_param].mean().reset_index()
-                fig = px.bar(grouped, x=x_param, y=y_param,
-                           color=color_param if color_param and color_param in data.columns else None,
-                           title=title or f"Среднее {get_param_display_name(y_param)} по {get_param_display_name(x_param)}")
+            if filtered_data[x_param].dtype == 'object' or len(filtered_data[x_param].unique()) <= 20:
+                # Для столбчатых диаграмм группируем по composition
+                if 'composition' in filtered_data.columns:
+                    grouped = filtered_data.groupby(['composition', x_param])[y_param].mean().reset_index()
+                    fig = px.bar(grouped, x=x_param, y=y_param, color='composition',
+                               barmode='group',
+                               hover_name='composition',
+                               title=title or f"Среднее {get_param_display_name(y_param)} по {get_param_display_name(x_param)}")
+                else:
+                    grouped = filtered_data.groupby(x_param)[y_param].mean().reset_index()
+                    fig = px.bar(grouped, x=x_param, y=y_param,
+                               title=title or f"Среднее {get_param_display_name(y_param)} по {get_param_display_name(x_param)}")
             else:
-                fig = px.histogram(data, x=x_param,
+                fig = px.histogram(filtered_data, x=x_param,
+                                 color='composition' if 'composition' in filtered_data.columns else None,
                                  title=title or f"Распределение {get_param_display_name(x_param)}")
-                
+                                 
         elif graph_type == 'histogram':
-            fig = px.histogram(data, x=x_param,
-                             color=color_param if color_param and color_param in data.columns else None,
+            fig = px.histogram(filtered_data, x=x_param,
+                             color=color_param if color_param and color_param in filtered_data.columns else None,
                              title=title or f"Гистограмма {get_param_display_name(x_param)}")
             
         elif graph_type == 'box':
-            fig = px.box(data, x=x_param, y=y_param,
-                        color=color_param if color_param and color_param in data.columns else None,
+            fig = px.box(filtered_data, x=x_param, y=y_param,
+                        color=color_param if color_param and color_param in filtered_data.columns else None,
                         title=title or f"Box plot: {get_param_display_name(y_param)}")
             
         elif graph_type == 'violin':
-            fig = px.violin(data, x=x_param, y=y_param,
-                          color=color_param if color_param and color_param in data.columns else None,
-                          title=title or f"Violin plot: {get_param_display_name(y_param)}")
+            fig = px.violin(filtered_data, x=x_param, y=y_param,
+                       color=color_param if color_param and color_param in filtered_data.columns else None,
+                       title=title or f"Violin plot: {get_param_display_name(y_param)}")
+    
+        elif graph_type == 'sunburst':
+            # ИСПРАВЛЕННЫЙ SUNBURST - используем X и Y параметры
+            if 'composition' in filtered_data.columns:
+                # Для sunburst используем: path=[composition, X], values=Y
+                fig = px.sunburst(filtered_data, 
+                                path=['composition', x_param], 
+                                values=y_param,
+                                title=title or f"Sunburst: {get_param_display_name(y_param)} по составам и {get_param_display_name(x_param)}")
+            else:
+                return None, "Для sunburst нужна колонка 'composition'", available_compositions
+        
+        elif graph_type == 'treemap':
+            # ИСПРАВЛЕННЫЙ TREEMAP - используем X и Y параметры
+            if 'composition' in filtered_data.columns:
+                # Для treemap используем: path=[composition, X], values=Y
+                fig = px.treemap(filtered_data, 
+                               path=['composition', x_param], 
+                               values=y_param,
+                               title=title or f"Treemap: {get_param_display_name(y_param)} по составам и {get_param_display_name(x_param)}")
+            else:
+                return None, "Для treemap нужна колонка 'composition'", available_compositions
             
         elif graph_type == 'pie':
-            if data[x_param].dtype == 'object' or len(data[x_param].unique()) <= 20:
-                pie_data = data[x_param].value_counts().reset_index()
-                pie_data.columns = ['category', 'count']
-                fig = px.pie(pie_data, values='count', names='category',
-                            title=title or f"Распределение {get_param_display_name(x_param)}")
-            else:
-                return None, "Для круговой диаграммы нужны категориальные данные"
+                # ИСПРАВЛЕННАЯ КРУГОВАЯ ДИАГРАММА - работает с любыми параметрами
+                try:
+                    # Для числовых параметров создаем категории на основе диапазонов
+                    if pd.api.types.is_numeric_dtype(filtered_data[x_param]):
+                        # Создаем диапазоны для числовых данных
+                        data = filtered_data[x_param].dropna()
+                        if len(data) == 0:
+                            return None, "Нет данных для построения круговой диаграммы", available_compositions
+                            
+                        data_min = data.min()
+                        data_max = data.max()
+                        
+                        # Автоматически определяем количество бинов
+                        if len(data) <= 20:
+                            bins = 5
+                        elif len(data) <= 50:
+                            bins = 7
+                        else:
+                            bins = 10
+                            
+                        # Создаем границы диапазонов
+                        bin_edges = np.linspace(data_min, data_max, bins + 1)
+                        
+                        # Создаем категории вручную
+                        category_counts = {}
+                        for i in range(len(bin_edges) - 1):
+                            lower = bin_edges[i]
+                            upper = bin_edges[i + 1]
+                            count = ((data >= lower) & (data < upper)).sum()
+                            if i == len(bin_edges) - 2:  # Последний бин включает верхнюю границу
+                                count = ((data >= lower) & (data <= upper)).sum()
+                            category_name = f"{lower:.2f}-{upper:.2f}"
+                            category_counts[category_name] = count
+                        
+                        # Создаем DataFrame для pie chart
+                        pie_data = pd.DataFrame({
+                            'category': list(category_counts.keys()),
+                            'count': list(category_counts.values())
+                        })
+                        
+                    else:
+                        # Для категориальных данных используем как есть
+                        pie_data = filtered_data[x_param].value_counts().reset_index()
+                        pie_data.columns = ['category', 'count']
+                    
+                    # Удаляем пустые категории
+                    pie_data = pie_data[pie_data['count'] > 0]
+                    
+                    # Ограничиваем количество категорий для читаемости
+                    if len(pie_data) > 10:
+                        pie_data = pie_data.sort_values('count', ascending=False)
+                        main_categories = pie_data.head(9)
+                        other_sum = pie_data['count'].iloc[9:].sum()
+                        if other_sum > 0:
+                            other_row = pd.DataFrame({'category': ['Другие'], 'count': [other_sum]})
+                            pie_data = pd.concat([main_categories, other_row])
+                    
+                    # Создаем круговую диаграмму
+                    fig = px.pie(pie_data, 
+                                values='count', 
+                                names='category',
+                                title=title or f"Распределение {get_param_display_name(x_param)}")
+                    
+                    # Добавляем улучшенные подсказки
+                    fig.update_traces(
+                        hovertemplate=(
+                            "<b>%{label}</b><br>" +
+                            "Количество записей: %{value}<br>" +
+                            "Доля: %{percent}<br>" +
+                            "<extra></extra>"
+                        ),
+                        textposition='inside',
+                        textinfo='percent+label'
+                    )
+                    
+                except Exception as e:
+                    import traceback
+                    traceback.print_exc()
+                    return None, f"Ошибка при создании круговой диаграммы: {str(e)}", available_compositions
                 
         elif graph_type == 'heatmap':
-            numeric_cols = data.select_dtypes(include=[np.number]).columns
+            numeric_cols = filtered_data.select_dtypes(include=[np.number]).columns
             if len(numeric_cols) >= 2:
-                corr_matrix = data[numeric_cols].corr()
+                corr_matrix = filtered_data[numeric_cols].corr()
                 fig = px.imshow(corr_matrix, 
                               color_continuous_scale='RdBu_r',
                               title=title or "Тепловая карта корреляций")
             else:
-                return None, "Для тепловой карты нужно как минимум 2 числовых параметра"
+                return None, "Для тепловой карты нужно как минимум 2 числовых параметра", available_compositions
                 
         elif graph_type == 'radar':
-            fig = create_plotly_radar_chart(data, color_param, template, title)
+            fig = create_plotly_radar_chart(filtered_data, color_param, template, title)
             if fig is None:
-                return None, "Не удалось создать радарную диаграмму"
+                return None, "Не удалось создать радарную диаграмму", available_compositions
                 
-        elif graph_type == '3d_scatter' and z_param and z_param in data.columns:
-            fig = px.scatter_3d(data, x=x_param, y=y_param, z=z_param,
-                              color=color_param if color_param and color_param in data.columns else None,
+        elif graph_type == '3d_scatter' and z_param and z_param in filtered_data.columns:
+            fig = px.scatter_3d(filtered_data, x=x_param, y=y_param, z=z_param,
+                              color=color_param if color_param and color_param in filtered_data.columns else None,
                               title=title or "3D Scatter Plot")
             
-        elif graph_type == 'animated_scatter' and animation_param and animation_param in data.columns:
-            fig = px.scatter(data, x=x_param, y=y_param,
-                           animation_frame=animation_param,
-                           color=color_param if color_param and color_param in data.columns else None,
-                           size=size_param if size_param and size_param in data.columns else None,
-                           title=title or f"Анимированный график по {get_param_display_name(animation_param)}")
-            
         else:
-            fig = px.scatter(data, x=x_param, y=y_param,
+            fig = px.scatter(filtered_data, x=x_param, y=y_param,
                            title=title or f"{get_param_display_name(y_param)} vs {get_param_display_name(x_param)}")
         
-        # Общие настройки
+        # ОБЩИЕ УЛУЧШЕНИЯ ДЛЯ ВСЕХ ГРАФИКОВ
         if fig:
+            # Улучшаем легенду для всех графиков
             fig.update_layout(
                 width=width,
                 height=height,
                 template=template,
                 showlegend=True,
+                legend=dict(
+                    title=dict(text='Составы' if 'composition' in filtered_data.columns else 'Категории'),
+                    orientation="v",
+                    yanchor="top",
+                    y=1,
+                    xanchor="left",
+                    x=1.02,
+                    bgcolor='rgba(255,255,255,0.8)',
+                    bordercolor='lightgray',
+                    borderwidth=1
+                ),
                 font=dict(size=12),
-                margin=dict(l=50, r=50, t=50, b=50)
+                margin=dict(l=50, r=150, t=50, b=50)
             )
             
-            if show_grid:
+            # Добавляем сетку для поддерживающих графиков
+            if show_grid and graph_type not in ['pie', 'sunburst', 'treemap', 'heatmap', 'radar']:
                 fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='lightgray')
                 fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='lightgray')
+            
+            # Улучшаем подсказки для всех графиков
+            fig.update_layout(
+                hovermode='closest',
+                hoverlabel=dict(
+                    bgcolor="white",
+                    font_size=12,
+                    font_family="Arial"
+                )
+            )
             
             # Конвертируем в HTML
             graph_html = pio.to_html(
@@ -274,20 +447,21 @@ def generate_plotly_graph(data, x_param='ad', y_param='q', graph_type='scatter',
                 config={
                     'responsive': True,
                     'displayModeBar': True,
-                    'displaylogo': False
+                    'displaylogo': False,
+                    'modeBarButtonsToAdd': ['hoverClosestGl2d', 'hoverCompareGl2d']
                 }
             )
             
-            return graph_html, "Plotly график создан успешно"
+            return graph_html, "Plotly график создан успешно", available_compositions
         else:
-            return None, "Не удалось создать график"
+            return None, "Не удалось создать график", available_compositions
             
     except Exception as e:
         import traceback
         error_msg = f"Ошибка при создании Plotly графика: {str(e)}"
         print(error_msg)
         traceback.print_exc()
-        return None, error_msg
+        return None, error_msg, []
 
 def create_correlation_heatmap(data, template, title):
     """Создает тепловую карту корреляций с Seaborn стилем"""
@@ -332,74 +506,115 @@ def create_animated_scatter(data, x_param, y_param, animation_param, template, t
     
     return fig
 
-def generate_seaborn_plot(data, x_param='ad', y_param='q', plot_type='scatter', theme='default', color_param=None):
+def generate_seaborn_plot(data, x_param='ad', y_param='q', plot_type='scatter', 
+                         theme='default', color_param=None, selected_compositions=None):
     """Создает статические графики с использованием Seaborn"""
+    
+    # ФИЛЬТРАЦИЯ ПО СОСТАВАМ
+    filtered_data = data.copy()
+    available_compositions = []
+    
+    if 'composition' in data.columns:
+        available_compositions = data['composition'].unique().tolist()
+        
+        if selected_compositions:
+            filtered_data = data[data['composition'].isin(selected_compositions)]
+            if filtered_data.empty:
+                return None, "Нет данных для выбранных составов", available_compositions
+    
     try:
         # Применяем тему Seaborn
         sns.set_theme(style=get_seaborn_style(theme))
         
         plt.figure(figsize=(12, 8))
         
+        # АВТОМАТИЧЕСКИ ИСПОЛЬЗУЕМ СОСТАВ ДЛЯ ЦВЕТА ЕСЛИ НЕ УКАЗАН color_param
+        use_composition_color = ('composition' in filtered_data.columns and 
+                               not color_param and plot_type not in ['pie', 'heatmap'])
+        
         if plot_type == 'scatter':
-            if color_param and color_param in data.columns:
-                sns.scatterplot(data=data, x=x_param, y=y_param, hue=color_param, palette='viridis')
+            if use_composition_color:
+                sns.scatterplot(data=filtered_data, x=x_param, y=y_param, 
+                               hue='composition', palette='viridis', s=50)
+            elif color_param and color_param in filtered_data.columns:
+                sns.scatterplot(data=filtered_data, x=x_param, y=y_param, 
+                               hue=color_param, palette='viridis', s=50)
             else:
-                sns.scatterplot(data=data, x=x_param, y=y_param)
+                sns.scatterplot(data=filtered_data, x=x_param, y=y_param, s=50)
             
         elif plot_type == 'line':
             # ДЛЯ ЛИНЕЙНОГО ГРАФИКА - важно сортировать по X
-            sorted_data = data.sort_values(by=x_param)
-            if color_param and color_param in data.columns:
-                sns.lineplot(data=sorted_data, x=x_param, y=y_param, hue=color_param, palette='viridis')
+            sorted_data = filtered_data.sort_values(by=x_param)
+            if use_composition_color:
+                sns.lineplot(data=sorted_data, x=x_param, y=y_param, 
+                            hue='composition', palette='viridis', marker='o')
+            elif color_param and color_param in filtered_data.columns:
+                sns.lineplot(data=sorted_data, x=x_param, y=y_param, 
+                            hue=color_param, palette='viridis', marker='o')
             else:
-                sns.lineplot(data=sorted_data, x=x_param, y=y_param)
+                sns.lineplot(data=sorted_data, x=x_param, y=y_param, marker='o')
             
         elif plot_type == 'violin':
-            if color_param and color_param in data.columns:
-                sns.violinplot(data=data, x=x_param, y=y_param, hue=color_param, palette='viridis')
+            if use_composition_color:
+                sns.violinplot(data=filtered_data, x=x_param, y=y_param, 
+                              hue='composition', palette='viridis')
+            elif color_param and color_param in filtered_data.columns:
+                sns.violinplot(data=filtered_data, x=x_param, y=y_param, 
+                              hue=color_param, palette='viridis')
             else:
-                sns.violinplot(data=data, x=x_param, y=y_param)
+                sns.violinplot(data=filtered_data, x=x_param, y=y_param)
             
         elif plot_type == 'box':
-            if color_param and color_param in data.columns:
-                sns.boxplot(data=data, x=x_param, y=y_param, hue=color_param, palette='viridis')
+            if use_composition_color:
+                sns.boxplot(data=filtered_data, x=x_param, y=y_param, 
+                           hue='composition', palette='viridis')
+            elif color_param and color_param in filtered_data.columns:
+                sns.boxplot(data=filtered_data, x=x_param, y=y_param, 
+                           hue=color_param, palette='viridis')
             else:
-                sns.boxplot(data=data, x=x_param, y=y_param)
+                sns.boxplot(data=filtered_data, x=x_param, y=y_param)
             
         elif plot_type == 'histogram':
-            # ИСПРАВЛЕННАЯ ГИСТОГРАММА
-            if color_param and color_param in data.columns:
-                sns.histplot(data=data, x=x_param, hue=color_param, kde=True, palette='viridis', multiple="layer")
+            if use_composition_color:
+                sns.histplot(data=filtered_data, x=x_param, hue='composition', 
+                            kde=True, palette='viridis', multiple="layer")
+            elif color_param and color_param in filtered_data.columns:
+                sns.histplot(data=filtered_data, x=x_param, hue=color_param, 
+                            kde=True, palette='viridis', multiple="layer")
             else:
-                sns.histplot(data=data, x=x_param, kde=True)
+                sns.histplot(data=filtered_data, x=x_param, kde=True)
             
         elif plot_type == 'bar':
-            # Для bar chart группируем и усредняем
-            if data[x_param].dtype == 'object' or len(data[x_param].unique()) <= 20:
-                if color_param and color_param in data.columns:
-                    grouped = data.groupby([x_param, color_param])[y_param].mean().reset_index()
-                    sns.barplot(data=grouped, x=x_param, y=y_param, hue=color_param, palette='viridis')
+            if filtered_data[x_param].dtype == 'object' or len(filtered_data[x_param].unique()) <= 20:
+                if use_composition_color:
+                    sns.barplot(data=filtered_data, x=x_param, y=y_param, 
+                               hue='composition', palette='viridis')
+                elif color_param and color_param in filtered_data.columns:
+                    sns.barplot(data=filtered_data, x=x_param, y=y_param, 
+                               hue=color_param, palette='viridis')
                 else:
-                    grouped = data.groupby(x_param)[y_param].mean().reset_index()
-                    sns.barplot(data=grouped, x=x_param, y=y_param, palette='viridis')
+                    sns.barplot(data=filtered_data, x=x_param, y=y_param, palette='viridis')
             else:
-                # Если много уникальных значений, используем гистограмму
-                if color_param and color_param in data.columns:
-                    sns.histplot(data=data, x=x_param, hue=color_param, kde=True, palette='viridis')
+                if use_composition_color:
+                    sns.histplot(data=filtered_data, x=x_param, hue='composition', 
+                                kde=True, palette='viridis')
+                elif color_param and color_param in filtered_data.columns:
+                    sns.histplot(data=filtered_data, x=x_param, hue=color_param, 
+                                kde=True, palette='viridis')
                 else:
-                    sns.histplot(data=data, x=x_param, kde=True)
+                    sns.histplot(data=filtered_data, x=x_param, kde=True)
                 
         elif plot_type == 'heatmap':
-            numeric_data = data.select_dtypes(include=[np.number])
+            numeric_data = filtered_data.select_dtypes(include=[np.number])
             if len(numeric_data.columns) >= 2:
                 corr_matrix = numeric_data.corr()
                 sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', center=0, fmt='.2f')
             else:
-                return None, "Для тепловой карты нужно как минимум 2 числовых параметра"
+                return None, "Для тепловой карты нужно как минимум 2 числовых параметра", available_compositions
         
         elif plot_type == 'pie':
             # Круговая диаграмма через matplotlib
-            pie_data = data[x_param].value_counts()
+            pie_data = filtered_data[x_param].value_counts()
             
             if len(pie_data) > 10:
                 main_categories = pie_data.head(9)
@@ -431,6 +646,10 @@ def generate_seaborn_plot(data, x_param='ad', y_param='q', plot_type='scatter', 
             if plot_type != 'histogram':  # У гистограммы только X ось
                 plt.ylabel(get_param_display_name(y_param))
         
+        # Улучшаем легенду для составов
+        if use_composition_color and plot_type not in ['pie', 'heatmap']:
+            plt.legend(title='Составы', bbox_to_anchor=(1.05, 1), loc='upper left', fontsize='small')
+        
         plt.tight_layout()
         
         # Сохраняем в base64
@@ -440,13 +659,13 @@ def generate_seaborn_plot(data, x_param='ad', y_param='q', plot_type='scatter', 
         graph = base64.b64encode(buf.getvalue()).decode('utf-8')
         plt.close()
         
-        return graph, "Seaborn график создан успешно"
+        return graph, "Seaborn график создан успешно", available_compositions
         
     except Exception as e:
         plt.close()
         import traceback
         traceback.print_exc()
-        return None, f"Ошибка при создании Seaborn графика: {str(e)}"
+        return None, f"Ошибка при создании Seaborn графика: {str(e)}", available_compositions
 
 def create_plotly_radar_chart(data, color_param, template, title):
     """Создает радарную диаграмму для Plotly"""
@@ -534,19 +753,32 @@ def apply_theme(theme):
     else:
         plt.style.use('default')
 
-def generate_animated_graph(data, x_param, y_param, animation_param, theme, title):
+def generate_animated_graph(data, x_param, y_param, animation_param, theme, title, selected_compositions=None):
     """Создает анимированный график"""
+    
+    # ФИЛЬТРАЦИЯ ПО СОСТАВАМ
+    filtered_data = data.copy()
+    available_compositions = []
+    
+    if 'composition' in data.columns:
+        available_compositions = data['composition'].unique().tolist()
+        
+        if selected_compositions:
+            filtered_data = data[data['composition'].isin(selected_compositions)]
+            if filtered_data.empty:
+                return None, "Нет данных для выбранных составов", available_compositions
+    
     try:
         fig, ax = plt.subplots(figsize=(10, 6))
         apply_theme(theme)
         
         # Получаем уникальные значения для анимации
-        animation_values = sorted(data[animation_param].unique())
+        animation_values = sorted(filtered_data[animation_param].unique())
         
         def update(frame):
             ax.clear()
             current_value = animation_values[frame]
-            frame_data = data[data[animation_param] == current_value]
+            frame_data = filtered_data[filtered_data[animation_param] == current_value]
             
             scatter = ax.scatter(frame_data[x_param], frame_data[y_param], 
                                alpha=0.7, s=50, c='blue')
@@ -568,19 +800,38 @@ def generate_animated_graph(data, x_param, y_param, animation_param, theme, titl
         graph = base64.b64encode(buf.getvalue()).decode('utf-8')
         plt.close()
         
-        return graph, "Анимированный график создан успешно"
+        return graph, "Анимированный график создан успешно", available_compositions
         
     except Exception as e:
         plt.close()
-        return None, f"Ошибка при создании анимированного графика: {str(e)}"
+        return None, f"Ошибка при создании анимированного графика: {str(e)}", available_compositions
 
 def generate_graph(data, x_param='ad', y_param='q', graph_type='scatter', 
                   z_param=None, color_param=None, size_param=None, 
                   animation_param=None, theme='default', title=None,
-                  width=800, height=600, show_grid=True):
+                  width=800, height=600, show_grid=True, selected_compositions=None):
     
-    if data.empty or x_param not in data.columns:
-        return None, "Нет данных для построения графика"
+    # ФИЛЬТРАЦИЯ ПО СОСТАВАМ
+    filtered_data = data.copy()
+    available_compositions = []
+    
+    if 'composition' in data.columns:
+        available_compositions = data['composition'].unique().tolist()
+        
+        # ВАЖНОЕ ИСПРАВЛЕНИЕ: Если selected_compositions пустой массив, возвращаем None
+        if selected_compositions is not None:
+            if len(selected_compositions) == 0:
+                # Пустой список составов - возвращаем None
+                return None, "Нет выбранных составов для отображения", available_compositions
+            elif len(selected_compositions) > 0:
+                # Есть выбранные составы - фильтруем данные
+                filtered_data = data[data['composition'].isin(selected_compositions)]
+                
+            if filtered_data.empty:
+                return None, "Нет данных для выбранных составов", available_compositions
+    
+    if filtered_data.empty or x_param not in filtered_data.columns:
+        return None, "Нет данных для построения графика", available_compositions
     
     try:
         # Применяем тему
@@ -592,50 +843,137 @@ def generate_graph(data, x_param='ad', y_param='q', graph_type='scatter',
         else:
             fig, ax = plt.subplots(figsize=(width/100, height/100))
         
+        # АВТОМАТИЧЕСКИ ИСПОЛЬЗУЕМ СОСТАВ ДЛЯ ЦВЕТА ЕСЛИ НЕ УКАЗАН color_param
+        use_composition_color = ('composition' in filtered_data.columns and 
+                               not color_param and graph_type not in ['pie', 'heatmap'])
+        
         if graph_type == 'scatter':
-            if color_param and color_param in data.columns:
-                scatter = ax.scatter(data[x_param], data[y_param], 
-                                    c=data[color_param], cmap='viridis', 
+            if use_composition_color:
+                # Используем composition для цвета
+                unique_compositions = filtered_data['composition'].unique()
+                colors = plt.cm.viridis(np.linspace(0, 1, len(unique_compositions)))
+                color_map = dict(zip(unique_compositions, colors))
+                
+                for composition in unique_compositions:
+                    comp_data = filtered_data[filtered_data['composition'] == composition]
+                    ax.scatter(comp_data[x_param], comp_data[y_param], 
+                              c=[color_map[composition]], label=composition,
+                              alpha=0.7, s=50)
+            elif color_param and color_param in filtered_data.columns:
+                scatter = ax.scatter(filtered_data[x_param], filtered_data[y_param], 
+                                    c=filtered_data[color_param], cmap='viridis', 
                                     alpha=0.7, s=50)
                 plt.colorbar(scatter, label=PARAM_NAMES.get(color_param, color_param))
             else:
-                ax.scatter(data[x_param], data[y_param], alpha=0.7, s=50)
+                ax.scatter(filtered_data[x_param], filtered_data[y_param], alpha=0.7, s=50)
                 
         elif graph_type == 'line':
             # СОРТИРУЕМ ДАННЫЕ ДЛЯ ЛИНЕЙНОГО ГРАФИКА
-            sorted_data = data.sort_values(by=x_param)
-            ax.plot(sorted_data[x_param], sorted_data[y_param], linewidth=2, marker='o')
+            sorted_data = filtered_data.sort_values(by=x_param)
+            
+            if use_composition_color:
+                unique_compositions = sorted_data['composition'].unique()
+                colors = plt.cm.viridis(np.linspace(0, 1, len(unique_compositions)))
+                
+                for i, composition in enumerate(unique_compositions):
+                    comp_data = sorted_data[sorted_data['composition'] == composition]
+                    ax.plot(comp_data[x_param], comp_data[y_param], 
+                           color=colors[i], label=composition,
+                           linewidth=2, marker='o')
+            else:
+                ax.plot(sorted_data[x_param], sorted_data[y_param], linewidth=2, marker='o')
             
         elif graph_type == 'histogram':
             # ИСПРАВЛЕННАЯ ГИСТОГРАММА
-            ax.hist(data[x_param].dropna(), bins=20, alpha=0.7, edgecolor='black')
+            if use_composition_color:
+                unique_compositions = filtered_data['composition'].unique()
+                colors = plt.cm.viridis(np.linspace(0, 1, len(unique_compositions)))
+                
+                for i, composition in enumerate(unique_compositions):
+                    comp_data = filtered_data[filtered_data['composition'] == composition]
+                    ax.hist(comp_data[x_param].dropna(), bins=15, alpha=0.7, 
+                           color=colors[i], label=composition, edgecolor='black')
+            else:
+                ax.hist(filtered_data[x_param].dropna(), bins=20, alpha=0.7, edgecolor='black')
+            
             ax.set_xlabel(get_param_display_name(x_param))
             ax.set_ylabel('Частота')
             
         elif graph_type == 'bar':
-            if data[x_param].dtype == 'object' or len(data[x_param].unique()) <= 20:
-                grouped = data.groupby(x_param)[y_param].mean()
-                x_positions = range(len(grouped))
-                ax.bar(x_positions, grouped.values, alpha=0.7)
-                ax.set_xticks(x_positions)
-                ax.set_xticklabels([str(label) for label in grouped.index], rotation=45)
+            if filtered_data[x_param].dtype == 'object' or len(filtered_data[x_param].unique()) <= 20:
+                if use_composition_color:
+                    # Группируем по composition и x_param
+                    grouped = filtered_data.groupby(['composition', x_param])[y_param].mean().reset_index()
+                    unique_x = grouped[x_param].unique()
+                    unique_compositions = grouped['composition'].unique()
+                    
+                    bar_width = 0.8 / len(unique_compositions)
+                    x_positions = np.arange(len(unique_x))
+                    
+                    for i, composition in enumerate(unique_compositions):
+                        comp_data = grouped[grouped['composition'] == composition]
+                        values = [comp_data[comp_data[x_param] == x_val][y_param].values[0] 
+                                if len(comp_data[comp_data[x_param] == x_val]) > 0 else 0 
+                                for x_val in unique_x]
+                        
+                        ax.bar(x_positions + i * bar_width, values, bar_width,
+                              label=composition, alpha=0.7)
+                    
+                    ax.set_xticks(x_positions + bar_width * (len(unique_compositions) - 1) / 2)
+                    ax.set_xticklabels([str(x) for x in unique_x], rotation=45)
+                else:
+                    grouped = filtered_data.groupby(x_param)[y_param].mean()
+                    x_positions = range(len(grouped))
+                    ax.bar(x_positions, grouped.values, alpha=0.7)
+                    ax.set_xticks(x_positions)
+                    ax.set_xticklabels([str(label) for label in grouped.index], rotation=45)
+                
                 ax.set_xlabel(get_param_display_name(x_param))
                 ax.set_ylabel(get_param_display_name(y_param))
             else:
-                ax.hist(data[x_param].dropna(), bins=20, alpha=0.7, edgecolor='black')
+                if use_composition_color:
+                    unique_compositions = filtered_data['composition'].unique()
+                    colors = plt.cm.viridis(np.linspace(0, 1, len(unique_compositions)))
+                    
+                    for i, composition in enumerate(unique_compositions):
+                        comp_data = filtered_data[filtered_data['composition'] == composition]
+                        ax.hist(comp_data[x_param].dropna(), bins=15, alpha=0.7,
+                               color=colors[i], label=composition, edgecolor='black')
+                else:
+                    ax.hist(filtered_data[x_param].dropna(), bins=20, alpha=0.7, edgecolor='black')
+                
                 ax.set_xlabel(get_param_display_name(x_param))
                 ax.set_ylabel('Частота')
                 
         elif graph_type == 'box':
-            data_to_plot = [data[data[x_param] == cat][y_param].dropna() 
-                          for cat in data[x_param].unique()[:10]]  # Ограничиваем количество категорий
-            ax.boxplot(data_to_plot)
-            ax.set_xticklabels([str(cat) for cat in data[x_param].unique()[:10]], rotation=45)
-            ax.set_xlabel(get_param_display_name(x_param))
+            if use_composition_color:
+                data_to_plot = []
+                labels = []
+                unique_compositions = filtered_data['composition'].unique()[:10]  # Ограничиваем количество
+                
+                for composition in unique_compositions:
+                    comp_data = filtered_data[filtered_data['composition'] == composition]
+                    if not comp_data.empty:
+                        data_to_plot.append(comp_data[y_param].dropna())
+                        labels.append(composition)
+                
+                if data_to_plot:
+                    box_plot = ax.boxplot(data_to_plot, labels=labels, patch_artist=True)
+                    # Раскрашиваем боксы
+                    colors = plt.cm.viridis(np.linspace(0, 1, len(data_to_plot)))
+                    for patch, color in zip(box_plot['boxes'], colors):
+                        patch.set_facecolor(color)
+            else:
+                data_to_plot = [filtered_data[filtered_data[x_param] == cat][y_param].dropna() 
+                              for cat in filtered_data[x_param].unique()[:10]]
+                ax.boxplot(data_to_plot)
+                ax.set_xticklabels([str(cat) for cat in filtered_data[x_param].unique()[:10]], rotation=45)
+            
+            ax.set_xlabel(get_param_display_name(x_param) if not use_composition_color else 'Составы')
             ax.set_ylabel(get_param_display_name(y_param))
             
         elif graph_type == 'pie':
-            pie_data = data[x_param].value_counts()
+            pie_data = filtered_data[x_param].value_counts()
             
             if len(pie_data) > 10:
                 main_categories = pie_data.head(9)
@@ -648,9 +986,9 @@ def generate_graph(data, x_param='ad', y_param='q', graph_type='scatter',
             ax.axis('equal')
             
         elif graph_type == 'heatmap':
-            numeric_cols = data.select_dtypes(include=[np.number]).columns
+            numeric_cols = filtered_data.select_dtypes(include=[np.number]).columns
             if len(numeric_cols) > 1:
-                corr_matrix = data[numeric_cols].corr()
+                corr_matrix = filtered_data[numeric_cols].corr()
                 im = ax.imshow(corr_matrix, cmap='coolwarm', aspect='auto')
                 ax.set_xticks(range(len(corr_matrix.columns)))
                 ax.set_yticks(range(len(corr_matrix.columns)))
@@ -658,25 +996,25 @@ def generate_graph(data, x_param='ad', y_param='q', graph_type='scatter',
                 ax.set_yticklabels(corr_matrix.columns)
                 plt.colorbar(im, ax=ax)
             else:
-                return None, "Для тепловой карты нужно больше числовых параметров"
+                return None, "Для тепловой карты нужно больше числовых параметров", available_compositions
             
-        elif graph_type == '3d_scatter' and z_param and z_param in data.columns:
+        elif graph_type == '3d_scatter' and z_param and z_param in filtered_data.columns:
             fig = plt.figure(figsize=(width/100, height/100))
             ax = fig.add_subplot(111, projection='3d')
-            scatter = ax.scatter(data[x_param], data[y_param], data[z_param],
-                               c=data[color_param] if color_param and color_param in data.columns else 'blue',
-                               cmap='viridis' if color_param and color_param in data.columns else None,
+            scatter = ax.scatter(filtered_data[x_param], filtered_data[y_param], filtered_data[z_param],
+                               c=filtered_data[color_param] if color_param and color_param in filtered_data.columns else 'blue',
+                               cmap='viridis' if color_param and color_param in filtered_data.columns else None,
                                alpha=0.7)
             ax.set_xlabel(get_param_display_name(x_param))
             ax.set_ylabel(get_param_display_name(y_param))
             ax.set_zlabel(get_param_display_name(z_param))
-            if color_param and color_param in data.columns:
+            if color_param and color_param in filtered_data.columns:
                 plt.colorbar(scatter, ax=ax, label=get_param_display_name(color_param))
                 
-        elif graph_type == 'animated_scatter' and animation_param and animation_param in data.columns:
-            return generate_animated_graph(data, x_param, y_param, animation_param, theme, title)
+        elif graph_type == 'animated_scatter' and animation_param and animation_param in filtered_data.columns:
+            return generate_animated_graph(filtered_data, x_param, y_param, animation_param, theme, title)
         else:
-            ax.scatter(data[x_param], data[y_param], alpha=0.7, s=50)
+            ax.scatter(filtered_data[x_param], filtered_data[y_param], alpha=0.7, s=50)
         
         # Общие настройки для 2D графиков (кроме круговых и 3D)
         if not graph_type.startswith('3d') and graph_type != 'animated_scatter' and graph_type != 'pie':
@@ -698,7 +1036,9 @@ def generate_graph(data, x_param='ad', y_param='q', graph_type='scatter',
             else:
                 ax.set_title(f'{get_param_display_name(y_param)} vs {get_param_display_name(x_param)}')
         
-        plt.tight_layout()
+        #ДОБАВЛЯЕМ ЛЕГЕНДУ ДЛЯ СОСТАВОВ
+        if use_composition_color and graph_type not in ['pie', 'heatmap', '3d_scatter']:
+            ax.legend(title='Составы', bbox_to_anchor=(1.05, 1), loc='upper left', fontsize='small')
         
         # Сохраняем график
         buf = io.BytesIO()
@@ -707,13 +1047,13 @@ def generate_graph(data, x_param='ad', y_param='q', graph_type='scatter',
         graph = base64.b64encode(buf.getvalue()).decode('utf-8')
         plt.close()
         
-        return graph, "График создан успешно"
+        return graph, "График создан успешно", available_compositions
         
     except Exception as e:
         plt.close()
         import traceback
         traceback.print_exc()
-        return None, f"Ошибка при создании графика: {str(e)}"
+        return None, f"Ошибка при создании графика: {str(e)}", available_compositions
 
 # Вспомогательные функции для generate_graph
 def handle_scatter_plot(ax, data, x_param, y_param, color_param):
@@ -906,5 +1246,50 @@ def get_comparison_stats(data):
         'parameters_count': len(numeric_data.columns),
         'total_rows': len(data)
     }
-    
+
     return stats
+def get_compact_composition_table(data, max_compositions=10):
+    """Создает компактную таблицу составов для легенды"""
+    if data.empty or 'composition' not in data.columns:
+        return None
+    
+    compositions = data['composition'].unique()
+    if len(compositions) > max_compositions:
+        # Группируем редко встречающиеся составы
+        main_compositions = compositions[:max_compositions-1]
+        other_count = len(compositions) - len(main_compositions)
+        compositions = list(main_compositions) + [f'Другие ({other_count} составов)']
+    
+    # Создаем компактное представление
+    compact_data = []
+    for comp in compositions:
+        comp_data = data[data['composition'] == comp]
+        if not comp_data.empty:
+            compact_data.append({
+                'composition': comp,
+                'samples': len(comp_data),
+                'key_params': get_key_params_summary(comp_data)
+            })
+    
+    return pd.DataFrame(compact_data)
+
+def get_key_params_summary(comp_data, max_params=3):
+    """Возвращает ключевые параметры для состава"""
+    numeric_cols = comp_data.select_dtypes(include=[np.number]).columns
+    if len(numeric_cols) == 0:
+        return "Нет числовых данных"
+    
+    # Выбираем параметры с наибольшей вариативностью
+    summary = []
+    for col in numeric_cols[:max_params]:
+        mean_val = comp_data[col].mean()
+        if not pd.isna(mean_val):
+            summary.append(f"{PARAM_NAMES.get(col, col)}: {mean_val:.2f}")
+    
+    return "; ".join(summary) if summary else "Нет данных"
+
+def get_param_description(graph_type, param_type):
+    """Возвращает описание параметра для специальных графиков"""
+    if graph_type in SPECIAL_GRAPH_PARAMS:
+        return SPECIAL_GRAPH_PARAMS[graph_type].get(param_type, '')
+    return ''

@@ -7,6 +7,7 @@ from data_processor import process_data_source
 from database import query_db, insert_data, init_db
 from ai_ml_integration import AIMLAnalyzer
 from gui import *
+import json
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'Uploads'
@@ -170,7 +171,7 @@ def load_file():
         
         measured_data = query_db(db_path, "measured_parameters")
         components_data = query_db(db_path, "components")
-        graph = generate_graph_simple(measured_data)
+        graph, _, _ = generate_graph(measured_data)  # Обновленный вызов
         if measured_data.empty and components_data.empty:
             return jsonify({
                 'success': False,
@@ -285,7 +286,7 @@ def add_data():
         insert_data(db_path, "measured_parameters", df)
         measured_data = query_db(db_path, "measured_parameters")
         components_data = query_db(db_path, "components")
-        graph = generate_graph_simple(measured_data)
+        graph, _, _ = generate_graph(measured_data)  # Обновленный вызов
         session['show_data'] = True
         session['data_loaded'] = True
         session['measured_data'] = measured_data.to_json()
@@ -573,6 +574,18 @@ def create_graph():
             height = int(request.form.get('height', 600))
             show_grid = request.form.get('show_grid') == 'on'
             
+            selected_compositions_json = request.form.get('selected_compositions', '[]')
+            try:
+                selected_compositions = json.loads(selected_compositions_json) if selected_compositions_json else []
+            except json.JSONDecodeError:
+                selected_compositions = []
+
+            # ДЕБАГ ИНФОРМАЦИЯ
+            print(f"=== CREATE_GRAPH DEBUG ===")
+            print(f"Selected compositions JSON: {selected_compositions_json}")
+            print(f"Selected compositions: {selected_compositions} (type: {type(selected_compositions)}, len: {len(selected_compositions)})")
+            
+    
             stats = get_data_statistics(measured_data)
 
             if measured_data.empty:
@@ -582,38 +595,49 @@ def create_graph():
                     'stats': stats
                 })
             
-            # Выбор типа визуализации
+            # ИСПРАВЛЕННАЯ ПРОВЕРКА: Если нет выбранных составов, используем ВСЕ доступные
+            if selected_compositions is not None and len(selected_compositions) == 0:
+                print(f"=== ПУСТОЙ СПИСОК СОСТАВОВ, ИСПОЛЬЗУЕМ ВСЕ ДОСТУПНЫЕ")
+                # Если составы не выбраны, используем все доступные
+                if 'composition' in measured_data.columns:
+                    selected_compositions = measured_data['composition'].unique().tolist()
+                else:
+                    selected_compositions = None
+            
+            # Выбор типа визуализации с поддержкой фильтрации составов
             graph = None
             graph_message = ""
             graph_output_type = "matplotlib"
+            available_compositions = []
             
             if viz_type == 'plotly':
-                graph, graph_message = generate_plotly_graph(
+                graph, graph_message, available_compositions = generate_plotly_graph(
                     measured_data, x_param, y_param, graph_type,
                     z_param, color_param, size_param, animation_param,
-                    theme, title, width, height, show_grid
+                    theme, title, width, height, show_grid, selected_compositions
                 )
                 graph_output_type = 'plotly'
                 
             elif viz_type == 'seaborn':
-                graph, graph_message = generate_seaborn_plot(
-                    measured_data, x_param, y_param, graph_type, theme, color_param
+                graph, graph_message, available_compositions = generate_seaborn_plot(
+                    measured_data, x_param, y_param, graph_type, theme, color_param, selected_compositions
                 )
                 graph_output_type = 'matplotlib'
                 
             else:  # matplotlib
-                graph, graph_message = generate_graph(
+                graph, graph_message, available_compositions = generate_graph(
                     measured_data, x_param, y_param, graph_type,
                     z_param, color_param, size_param, animation_param,
-                    theme, title, width, height, show_grid
+                    theme, title, width, height, show_grid, selected_compositions
                 )
                 graph_output_type = 'matplotlib'
             
             if not graph:
                 return jsonify({
-                    'success': False,
-                    'message': graph_message or 'Не удалось создать график',
-                    'stats': stats
+                    'success': False if graph_message else True,
+                    'message': graph_message or 'Нет данных для отображения с выбранными составами',
+                    'stats': stats,
+                    'available_compositions': available_compositions
                 })
                 
             return jsonify({
@@ -621,7 +645,8 @@ def create_graph():
                 'message': graph_message,
                 'graph': graph,
                 'graph_type': graph_output_type,
-                'stats': stats
+                'stats': stats,
+                'available_compositions': available_compositions
             })
             
         except Exception as e:
@@ -633,8 +658,8 @@ def create_graph():
                 'stats': get_data_statistics(measured_data)
             })
 
-    # GET запрос
-    graph, _ = generate_graph(measured_data)
+    # GET запрос - ИСПРАВЛЕННАЯ СТРОКА
+    graph, _, _ = generate_graph(measured_data)  # Теперь распаковываем 3 значения
     stats = get_data_statistics(measured_data)
     
     return render_template(
@@ -791,6 +816,8 @@ def ml_optimize():
 def ml_predict():
     """Предсказывает свойства для заданного состава"""
     try:
+        from ml_optimizer import get_ml_system
+        ml_system = get_ml_system()
         data = request.get_json()
         composition = data.get('composition', {})
         target_property = data.get('target_property')
@@ -835,6 +862,83 @@ def ml_system_status():
             'success': False,
             'error': str(e)
         })
+
+@app.route('/ml_history')
+def ml_history():
+    """Страница истории ML оптимизаций"""
+    uploaded_files = os.listdir(app.config['UPLOAD_FOLDER']) if os.path.exists(app.config['UPLOAD_FOLDER']) else []
+    
+    # Получаем историю оптимизаций
+    from database import get_ml_optimizations
+    optimizations_history = get_ml_optimizations(db_path, limit=20)
+    
+    return render_template(
+        'ml_history.html', 
+        segment='История ML',
+        uploaded_files=uploaded_files,
+        optimizations_history=optimizations_history
+    )
+
+@app.route('/ml_saved_models')
+def ml_saved_models():
+    """Страница сохраненных ML моделей"""
+    uploaded_files = os.listdir(app.config['UPLOAD_FOLDER']) if os.path.exists(app.config['UPLOAD_FOLDER']) else []
+    
+    # Получаем сохраненные модели
+    from database import get_active_ml_models
+    saved_models = get_active_ml_models(db_path)
+    
+    return render_template(
+        'ml_saved_models.html', 
+        segment='Сохраненные ML модели',
+        uploaded_files=uploaded_files,
+        saved_models=saved_models
+    )
+
+@app.route('/ml_verify_optimization', methods=['POST'])
+def ml_verify_optimization():
+    """Добавляет реальные измерения для ML оптимизации"""
+    try:
+        optimization_id = request.form.get('optimization_id')
+        actual_properties = {
+            'density': float(request.form.get('density', 0)) if request.form.get('density') else None,
+            'q': float(request.form.get('q', 0)) if request.form.get('q') else None,
+            'ad': float(request.form.get('ad', 0)) if request.form.get('ad') else None,
+            # Добавьте другие свойства
+        }
+        
+        from database import update_ml_optimization_with_actual
+        success = update_ml_optimization_with_actual(db_path, optimization_id, actual_properties)
+        
+        if success:
+            # Переобучаем модели на верифицированных данных
+            from ml_optimizer import get_ml_system
+            ml_system = get_ml_system()
+            retrain_result = ml_system.retrain_on_new_data()
+            
+            return jsonify({
+                'success': True,
+                'message': 'Реальные измерения добавлены и модели переобучены',
+                'retrain_result': retrain_result
+            })
+        else:
+            return jsonify({'success': False, 'error': 'Ошибка добавления измерений'})
+            
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/ml_auto_retrain', methods=['POST'])
+def ml_auto_retrain():
+    """Автоматическое переобучение на новых данных"""
+    try:
+        from ml_optimizer import get_ml_system
+        ml_system = get_ml_system()
+        
+        result = ml_system.retrain_on_new_data()
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
 
 if __name__ == '__main__':
     app.run(debug=True)
