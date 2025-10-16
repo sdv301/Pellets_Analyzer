@@ -1044,5 +1044,37 @@ def ml_auto_retrain():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
+@app.route('/ai_ml_recommendations')
+def ai_ml_recommendations():
+    """Возвращает рекомендации по улучшению системы"""
+    try:
+        recommendations = ai_ml_analyzer.get_system_recommendations()
+        return jsonify({
+            'success': True,
+            'recommendations': recommendations['recommendations'],
+            'total_count': recommendations['total_count']
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        })
+
+@app.route('/ai_ml_history')
+def ai_ml_history():
+    """Возвращает историю анализов"""
+    try:
+        history = ai_ml_analyzer.get_analysis_history(limit=5)
+        return jsonify({
+            'success': True,
+            'history': history
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        })
+
+
 if __name__ == '__main__':
     app.run(debug=True)

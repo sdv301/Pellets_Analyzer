@@ -3,24 +3,41 @@
 
 {% block content %}
 <div class="container-fluid py-4">
-    <h1 class="text-center mb-4">Интеллектуальный ИИ Анализ</h1>
+    <h1 class="text-center mb-4">🤖 Интеллектуальный ИИ Анализ</h1>
     
+    <!-- Системные рекомендации -->
+    <div class="card shadow-sm mb-4" id="system-recommendations" style="display: none;">
+        <div class="card-header bg-warning text-dark">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-lightbulb me-2"></i>Рекомендации по улучшению системы
+            </h5>
+        </div>
+        <div class="card-body">
+            <div id="recommendations-list"></div>
+        </div>
+    </div>
+
     <!-- Статус системы -->
     <div class="card shadow-sm mb-4">
         <div class="card-header bg-info text-white">
-            <h5 class="card-title mb-0">Статус системы</h5>
+            <h5 class="card-title mb-0">
+                <i class="fas fa-chart-line me-2"></i>Статус системы
+                <button class="btn btn-sm btn-light float-end" onclick="loadSystemStatus()">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+            </h5>
         </div>
         <div class="card-body">
             <div id="system-status">
                 <div class="row">
                     <div class="col-md-6">
-                        <h6>Данные:</h6>
+                        <h6>📊 Данные:</h6>
                         <ul id="data-status" class="list-unstyled">
                             <li><i class="fas fa-spinner fa-spin me-2"></i>Загрузка...</li>
                         </ul>
                     </div>
                     <div class="col-md-6">
-                        <h6>ML Модели:</h6>
+                        <h6>🤖 ML Модели:</h6>
                         <ul id="ml-status" class="list-unstyled">
                             <li><i class="fas fa-spinner fa-spin me-2"></i>Загрузка...</li>
                         </ul>
@@ -32,23 +49,30 @@
 
     <!-- Блок анализа -->
     <div class="card shadow-sm mb-4">
-        <div class="card-header">
-            <h5 class="card-title mb-0">Интеллектуальный анализ</h5>
+        <div class="card-header bg-primary text-white">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-robot me-2"></i>Интеллектуальный анализ
+            </h5>
         </div>
         <div class="card-body">
             <form id="ai-ml-analysis-form">
                 <div class="mb-3">
-                    <label class="form-label">Запрос к ИИ-аналитику:</label>
+                    <label class="form-label">💬 Ваш запрос к ИИ-аналитику:</label>
                     <textarea class="form-control" name="query" rows="4" placeholder="Примеры запросов:
-• Проанализируй зависимости в данных и предложи оптимальный состав
-• Какие компоненты лучше всего влияют на теплоту сгорания?
-• Найди компромисс между прочностью и экологичностью
-• Предскажи свойства для состава: 70% опилок, 30% соломы
-• Какие тенденции наблюдаются в данных?"></textarea>
+• Найди оптимальный состав для максимальной теплоты сгорания
+• Проанализируй тенденции в данных
+• Какие компоненты влияют на прочность?
+• Предскажи свойства для нового состава
+• Сравни эффективность разных составов"></textarea>
                 </div>
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-robot me-2"></i>Выполнить интеллектуальный анализ
-                </button>
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-robot me-2"></i>Выполнить анализ
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="clearAnalysis()">
+                        <i class="fas fa-eraser me-2"></i>Очистить
+                    </button>
+                </div>
             </form>
             
             <div id="ai-ml-results" class="mt-4"></div>
@@ -56,32 +80,59 @@
     </div>
 
     <!-- Быстрые запросы -->
-    <div class="card shadow-sm">
+    <div class="card shadow-sm mb-4">
         <div class="card-header">
-            <h5 class="card-title mb-0">Быстрые запросы</h5>
+            <h5 class="card-title mb-0">
+                <i class="fas fa-bolt me-2"></i>Быстрые запросы
+            </h5>
         </div>
         <div class="card-body">
-            <div class="row">
-                <div class="col-md-3 mb-2">
-                    <button class="btn btn-outline-primary w-100 quick-query" data-query="Проанализируй основные закономерности в данных">
-                        Анализ закономерностей
+            <div class="row g-2">
+                <div class="col-md-4">
+                    <button class="btn btn-outline-primary w-100 quick-query" data-query="Проанализируй основные тенденции в данных">
+                        <i class="fas fa-chart-line me-2"></i>Анализ трендов
                     </button>
                 </div>
-                <div class="col-md-3 mb-2">
+                <div class="col-md-4">
                     <button class="btn btn-outline-success w-100 quick-query" data-query="Найди оптимальный состав для максимальной теплоты сгорания">
-                        Оптимальный состав
+                        <i class="fas fa-trophy me-2"></i>Оптимальный состав
                     </button>
                 </div>
-                <div class="col-md-3 mb-2">
+                <div class="col-md-4">
                     <button class="btn btn-outline-info w-100 quick-query" data-query="Какие компоненты лучше всего влияют на прочность?">
-                        Анализ компонентов
+                        <i class="fas fa-cube me-2"></i>Анализ компонентов
                     </button>
                 </div>
-                <div class="col-md-3 mb-2">
-                    <button class="btn btn-outline-warning w-100 quick-query" data-query="Предложи направления для дальнейших исследований">
-                        Рекомендации
+                <div class="col-md-4">
+                    <button class="btn btn-outline-warning w-100 quick-query" data-query="Предскажи свойства для состава: 60% опилки, 30% солома, 10% лигнин">
+                        <i class="fas fa-crystal-ball me-2"></i>Прогноз свойств
                     </button>
                 </div>
+                <div class="col-md-4">
+                    <button class="btn btn-outline-danger w-100 quick-query" data-query="Какие параметры наиболее важны для качества пеллет?">
+                        <i class="fas fa-star me-2"></i>Ключевые параметры
+                    </button>
+                </div>
+                <div class="col-md-4">
+                    <button class="btn btn-outline-dark w-100 quick-query" data-query="Предложи направления для дальнейших исследований">
+                        <i class="fas fa-flask me-2"></i>Рекомендации
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- История анализов -->
+    <div class="card shadow-sm">
+        <div class="card-header">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-history me-2"></i>История анализов
+                <span class="badge bg-secondary" id="history-count">0</span>
+            </h5>
+        </div>
+        <div class="card-body">
+            <div id="analysis-history" class="small">
+                <div class="text-muted">История анализов появится здесь после выполнения запросов</div>
             </div>
         </div>
     </div>
@@ -89,98 +140,310 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Загрузка статуса системы
     loadSystemStatus();
+    loadRecommendations();
+    loadAnalysisHistory();
     
     // Быстрые запросы
     document.querySelectorAll('.quick-query').forEach(btn => {
         btn.addEventListener('click', function() {
             document.querySelector('textarea[name="query"]').value = this.dataset.query;
+            document.querySelector('textarea[name="query"]').focus();
         });
     });
     
     // Основная форма анализа
     document.getElementById('ai-ml-analysis-form').addEventListener('submit', function(e) {
         e.preventDefault();
+        performAnalysis();
+    });
+});
+
+async function loadSystemStatus() {
+    try {
+        const response = await fetch('/ai_ml_system_status');
+        const data = await response.json();
         
-        const formData = new FormData(this);
-        const query = formData.get('query');
-        
-        if (!query.trim()) {
-            alert('Введите запрос для анализа');
-            return;
+        if (data.success) {
+            updateSystemStatus(data);
+        } else {
+            showSystemError(data.message || 'Ошибка загрузки статуса');
         }
+    } catch (error) {
+        showSystemError(`Ошибка соединения: ${error.message}`);
+    }
+}
+
+function updateSystemStatus(data) {
+    const dataSummary = data.data_summary || {};
+    const mlStatus = data.ml_status || {};
+    
+    // Обновляем статус данных
+    const dataStatus = document.getElementById('data-status');
+    if (dataSummary.total_samples > 0) {
+        dataStatus.innerHTML = `
+            <li><i class="fas fa-database text-success me-2"></i>Образцов: <strong>${dataSummary.total_samples}</strong></li>
+            <li><i class="fas fa-cube text-success me-2"></i>Компонентов: <strong>${dataSummary.total_components}</strong></li>
+            <li><i class="fas fa-chart-line text-success me-2"></i>Параметров: <strong>${dataSummary.available_properties.length}</strong></li>
+            <li><i class="fas fa-check-circle text-success me-2"></i>Заполненность: <strong>${dataSummary.data_completeness}%</strong></li>
+        `;
+    } else {
+        dataStatus.innerHTML = '<li><i class="fas fa-exclamation-triangle text-warning me-2"></i>Данные не загружены</li>';
+    }
+    
+    // Обновляем статус ML моделей
+    const mlStatusElement = document.getElementById('ml-status');
+    if (mlStatus.is_trained && mlStatus.trained_models.length > 0) {
+        const modelsList = mlStatus.trained_models.map(model => {
+            const perf = mlStatus.model_performance[model] || {};
+            const statusIcon = perf.status === 'excellent' ? 'fa-check-circle text-success' : 
+                             perf.status === 'good' ? 'fa-info-circle text-info' : 'fa-exclamation-triangle text-warning';
+            return `<li><i class="fas ${statusIcon} me-2"></i>${model}: R²=${perf.r2_score || 'N/A'}</li>`;
+        }).join('');
+        mlStatusElement.innerHTML = modelsList;
+    } else {
+        mlStatusElement.innerHTML = '<li><i class="fas fa-info-circle text-info me-2"></i>Модели не обучены</li>';
+    }
+}
+
+async function loadRecommendations() {
+    try {
+        const response = await fetch('/ai_ml_recommendations');
+        const data = await response.json();
         
-        const button = this.querySelector('button');
-        button.disabled = true;
-        button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Анализ...';
-        
-        fetch('/ai_ml_analysis', {
+        if (data.success && data.recommendations.length > 0) {
+            showRecommendations(data.recommendations);
+        }
+    } catch (error) {
+        console.log('Рекомендации недоступны');
+    }
+}
+
+function showRecommendations(recommendations) {
+    const container = document.getElementById('system-recommendations');
+    const list = document.getElementById('recommendations-list');
+    
+    const recommendationsHtml = recommendations.map(rec => `
+        <div class="alert alert-${rec.priority === 'high' ? 'danger' : 'warning'} mb-2">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <strong>${rec.type === 'data' ? '📊 Данные' : rec.type === 'ml' ? '🤖 ML' : '⚡ Качество'}:</strong>
+                    ${rec.message}
+                </div>
+                <button class="btn btn-sm btn-${rec.priority === 'high' ? 'danger' : 'warning'}" onclick="handleRecommendationAction('${rec.action}')">
+                    Исправить
+                </button>
+            </div>
+        </div>
+    `).join('');
+    
+    list.innerHTML = recommendationsHtml;
+    container.style.display = 'block';
+}
+
+function handleRecommendationAction(action) {
+    switch(action) {
+        case 'add_data':
+            window.location.href = '/';
+            break;
+        case 'train_ml':
+            window.location.href = '/ml_dashboard';
+            break;
+        case 'improve_data':
+            showToast('Информация', 'Добавьте недостающие данные в таблицы');
+            break;
+    }
+}
+
+async function performAnalysis() {
+    const form = document.getElementById('ai-ml-analysis-form');
+    const query = form.querySelector('textarea[name="query"]').value.trim();
+    const button = form.querySelector('button[type="submit"]');
+    const resultsDiv = document.getElementById('ai-ml-results');
+    
+    if (!query) {
+        showToast('Ошибка', 'Введите запрос для анализа', 'error');
+        return;
+    }
+    
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Анализ...';
+    resultsDiv.innerHTML = '<div class="alert alert-info"><i class="fas fa-spinner fa-spin me-2"></i>ИИ анализирует запрос...</div>';
+    
+    try {
+        const response = await fetch('/ai_ml_analysis', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({query: query})
-        })
-        .then(response => response.json())
-        .then(data => {
-            const resultsDiv = document.getElementById('ai-ml-results');
-            if (data.success) {
-                resultsDiv.innerHTML = `
-                    <div class="alert alert-success">
-                        <h6>Результаты анализа:</h6>
-                        <div class="mt-3">${data.analysis}</div>
-                        ${data.recommendations ? `
-                        <div class="mt-3">
-                            <h6>Рекомендации:</h6>
-                            <div>${data.recommendations}</div>
-                        </div>
-                        ` : ''}
-                        ${data.optimal_composition ? `
-                        <div class="mt-3">
-                            <h6>Оптимальный состав:</h6>
-                            <div class="bg-light p-3 rounded">
-                                ${Object.entries(data.optimal_composition).map(([comp, percent]) => 
-                                    percent > 1 ? `<span class="badge bg-primary me-2">${comp}: ${percent}%</span>` : ''
-                                ).join('')}
-                            </div>
-                        </div>
-                        ` : ''}
-                    </div>
-                `;
-            } else {
-                resultsDiv.innerHTML = `<div class="alert alert-danger">${data.message}</div>`;
-            }
-        })
-        .finally(() => {
-            button.disabled = false;
-            button.innerHTML = '<i class="fas fa-robot me-2"></i>Выполнить интеллектуальный анализ';
         });
-    });
-    
-    function loadSystemStatus() {
-        fetch('/ai_ml_system_status')
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // Обновляем статус данных
-                const dataStatus = document.getElementById('data-status');
-                dataStatus.innerHTML = `
-                    <li><i class="fas fa-database text-success me-2"></i>Образцов: ${data.data_summary.total_samples}</li>
-                    <li><i class="fas fa-cube text-success me-2"></i>Компонентов: ${data.data_summary.total_components}</li>
-                    <li><i class="fas fa-chart-line text-success me-2"></i>Параметров: ${data.data_summary.available_properties.length}</li>
-                `;
-                
-                // Обновляем статус ML моделей
-                const mlStatus = document.getElementById('ml-status');
-                if (data.ml_status.trained_models.length > 0) {
-                    mlStatus.innerHTML = data.ml_status.trained_models.map(model => 
-                        `<li><i class="fas fa-brain text-success me-2"></i>${model}: R² = ${data.ml_status.model_performance[model].r2_score.toFixed(3)}</li>`
-                    ).join('');
-                } else {
-                    mlStatus.innerHTML = '<li><i class="fas fa-exclamation-triangle text-warning me-2"></i>Модели не обучены</li>';
-                }
-            }
-        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showAnalysisResult(data);
+            loadAnalysisHistory(); // Обновляем историю
+        } else {
+            showAnalysisError(data.message || 'Ошибка анализа');
+        }
+    } catch (error) {
+        showAnalysisError(`Ошибка соединения: ${error.message}`);
+    } finally {
+        button.disabled = false;
+        button.innerHTML = '<i class="fas fa-robot me-2"></i>Выполнить анализ';
     }
-});
+}
+
+function showAnalysisResult(data) {
+    const resultsDiv = document.getElementById('ai-ml-results');
+    
+    let actionsHtml = '';
+    if (data.actions && data.actions.length > 0) {
+        actionsHtml = `
+            <div class="mt-3">
+                <h6><i class="fas fa-rocket me-2"></i>Рекомендуемые действия:</h6>
+                <div class="d-flex gap-2 flex-wrap">
+                    ${data.actions.map(action => `
+                        <button class="btn btn-sm btn-outline-primary" onclick="handleAnalysisAction('${action}')">
+                            ${getActionLabel(action)}
+                        </button>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+    
+    resultsDiv.innerHTML = `
+        <div class="alert alert-success">
+            <h6><i class="fas fa-chart-line me-2"></i>Результаты анализа:</h6>
+            <div class="mt-3">${formatAnalysisText(data.analysis)}</div>
+            ${data.recommendations ? `
+            <div class="mt-3">
+                <h6><i class="fas fa-lightbulb me-2"></i>Рекомендации:</h6>
+                <div>${formatAnalysisText(data.recommendations)}</div>
+            </div>
+            ` : ''}
+            ${actionsHtml}
+        </div>
+    `;
+}
+
+function handleAnalysisAction(action) {
+    const actionUrls = {
+        'train_ml': '/ml_dashboard',
+        'optimize': '/ml_dashboard',
+        'predict': '/ml_dashboard', 
+        'add_data': '/',
+        'view_tables': '/tables',
+        'search': '/tables',
+        'compare': '/compare',
+        'create_graphs': '/create_graph',
+        'analyze': '/ai_analysis'
+    };
+    
+    if (actionUrls[action]) {
+        window.location.href = actionUrls[action];
+    }
+}
+
+function getActionLabel(action) {
+    const labels = {
+        'train_ml': '🔄 Обучить ML',
+        'optimize': '🎯 Оптимизировать',
+        'predict': '🔮 Предсказать',
+        'add_data': '📊 Добавить данные',
+        'view_tables': '📋 Таблицы',
+        'search': '🔍 Поиск',
+        'compare': '⚖️ Сравнить',
+        'create_graphs': '📈 Графики',
+        'analyze': '🤖 Анализ'
+    };
+    return labels[action] || action;
+}
+
+async function loadAnalysisHistory() {
+    try {
+        const response = await fetch('/ai_ml_history');
+        const data = await response.json();
+        
+        if (data.success) {
+            updateAnalysisHistory(data.history);
+        }
+    } catch (error) {
+        console.log('История недоступна');
+    }
+}
+
+function updateAnalysisHistory(history) {
+    const container = document.getElementById('analysis-history');
+    const countElement = document.getElementById('history-count');
+    
+    if (!history || history.length === 0) {
+        container.innerHTML = '<div class="text-muted">История анализов появится здесь после выполнения запросов</div>';
+        countElement.textContent = '0';
+        return;
+    }
+    
+    countElement.textContent = history.length;
+    
+    const historyHtml = history.slice(0, 5).map(item => `
+        <div class="border-bottom pb-2 mb-2">
+            <div class="d-flex justify-content-between">
+                <small class="text-muted">${new Date(item.timestamp).toLocaleString()}</small>
+                <span class="badge bg-secondary">${item.type}</span>
+            </div>
+            <div class="fw-bold">${item.query}</div>
+        </div>
+    `).join('');
+    
+    container.innerHTML = historyHtml;
+}
+
+function clearAnalysis() {
+    document.querySelector('textarea[name="query"]').value = '';
+    document.getElementById('ai-ml-results').innerHTML = '';
+}
+
+function showSystemError(message) {
+    const dataStatus = document.getElementById('data-status');
+    const mlStatus = document.getElementById('ml-status');
+    
+    dataStatus.innerHTML = `<li><i class="fas fa-exclamation-triangle text-danger me-2"></i>${message}</li>`;
+    mlStatus.innerHTML = `<li><i class="fas fa-exclamation-triangle text-danger me-2"></i>${message}</li>`;
+}
+
+function showAnalysisError(message) {
+    const resultsDiv = document.getElementById('ai-ml-results');
+    resultsDiv.innerHTML = `
+        <div class="alert alert-danger">
+            <h6><i class="fas fa-exclamation-triangle me-2"></i>Ошибка:</h6>
+            ${message}
+        </div>
+    `;
+}
+
+function showToast(title, message, type = 'info') {
+    // Реализация toast уведомлений
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    toast.style.cssText = 'top: 20px; right: 20px; z-index: 1050; min-width: 300px;';
+    toast.innerHTML = `
+        <strong>${title}</strong> ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        if (toast.parentNode) toast.parentNode.removeChild(toast);
+    }, 5000);
+}
+
+function formatAnalysisText(text) {
+    return text
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\n/g, '<br>')
+        .replace(/✅/g, '<span class="text-success">✅</span>')
+        .replace(/⚠️/g, '<span class="text-warning">⚠️</span>')
+        .replace(/❌/g, '<span class="text-danger">❌</span>');
+}
 </script>
 {% endblock %}
