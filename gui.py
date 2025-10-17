@@ -172,19 +172,21 @@ def create_radar_chart(data, color_param, template, title):
     return fig
 
 def generate_plotly_graph(data, x_param='ad', y_param='q', graph_type='scatter',
-                         z_param=None, color_param=None, *args, **kwargs):
-    """Создает интерактивные графики с использованием Plotly"""
+                         z_param=None, color_param=None, size_param=None, 
+                         animation_param=None, theme='default', title=None,
+                         width=800, height=600, show_grid=True, selected_compositions=None):
+    """Создает интерактивные графики с использованием Plotly, с исправленным box plot и улучшенной обработкой данных"""
     
-    # Обработка старых параметров для обратной совместимости
-    theme = kwargs.get('theme', 'default')
-    title = kwargs.get('title', None)
-    width = kwargs.get('width', 800)
-    height = kwargs.get('height', 600)
-    show_grid = kwargs.get('show_grid', True)
-    selected_compositions = kwargs.get('selected_compositions', None)
+    import pandas as pd
+    import plotly.express as px
+    import plotly.graph_objects as go
+    import plotly.io as pio
+    import numpy as np
+    import traceback
     
+    # Проверка входных данных
     if data.empty or x_param not in data.columns:
-        return None, "Нет данных для построения графика", []
+        return None, "Нет данных или неверный параметр X для построения графика", []
     
     try:
         # ФИЛЬТРАЦИЯ ПО ВЫБРАННЫМ СОСТАВАМ
@@ -196,175 +198,327 @@ def generate_plotly_graph(data, x_param='ad', y_param='q', graph_type='scatter',
             
             if selected_compositions is not None:
                 if len(selected_compositions) == 0:
-                    selected_compositions = available_compositions
+                    return None, "Нет выбранных составов для отображения", available_compositions
+                filtered_data = data[data['composition'].isin(selected_compositions)]
                 
-                if len(selected_compositions) > 0:
-                    filtered_data = data[data['composition'].isin(selected_compositions)]
-            
-            if filtered_data.empty and available_compositions:
-                filtered_data = data[data['composition'] == available_compositions[0]]
-        
-        if filtered_data.empty:
-            return None, "Нет данных для отображения", available_compositions
+            if filtered_data.empty:
+                return None, "Нет данных для выбранных составов", available_compositions
         
         # Настройка темы
         template = get_plotly_theme(theme)
         
+        # Определяем количество элементов для легенды
+        legend_items = len(filtered_data['composition'].unique()) if 'composition' in filtered_data.columns else 0
+        
+        # Адаптивные настройки легенды
+        legend_font_size = 10 if legend_items <= 10 else (9 if legend_items <= 15 else 8)
+        legend_y_position = 0.98 if legend_items <= 10 else (0.97 if legend_items <= 15 else 0.95)
+        right_margin = 150 if legend_items <= 10 else (160 if legend_items <= 15 else 180)
+        
         fig = None
         
-        if graph_type == 'scatter':
-            # УЛУЧШЕННАЯ ЛЕГЕНДА И ПОДСКАЗКИ
-            hover_data = {}
-            if 'composition' in filtered_data.columns:
-                hover_data['composition'] = True
-            
-            fig = px.scatter(filtered_data, x=x_param, y=y_param,
-                           color='composition' if 'composition' in filtered_data.columns else None,
-                           hover_name='composition' if 'composition' in filtered_data.columns else None,
-                           hover_data=hover_data,
-                           title=title or f"{get_param_display_name(y_param)} vs {get_param_display_name(x_param)}")
-            
-            # УЛУЧШЕНИЕ ПОДСКАЗОК
-            fig.update_traces(
-                hovertemplate=(
-                    "<b>%{hovertext}</b><br>" +
-                    f"{get_param_display_name(x_param)}: %{{x}}<br>" +
-                    f"{get_param_display_name(y_param)}: %{{y}}<br>" +
-                    "<extra></extra>"
-                ) if 'composition' in filtered_data.columns else None
-            )
-            
-        elif graph_type == 'line':
-            sorted_data = filtered_data.sort_values(by=x_param)
-            fig = px.line(sorted_data, x=x_param, y=y_param,
-                         color='composition' if 'composition' in filtered_data.columns else None,
-                         hover_name='composition' if 'composition' in filtered_data.columns else None,
-                         title=title or f"Линейный график: {get_param_display_name(y_param)} vs {get_param_display_name(x_param)}")
-            
-        elif graph_type == 'bar':
-            if filtered_data[x_param].dtype == 'object' or len(filtered_data[x_param].unique()) <= 20:
-                # Для столбчатых диаграмм группируем по composition
-                if 'composition' in filtered_data.columns:
-                    grouped = filtered_data.groupby(['composition', x_param])[y_param].mean().reset_index()
-                    fig = px.bar(grouped, x=x_param, y=y_param, color='composition',
-                               barmode='group',
-                               hover_name='composition',
-                               title=title or f"Среднее {get_param_display_name(y_param)} по {get_param_display_name(x_param)}")
-                else:
-                    grouped = filtered_data.groupby(x_param)[y_param].mean().reset_index()
-                    fig = px.bar(grouped, x=x_param, y=y_param,
-                               title=title or f"Среднее {get_param_display_name(y_param)} по {get_param_display_name(x_param)}")
-            else:
-                fig = px.histogram(filtered_data, x=x_param,
-                                 color='composition' if 'composition' in filtered_data.columns else None,
-                                 title=title or f"Распределение {get_param_display_name(x_param)}")
-                                 
-        elif graph_type == 'histogram':
-            fig = px.histogram(filtered_data, x=x_param,
-                             color=color_param if color_param and color_param in filtered_data.columns else None,
-                             title=title or f"Гистограмма {get_param_display_name(x_param)}")
-            
-        elif graph_type == 'box':
-            fig = px.box(filtered_data, x=x_param, y=y_param,
-                        color=color_param if color_param and color_param in filtered_data.columns else None,
-                        title=title or f"Box plot: {get_param_display_name(y_param)}")
-            
-        elif graph_type == 'violin':
-            fig = px.violin(filtered_data, x=x_param, y=y_param,
-                       color=color_param if color_param and color_param in filtered_data.columns else None,
-                       title=title or f"Violin plot: {get_param_display_name(y_param)}")
-    
-        elif graph_type == 'sunburst':
-            # ИСПРАВЛЕННЫЙ SUNBURST - используем X и Y параметры
-            if 'composition' in filtered_data.columns:
-                # Для sunburst используем: path=[composition, X], values=Y
-                fig = px.sunburst(filtered_data, 
-                                path=['composition', x_param], 
-                                values=y_param,
-                                title=title or f"Sunburst: {get_param_display_name(y_param)} по составам и {get_param_display_name(x_param)}")
-            else:
-                return None, "Для sunburst нужна колонка 'composition'", available_compositions
+        # Общие настройки для hover-данных
+        hover_data = {'composition': True} if 'composition' in filtered_data.columns else None
         
-        elif graph_type == 'treemap':
-            # ИСПРАВЛЕННЫЙ TREEMAP - используем X и Y параметры
-            if 'composition' in filtered_data.columns:
-                # Для treemap используем: path=[composition, X], values=Y
-                fig = px.treemap(filtered_data, 
-                               path=['composition', x_param], 
-                               values=y_param,
-                               title=title or f"Treemap: {get_param_display_name(y_param)} по составам и {get_param_display_name(x_param)}")
-            else:
-                return None, "Для treemap нужна колонка 'composition'", available_compositions
-            
-        elif graph_type == 'pie':
-                # ИСПРАВЛЕННАЯ КРУГОВАЯ ДИАГРАММА - работает с любыми параметрами
+        # Обработка разных типов графиков
+        try:
+            if graph_type == 'scatter':
+                if y_param not in filtered_data.columns or filtered_data[y_param].dropna().empty:
+                    return None, f"Неверный параметр Y ({y_param}) или нет данных", available_compositions
+                
+                fig = px.scatter(
+                    filtered_data,
+                    x=x_param,
+                    y=y_param,
+                    color='composition' if 'composition' in filtered_data.columns else (color_param if color_param and color_param in filtered_data.columns else None),
+                    size=size_param if size_param and size_param in filtered_data.columns else None,
+                    hover_name='composition' if 'composition' in filtered_data.columns else None,
+                    hover_data=hover_data,
+                    title=title or f"{get_param_display_name(y_param)} vs {get_param_display_name(x_param)}",
+                    template=template
+                )
+
+                fig.update_traces(
+                    hovertemplate=(
+                        "<b>%{hovertext}</b><br>" +
+                        f"{get_param_display_name(x_param)}: %{{x:.2f}}<br>" +
+                        f"{get_param_display_name(y_param)}: %{{y:.2f}}<br>" +
+                        "<extra></extra>"
+                    ) if 'composition' in filtered_data.columns else (
+                        f"{get_param_display_name(x_param)}: %{{x:.2f}}<br>" +
+                        f"{get_param_display_name(y_param)}: %{{y:.2f}}<br>" +
+                        "<extra></extra>"
+                    )
+                )
+                
+            elif graph_type == 'line':
+                if y_param not in filtered_data.columns or filtered_data[y_param].dropna().empty:
+                    return None, f"Неверный параметр Y ({y_param}) или нет данных", available_compositions
+                
+                sorted_data = filtered_data.sort_values(by=x_param)
+                fig = px.line(
+                    sorted_data,
+                    x=x_param,
+                    y=y_param,
+                    color='composition' if 'composition' in sorted_data.columns else (color_param if color_param and color_param in sorted_data.columns else None),
+                    hover_name='composition' if 'composition' in sorted_data.columns else None,
+                    title=title or f"Линейный график: {get_param_display_name(y_param)} vs {get_param_display_name(x_param)}",
+                    template=template
+                )
+                fig.update_traces(
+                    mode='lines+markers',
+                    marker=dict(size=6, opacity=0.8, line=dict(width=1, color='DarkSlateGrey')),
+                    line=dict(width=2),
+                    hovertemplate=(
+                        "<b>%{hovertext}</b><br>" +
+                        f"{get_param_display_name(x_param)}: %{{x:.2f}}<br>" +
+                        f"{get_param_display_name(y_param)}: %{{y:.2f}}<br>" +
+                        "<extra></extra>"
+                    ) if 'composition' in sorted_data.columns else (
+                        f"{get_param_display_name(x_param)}: %{{x:.2f}}<br>" +
+                        f"{get_param_display_name(y_param)}: %{{y:.2f}}<br>" +
+                        "<extra></extra>"
+                    )
+                )
+                
+            elif graph_type == 'bar':
+                if y_param not in filtered_data.columns or filtered_data[y_param].dropna().empty:
+                    return None, f"Неверный параметр Y ({y_param}) или нет данных", available_compositions
+                
+                if filtered_data[x_param].dtype == 'object' or len(filtered_data[x_param].unique()) <= 20:
+                    grouped = filtered_data.groupby(['composition', x_param])[y_param].mean().reset_index() if 'composition' in filtered_data.columns else filtered_data.groupby(x_param)[y_param].mean().reset_index()
+                    fig = px.bar(
+                        grouped,
+                        x=x_param,
+                        y=y_param,
+                        color='composition' if 'composition' in filtered_data.columns else (color_param if color_param and color_param in filtered_data.columns else None),
+                        barmode='group',
+                        hover_name='composition' if 'composition' in filtered_data.columns else None,
+                        title=title or f"Среднее {get_param_display_name(y_param)} по {get_param_display_name(x_param)}",
+                        template=template
+                    )
+                    fig.update_traces(
+                        hovertemplate=(
+                            "<b>%{hovertext}</b><br>" +
+                            f"{get_param_display_name(x_param)}: %{{x}}<br>" +
+                            f"{get_param_display_name(y_param)}: %{{y:.2f}}<br>" +
+                            "<extra></extra>"
+                        ) if 'composition' in filtered_data.columns else (
+                            f"{get_param_display_name(x_param)}: %{{x}}<br>" +
+                            f"{get_param_display_name(y_param)}: %{{y:.2f}}<br>" +
+                            "<extra></extra>"
+                        )
+                    )
+                else:
+                    fig = px.histogram(
+                        filtered_data,
+                        x=x_param,
+                        color='composition' if 'composition' in filtered_data.columns else (color_param if color_param and color_param in filtered_data.columns else None),
+                        title=title or f"Распределение {get_param_display_name(x_param)}",
+                        template=template
+                    )
+                    fig.update_traces(
+                        hovertemplate=(
+                            f"{get_param_display_name(x_param)}: %{{x:.2f}}<br>" +
+                            "Количество: %{y}<br>" +
+                            "<extra></extra>"
+                        )
+                    )
+                
+            elif graph_type == 'histogram':
+                fig = px.histogram(
+                    filtered_data,
+                    x=x_param,
+                    color='composition' if 'composition' in filtered_data.columns else (color_param if color_param and color_param in filtered_data.columns else None),
+                    title=title or f"Гистограмма {get_param_display_name(x_param)}",
+                    template=template
+                )
+                fig.update_traces(
+                    hovertemplate=(
+                        f"{get_param_display_name(x_param)}: %{{x:.2f}}<br>" +
+                        "Количество: %{y}<br>" +
+                        "<extra></extra>"
+                    )
+                )
+                
+            elif graph_type == 'box':
+                # Проверка наличия y_param и данных для него
+                if y_param not in filtered_data.columns or filtered_data[y_param].dropna().empty:
+                    return None, f"Неверный параметр Y ({y_param}) или нет данных для построения box plot", available_compositions
+                
+                # Проверка, что y_param числовой
+                if not pd.api.types.is_numeric_dtype(filtered_data[y_param]):
+                    return None, f"Параметр Y ({y_param}) должен быть числовым для box plot", available_compositions
+                
+                # Если x_param числовой и имеет много уникальных значений, выполняем биннинг
+                if pd.api.types.is_numeric_dtype(filtered_data[x_param]) and len(filtered_data[x_param].unique()) > 20:
+                    data = filtered_data[x_param].dropna()
+                    if data.empty:
+                        return None, f"Нет данных для параметра X ({x_param}) после удаления NaN", available_compositions
+                    
+                    # Автоматическое определение количества бинов
+                    data_min, data_max = data.min(), data.max()
+                    bins = min(10, max(5, len(data) // 10))
+                    bin_edges = np.linspace(data_min, data_max, bins + 1)
+                    
+                    # Создаем категории на основе диапазонов
+                    bin_labels = [f"{bin_edges[i]:.2f}-{bin_edges[i+1]:.2f}" for i in range(len(bin_edges)-1)]
+                    filtered_data = filtered_data.copy()
+                    filtered_data['binned_x'] = pd.cut(filtered_data[x_param], bins=bin_edges, labels=bin_labels, include_lowest=True)
+                    x_param_to_use = 'binned_x'
+                else:
+                    x_param_to_use = x_param
+                
+                # Проверка, что x_param_to_use (оригинальный или биннированный) имеет данные
+                if filtered_data[x_param_to_use].dropna().empty:
+                    return None, f"Параметр X ({x_param_to_use}) не содержит данных после обработки", available_compositions
+                
+                # Определяем параметр для цвета
+                color = 'composition' if 'composition' in filtered_data.columns else (color_param if color_param and color_param in filtered_data.columns else None)
+                
+                # Создаем box plot
+                fig = px.box(
+                    filtered_data,
+                    x=x_param_to_use,
+                    y=y_param,
+                    color=color,
+                    points='all',  # Показываем все точки
+                    notched=True,   # Выемка для медианы
+                    hover_name='composition' if 'composition' in filtered_data.columns else None,
+                    hover_data=hover_data,
+                    title=title or f"Box Plot: {get_param_display_name(y_param)} по {get_param_display_name(x_param)}",
+                    template=template
+                )
+                
+                # Настраиваем hover-шаблон и внешний вид
+                fig.update_traces(
+                    boxmean=True,  # Показываем среднее значение
+                    jitter=0.3,    # Разброс точек
+                    pointpos=0,    # Позиция точек
+                    hovertemplate=(
+                        "<b>%{hovertext}</b><br>" +
+                        f"{get_param_display_name(x_param)}: %{{x}}<br>" +
+                        f"{get_param_display_name(y_param)}: %{{y:.2f}}<br>" +
+                        "<extra></extra>"
+                    ) if 'composition' in filtered_data.columns else (
+                        f"{get_param_display_name(x_param)}: %{{x}}<br>" +
+                        f"{get_param_display_name(y_param)}: %{{y:.2f}}<br>" +
+                        "<extra></extra>"
+                    )
+                )
+
+            elif graph_type == 'violin':
+                if y_param not in filtered_data.columns or filtered_data[y_param].dropna().empty:
+                    return None, f"Неверный параметр Y ({y_param}) или нет данных", available_compositions
+                
+                fig = px.violin(
+                    filtered_data,
+                    x=x_param,
+                    y=y_param,
+                    color='composition' if 'composition' in filtered_data.columns else (color_param if color_param and color_param in filtered_data.columns else None),
+                    box=True,
+                    points='all',
+                    title=title or f"Violin Plot: {get_param_display_name(y_param)}",
+                    template=template
+                )
+                fig.update_traces(
+                    hovertemplate=(
+                        "<b>%{hovertext}</b><br>" +
+                        f"{get_param_display_name(x_param)}: %{{x}}<br>" +
+                        f"{get_param_display_name(y_param)}: %{{y:.2f}}<br>" +
+                        "<extra></extra>"
+                    ) if 'composition' in filtered_data.columns else (
+                        f"{get_param_display_name(x_param)}: %{{x}}<br>" +
+                        f"{get_param_display_name(y_param)}: %{{y:.2f}}<br>" +
+                        "<extra></extra>"
+                    )
+                )
+                
+            elif graph_type == 'sunburst':
+                if 'composition' not in filtered_data.columns:
+                    return None, "Для sunburst нужна колонка 'composition'", available_compositions
+                if y_param not in filtered_data.columns or filtered_data[y_param].dropna().empty:
+                    return None, f"Неверный параметр Y ({y_param}) или нет данных", available_compositions
+                fig = px.sunburst(
+                    filtered_data,
+                    path=['composition', x_param],
+                    values=y_param,
+                    title=title or f"Sunburst: {get_param_display_name(y_param)} по составам и {get_param_display_name(x_param)}",
+                    template=template
+                )
+                fig.update_traces(
+                    hovertemplate=(
+                        "<b>%{label}</b><br>" +
+                        f"Значение: %{{value:.2f}}<br>" +
+                        "<extra></extra>"
+                    )
+                )
+                
+            elif graph_type == 'treemap':
+                if 'composition' not in filtered_data.columns:
+                    return None, "Для treemap нужна колонка 'composition'", available_compositions
+                if y_param not in filtered_data.columns or filtered_data[y_param].dropna().empty:
+                    return None, f"Неверный параметр Y ({y_param}) или нет данных", available_compositions
+                fig = px.treemap(
+                    filtered_data,
+                    path=['composition', x_param],
+                    values=y_param,
+                    title=title or f"Treemap: {get_param_display_name(y_param)} по составам и {get_param_display_name(x_param)}",
+                    template=template
+                )
+                fig.update_traces(
+                    hovertemplate=(
+                        "<b>%{label}</b><br>" +
+                        f"Значение: %{{value:.2f}}<br>" +
+                        "<extra></extra>"
+                    )
+                )
+                
+            elif graph_type == 'pie':
                 try:
-                    # Для числовых параметров создаем категории на основе диапазонов
                     if pd.api.types.is_numeric_dtype(filtered_data[x_param]):
-                        # Создаем диапазоны для числовых данных
                         data = filtered_data[x_param].dropna()
-                        if len(data) == 0:
+                        if data.empty:
                             return None, "Нет данных для построения круговой диаграммы", available_compositions
-                            
-                        data_min = data.min()
-                        data_max = data.max()
                         
-                        # Автоматически определяем количество бинов
-                        if len(data) <= 20:
-                            bins = 5
-                        elif len(data) <= 50:
-                            bins = 7
-                        else:
-                            bins = 10
-                            
-                        # Создаем границы диапазонов
+                        data_min, data_max = data.min(), data.max()
+                        bins = min(10, max(5, len(data) // 10))
                         bin_edges = np.linspace(data_min, data_max, bins + 1)
                         
-                        # Создаем категории вручную
                         category_counts = {}
                         for i in range(len(bin_edges) - 1):
-                            lower = bin_edges[i]
-                            upper = bin_edges[i + 1]
-                            count = ((data >= lower) & (data < upper)).sum()
-                            if i == len(bin_edges) - 2:  # Последний бин включает верхнюю границу
-                                count = ((data >= lower) & (data <= upper)).sum()
-                            category_name = f"{lower:.2f}-{upper:.2f}"
-                            category_counts[category_name] = count
+                            lower, upper = bin_edges[i], bin_edges[i + 1]
+                            count = ((data >= lower) & (data < upper)).sum() if i < len(bin_edges) - 2 else ((data >= lower) & (data <= upper)).sum()
+                            category_counts[f"{lower:.2f}-{upper:.2f}"] = count
                         
-                        # Создаем DataFrame для pie chart
                         pie_data = pd.DataFrame({
                             'category': list(category_counts.keys()),
                             'count': list(category_counts.values())
                         })
-                        
                     else:
-                        # Для категориальных данных используем как есть
                         pie_data = filtered_data[x_param].value_counts().reset_index()
                         pie_data.columns = ['category', 'count']
                     
-                    # Удаляем пустые категории
                     pie_data = pie_data[pie_data['count'] > 0]
-                    
-                    # Ограничиваем количество категорий для читаемости
                     if len(pie_data) > 10:
                         pie_data = pie_data.sort_values('count', ascending=False)
                         main_categories = pie_data.head(9)
                         other_sum = pie_data['count'].iloc[9:].sum()
                         if other_sum > 0:
                             other_row = pd.DataFrame({'category': ['Другие'], 'count': [other_sum]})
-                            pie_data = pd.concat([main_categories, other_row])
+                            pie_data = pd.concat([main_categories, other_row], ignore_index=True)
                     
-                    # Создаем круговую диаграмму
-                    fig = px.pie(pie_data, 
-                                values='count', 
-                                names='category',
-                                title=title or f"Распределение {get_param_display_name(x_param)}")
-                    
-                    # Добавляем улучшенные подсказки
+                    fig = px.pie(
+                        pie_data,
+                        values='count',
+                        names='category',
+                        title=title or f"Распределение {get_param_display_name(x_param)}",
+                        template=template
+                    )
                     fig.update_traces(
                         hovertemplate=(
                             "<b>%{label}</b><br>" +
-                            "Количество записей: %{value}<br>" +
+                            "Количество: %{value}<br>" +
                             "Доля: %{percent}<br>" +
                             "<extra></extra>"
                         ),
@@ -373,126 +527,157 @@ def generate_plotly_graph(data, x_param='ad', y_param='q', graph_type='scatter',
                     )
                     
                 except Exception as e:
-                    import traceback
                     traceback.print_exc()
                     return None, f"Ошибка при создании круговой диаграммы: {str(e)}", available_compositions
                 
-        elif graph_type == 'heatmap':
-            numeric_cols = filtered_data.select_dtypes(include=[np.number]).columns
-            if len(numeric_cols) >= 2:
+            elif graph_type == 'heatmap':
+                numeric_cols = filtered_data.select_dtypes(include=[np.number]).columns
+                if len(numeric_cols) < 2:
+                    return None, "Для тепловой карты нужно как минимум 2 числовых параметра", available_compositions
                 corr_matrix = filtered_data[numeric_cols].corr()
-                fig = px.imshow(corr_matrix, 
-                              color_continuous_scale='RdBu_r',
-                              title=title or "Тепловая карта корреляций")
-            else:
-                return None, "Для тепловой карты нужно как минимум 2 числовых параметра", available_compositions
-                
-        elif graph_type == 'radar':
-            fig = create_plotly_radar_chart(filtered_data, color_param, template, title)
-            if fig is None:
-                return None, "Не удалось создать радарную диаграмму", available_compositions
-                
-        elif graph_type == '3d_scatter' and z_param and z_param in filtered_data.columns:
-            fig = px.scatter_3d(filtered_data, x=x_param, y=y_param, z=z_param,
-                              color=color_param if color_param and color_param in filtered_data.columns else None,
-                              title=title or "3D Scatter Plot")
-            
-        else:
-            fig = px.scatter(filtered_data, x=x_param, y=y_param,
-                           title=title or f"{get_param_display_name(y_param)} vs {get_param_display_name(x_param)}")
-        
-        # ОБЩИЕ УЛУЧШЕНИЯ ДЛЯ ВСЕХ ГРАФИКОВ
-        if fig:
-            # Улучшаем легенду для всех графиков
-            fig.update_layout(
-                width=width,
-                height=height,
-                template=template,
-                showlegend=True,
-                legend=dict(
-                    title=dict(text='Составы' if 'composition' in filtered_data.columns else 'Категории'),
-                    orientation="v",
-                    yanchor="top",
-                    y=1,
-                    xanchor="left",
-                    x=1.02,
-                    bgcolor='rgba(255,255,255,0.8)',
-                    bordercolor='lightgray',
-                    borderwidth=1
-                ),
-                font=dict(size=12),
-                margin=dict(l=50, r=150, t=50, b=50)
-            )
-            
-            # Добавляем сетку для поддерживающих графиков
-            if show_grid and graph_type not in ['pie', 'sunburst', 'treemap', 'heatmap', 'radar']:
-                fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='lightgray')
-                fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='lightgray')
-            
-            # Улучшаем подсказки для всех графиков
-            fig.update_layout(
-                hovermode='closest',
-                hoverlabel=dict(
-                    bgcolor="white",
-                    font_size=12,
-                    font_family="Arial"
+                fig = px.imshow(
+                    corr_matrix,
+                    x=[get_param_display_name(col) for col in numeric_cols],
+                    y=[get_param_display_name(col) for col in numeric_cols],
+                    color_continuous_scale='RdBu_r',
+                    zmin=-1,
+                    zmax=1,
+                    text_auto='.2f',
+                    title=title or "Тепловая карта корреляций",
+                    template=template
                 )
-            )
+                fig.update_traces(
+                    hovertemplate=(
+                        "X: %{x}<br>" +
+                        "Y: %{y}<br>" +
+                        "Корреляция: %{z:.2f}<br>" +
+                        "<extra></extra>"
+                    )
+                )
+                
+            elif graph_type == 'radar':
+                try:
+                    fig = create_plotly_radar_chart(filtered_data, color_param, template, title)
+                    if fig is None:
+                        return None, "Не удалось создать радарную диаграмму: недостаточно числовых параметров", available_compositions
+                except Exception as e:
+                    return None, f"Ошибка при создании радарной диаграммы: {str(e)}", available_compositions
+                
+            elif graph_type == '3d_scatter' and z_param and z_param in filtered_data.columns:
+                if y_param not in filtered_data.columns or filtered_data[y_param].dropna().empty:
+                    return None, f"Неверный параметр Y ({y_param}) или нет данных", available_compositions
+                fig = px.scatter_3d(
+                    filtered_data,
+                    x=x_param,
+                    y=y_param,
+                    z=z_param,
+                    color='composition' if 'composition' in filtered_data.columns else (color_param if color_param and color_param in filtered_data.columns else None),
+                    size=size_param if size_param and size_param in filtered_data.columns else None,
+                    hover_name='composition' if 'composition' in filtered_data.columns else None,
+                    title=title or f"3D Scatter: {get_param_display_name(z_param)} vs {get_param_display_name(y_param)} vs {get_param_display_name(x_param)}",
+                    template=template
+                )
+                fig.update_traces(
+                    hovertemplate=(
+                        "<b>%{hovertext}</b><br>" +
+                        f"{get_param_display_name(x_param)}: %{{x:.2f}}<br>" +
+                        f"{get_param_display_name(y_param)}: %{{y:.2f}}<br>" +
+                        f"{get_param_display_name(z_param)}: %{{z:.2f}}<br>" +
+                        "<extra></extra>"
+                    ) if 'composition' in filtered_data.columns else (
+                        f"{get_param_display_name(x_param)}: %{{x:.2f}}<br>" +
+                        f"{get_param_display_name(y_param)}: %{{y:.2f}}<br>" +
+                        f"{get_param_display_name(z_param)}: %{{z:.2f}}<br>" +
+                        "<extra></extra>"
+                    )
+                )
+                
+            elif graph_type == 'animated_scatter' and animation_param and animation_param in filtered_data.columns:
+                try:
+                    fig = create_animated_scatter(
+                        filtered_data,
+                        x_param,
+                        y_param,
+                        animation_param,
+                        template,
+                        title,
+                        color_param='composition' if 'composition' in filtered_data.columns else color_param,
+                        size_param=size_param
+                    )
+                    if fig is None:
+                        return None, "Не удалось создать анимированный график", available_compositions
+                except Exception as e:
+                    return None, f"Ошибка при создании анимированного графика: {str(e)}", available_compositions
+                
+            else:
+                return None, f"Неподдерживаемый тип графика: {graph_type}", available_compositions
+        
+            # Общие настройки для всех графиков
+            if fig:
+                fig.update_layout(
+                    width=width,
+                    height=height,
+                    template=template,
+                    showlegend=(legend_items > 0),
+                    legend=dict(
+                        title=dict(
+                            text='Составы' if 'composition' in filtered_data.columns else 'Категории',
+                            font=dict(size=legend_font_size)
+                        ),
+                        orientation="v",
+                        yanchor="top",
+                        y=legend_y_position,
+                        xanchor="left",
+                        x=1.02,
+                        bgcolor='rgba(255,255,255,0.9)',
+                        bordercolor='lightgray',
+                        borderwidth=1,
+                        font=dict(size=legend_font_size),
+                        itemsizing='constant',
+                        itemwidth=30
+                    ),
+                    font=dict(size=12),
+                    margin=dict(l=50, r=right_margin, t=50, b=50),
+                    hovermode='closest',
+                    hoverlabel=dict(
+                        bgcolor="white",
+                        font_size=12,
+                        font_family="Arial"
+                    )
+                )
+                
+                if show_grid and graph_type not in ['pie', 'sunburst', 'treemap', 'heatmap', 'radar']:
+                    fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='lightgray')
+                    fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='lightgray')
+                
+                # Конвертация в HTML
+                graph_html = pio.to_html(
+                    fig,
+                    include_plotlyjs='cdn',
+                    full_html=False,
+                    config={
+                        'responsive': True,
+                        'displayModeBar': True,
+                        'displaylogo': False,
+                        'modeBarButtonsToAdd': ['hoverClosestGl2d', 'hoverCompareGl2d']
+                    }
+                )
+                
+                return graph_html, f"{graph_type.capitalize()} график создан успешно", available_compositions
             
-            # Конвертируем в HTML
-            graph_html = pio.to_html(
-                fig,
-                include_plotlyjs='cdn',
-                full_html=False,
-                config={
-                    'responsive': True,
-                    'displayModeBar': True,
-                    'displaylogo': False,
-                    'modeBarButtonsToAdd': ['hoverClosestGl2d', 'hoverCompareGl2d']
-                }
-            )
-            
-            return graph_html, "Plotly график создан успешно", available_compositions
-        else:
             return None, "Не удалось создать график", available_compositions
-            
+        
+        except Exception as e:
+            error_msg = f"Ошибка при создании графика {graph_type}: {str(e)}"
+            traceback.print_exc()
+            return None, error_msg, available_compositions
+    
     except Exception as e:
-        import traceback
-        error_msg = f"Ошибка при создании Plotly графика: {str(e)}"
+        error_msg = f"Ошибка при обработке данных: {str(e)}"
         print(error_msg)
         traceback.print_exc()
-        return None, error_msg, []
+        return None, error_msg, available_compositions
 
-def create_correlation_heatmap(data, template, title):
-    """Создает тепловую карту корреляций с Seaborn стилем"""
-    numeric_cols = data.select_dtypes(include=[np.number]).columns
-    
-    if len(numeric_cols) < 2:
-        return None
-    
-    corr_matrix = data[numeric_cols].corr()
-    
-    # Создаем heatmap с Plotly
-    fig = go.Figure(data=go.Heatmap(
-        z=corr_matrix.values,
-        x=[get_param_display_name(col) for col in corr_matrix.columns],
-        y=[get_param_display_name(col) for col in corr_matrix.index],
-        colorscale='RdBu_r',
-        zmid=0,
-        hoverongaps=False,
-        text=corr_matrix.round(2).values,
-        texttemplate='%{text}',
-        textfont={"size": 10}
-    ))
-    
-    fig.update_layout(
-        title=title or "Тепловая карта корреляций",
-        template=template,
-        xaxis_title="Параметры",
-        yaxis_title="Параметры"
-    )
-    
-    return fig
 
 def create_animated_scatter(data, x_param, y_param, animation_param, template, title, color_param=None, size_param=None):
     """Создает анимированный scatter plot"""
