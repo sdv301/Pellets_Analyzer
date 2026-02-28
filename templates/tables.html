@@ -3,342 +3,374 @@
 {% block title %}Таблицы{% endblock %}
 
 {% block content %}
-    <div class="container-fluid py-4">
-        <div class="row">
-            <div class="col-12">
-                {% if show_data %}
-                    <!-- Универсальная форма поиска -->
-                    <div class="card mb-4">
-                        <div class="card-header pb-0 text-center">
-                            <h6>Универсальный поиск данных</h6>
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            {% if show_data %}
+            <!-- Универсальная форма поиска -->
+            <div class="card mb-4">
+                <div class="card-header pb-0 text-center">
+                    <h6>Универсальный поиск данных</h6>
+                </div>
+                <div class="card-body px-3 pt-0 pb-2">
+                    <form method="post" id="searchForm" class="mb-4">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <label class="form-label">Столбец для поиска</label>
+                                <select class="form-select" id="search_column" name="search_column">
+                                    <option value="">Выберите столбец</option>
+                                    <option value="composition">Составы</option>
+                                    <option value="density">Плотность, кг/м3</option>
+                                    <option value="kf">Ударопрочность, %</option>
+                                    <option value="kt">Устойчивость к колебательным нагрузкам, %</option>
+                                    <option value="h">Гигроскопичность, %</option>
+                                    <option value="mass_loss">Потеря массы, %</option>
+                                    <option value="tign">Температура зажигания, °С</option>
+                                    <option value="tb">Температура выгорания, °C</option>
+                                    <option value="tau_d1">Задержка газофазного зажигания, C</option>
+                                    <option value="tau_d2">Задержка гетерогенного зажигания, C</option>
+                                    <option value="tau_b">Время горения, С</option>
+                                    <option value="co2">Концентрации диоксида углерода, %</option>
+                                    <option value="co">Концентрации монооксида углерода, %</option>
+                                    <option value="so2">Концентрации оксидов серы, ppm</option>
+                                    <option value="nox">Концентрации оксидов азота, ppm</option>
+                                    <option value="q">Теплота сгорания, МДж/кг</option>
+                                    <option value="ad">Содержание золы на сухую массу, %</option>
+                                    <option value="war">Влажность на аналитическую массу, %</option>
+                                    <option value="vd">Содержание летучих на сухую массу, %</option>
+                                    <option value="cd">Содержание углерода на сухую массу, %</option>
+                                    <option value="hd">Содержание водорода на сухую массу, %</option>
+                                    <option value="nd">Содержание азота на сухую массу, %</option>
+                                    <option value="sd">Содержание серы на сухую массу, %</option>
+                                    <option value="od">Содержание кислорода на сухую массу, %</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3 ">
+                                <label for="search_operator" class="form-label">Условие</label>
+                                <select class="form-select" id="search_operator" name="search_operator">
+                                    <option value="=">Равно</option>
+                                    <option value=">">Больше</option>
+                                    <option value=">=">Больше или равно</option>
+                                    <option value="<">Меньше</option>
+                                    <option value="<=">Меньше или равно</option>
+                                    <option value="!=">Не равно</option>
+                                    <option value="LIKE">Содержит текст</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Значение</label>
+                                <input type="text" class="form-control" id="search_value" name="search_value"
+                                    placeholder="Введите значение для поиска">
+                            </div>
                         </div>
-                        <div class="card-body px-3 pt-0 pb-2">
-                            <form method="post" id="searchForm" class="mb-4">
-                                <div class="row">
-                                    <div class="col-md-3">
-                                        <label class="form-label">Столбец для поиска</label>
-                                        <select class="form-select" name="search_column[]">
-                                            <option value="">Выберите столбец</option>
-                                            <option value="density">Плотность, кг/м3</option>
-                                            <option value="kf">Ударопрочность, %</option>
-                                            <option value="kt">Устойчивость к колебательным нагрузкам, %</option>
-                                            <option value="h">Гигроскопичность, %</option>
-                                            <option value="mass_loss">Потеря массы, %</option>
-                                            <option value="tign">Температура зажигания, °С</option>
-                                            <option value="tb">Температура выгорания, °C</option>
-                                            <option value="tau_d1">Задержка газофазного зажигания, C</option>
-                                            <option value="tau_d2">Задержка гетерогенного зажигания, C</option>
-                                            <option value="tau_b">Время горения, С</option>
-                                            <option value="co2">Концентрации диоксида углерода, %</option>
-                                            <option value="co">Концентрации монооксида углерода, %</option>
-                                            <option value="so2">Концентрации оксидов серы, ppm</option>
-                                            <option value="nox">Концентрации оксидов азота, ppm</option>
-                                            <option value="q">Теплота сгорания, МДж/кг</option>
-                                            <option value="ad">Содержание золы на сухую массу, %</option>
-                                            <option value="war">Влажность на аналитическую массу, %</option>
-                                            <option value="vd">Содержание летучих на сухую массу, %</option>
-                                            <option value="cd">Содержание углерода на сухую массу, %</option>
-                                            <option value="hd">Содержание водорода на сухую массу, %</option>
-                                            <option value="nd">Содержание азота на сухую массу, %</option>
-                                            <option value="sd">Содержание серы на сухую массу, %</option>
-                                            <option value="od">Содержание кислорода на сухую массу, %</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-3 ">
-                                        <label for="search_operator" class="form-label">Условие</label>
-                                        <select class="form-select" id="search_operator" name="search_operator">
-                                            <option value="=">Равно</option>
-                                            <option value=">">Больше</option>
-                                            <option value=">=">Больше или равно</option>
-                                            <option value="<">Меньше</option>
-                                            <option value="<=">Меньше или равно</option>
-                                            <option value="!=">Не равно</option>
-                                            <option value="LIKE">Содержит текст</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-4 ">
-                                            <label class="form-label">Значение</label>
-                                            <input type="text" class="form-control" name="search_value[]" placeholder="Введите значение для поиска">
-                                    </div>
-                                         <!-- Кнопки управления -->
-                                        <div class="d-flex gap-2 mt-3">
-                                            <button type="button" class="btn bg-gradient-success" data-bs-toggle="modal" data-bs-target="#addDataModal">Добавить данные</button>
-                                            <button type="button" class="btn bg-gradient-primary" id="addCriterionBtn">Добавить критерий</button>
-                                            <button type="button" class="btn bg-gradient-info" onclick="resetSearch()">Сбросить поиск</button>
-                                            <button type="submit" class="btn bg-gradient-primary">Найти</button>
-                                        </div>
-                                </div>
+                        <!-- Кнопки управления -->
+                        <div class="d-flex gap-2 mt-3">
+                            <button type="button" class="btn bg-gradient-success" data-bs-toggle="modal"
+                                data-bs-target="#addDataModal">Добавить данные</button>
+                            <button type="button" class="btn bg-gradient-primary" id="addCriterionBtn">Добавить
+                                критерий</button>
+                            <button type="button" class="btn bg-gradient-info" onclick="resetSearch()">Сбросить
+                                поиск</button>
+                            <button type="submit" class="btn bg-gradient-primary">Найти</button>
+                        </div>
 
-                                {% if search_performed %}
-                                <div class="alert alert-info mt-3 ms-0">
-                                    <span class="text-sm">
-                                        <i class="fas fa-filter me-1"></i>Показаны результаты поиска. 
-                                        <a href="javascript:void(0)" onclick="clearSearch()" class="text-dark font-weight-bolder">Показать все данные</a>
-                                    </span>
+                        {% if search_performed %}
+                        <div class="alert alert-info mt-3 ms-0">
+                            <span class="text-sm">
+                                <i class="fas fa-filter me-1"></i>Показаны результаты поиска.
+                                <a href="javascript:void(0)" onclick="clearSearch()"
+                                    class="text-dark font-weight-bolder">Показать все данные</a>
+                            </span>
+                        </div>
+                        {% endif %}
+                    </form>
+                </div>
+            </div>
+
+            <!-- Модальное окно для добавления данных -->
+            <div class="modal fade" id="addDataModal" tabindex="-1" aria-labelledby="addDataModalLabel"
+                aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="addDataModalLabel">Добавить новый состав</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <form method="post" id="addDataForm">
+                                <div class="mb-3">
+                                    <label for="composition" class="form-label">Составы *</label>
+                                    <input type="text" class="form-control" id="composition" name="composition"
+                                        required>
                                 </div>
-                                {% endif %}
+                                <div class="mb-3">
+                                    <label for="density" class="form-label">Плотность (ρ), кг/м³</label>
+                                    <input type="number" class="form-control" id="density" name="density" step="any">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="kf" class="form-label">Ударопрочность, %</label>
+                                    <input type="number" class="form-control" id="kf" name="kf" step="any">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="kt" class="form-label">Устойчивость к колебательным нагрузкам, %</label>
+                                    <input type="number" class="form-control" id="kt" name="kt" step="any">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="h" class="form-label">Гигроскопичность, %</label>
+                                    <input type="number" class="form-control" id="h" name="h" step="any">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="mass_loss" class="form-label">Потеря массы, %</label>
+                                    <input type="number" class="form-control" id="mass_loss" name="mass_loss"
+                                        step="any">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="tign" class="form-label">Температура зажигания, °С</label>
+                                    <input type="number" class="form-control" id="tign" name="tign" step="any">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="tb" class="form-label">Температура выгорания, °C</label>
+                                    <input type="number" class="form-control" id="tb" name="tb" step="any">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="tau_d1" class="form-label">Задержка газофазного зажигания, C</label>
+                                    <input type="number" class="form-control" id="tau_d1" name="tau_d1" step="any">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="tau_d2" class="form-label">Задержка гетерогенного зажигания, C</label>
+                                    <input type="number" class="form-control" id="tau_d2" name="tau_d2" step="any">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="tau_b" class="form-label">Время горения, С</label>
+                                    <input type="number" class="form-control" id="tau_b" name="tau_b" step="any">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="co2" class="form-label">Концентрация CO₂, %</label>
+                                    <input type="number" class="form-control" id="co2" name="co2" step="any">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="co" class="form-label">Концентрация CO, %</label>
+                                    <input type="number" class="form-control" id="co" name="co" step="any">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="so2" class="form-label">Концентрация SO₂, ppm</label>
+                                    <input type="number" class="form-control" id="so2" name="so2" step="any">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="nox" class="form-label">Концентрация NOx, ppm</label>
+                                    <input type="number" class="form-control" id="nox" name="nox" step="any">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="q" class="form-label">Теплота сгорания, МДж/кг</label>
+                                    <input type="number" class="form-control" id="q" name="q" step="any">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="ad" class="form-label">Содержание золы на сухую массу, %</label>
+                                    <input type="number" class="form-control" id="ad" name="ad" step="any">
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary"
+                                        data-bs-dismiss="modal">Закрыть</button>
+                                    <button type="submit" class="btn bg-gradient-primary">Добавить</button>
+                                </div>
                             </form>
                         </div>
                     </div>
-
-                    <!-- Модальное окно для добавления данных -->
-                    <div class="modal fade" id="addDataModal" tabindex="-1" aria-labelledby="addDataModalLabel" aria-hidden="true">
-                        <div class="modal-dialog">
-                            <div class="modal-content">
-                                <div class="modal-header">
-                                    <h5 class="modal-title" id="addDataModalLabel">Добавить новый состав</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                </div>
-                                <div class="modal-body">
-                                    <form method="post" id="addDataForm">
-                                        <div class="mb-3">
-                                            <label for="composition" class="form-label">Составы *</label>
-                                            <input type="text" class="form-control" id="composition" name="composition" required>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label for="density" class="form-label">Плотность (ρ), кг/м³</label>
-                                            <input type="number" class="form-control" id="density" name="density" step="any">
-                                        </div>
-                                        <div class="mb-3">
-                                            <label for="kf" class="form-label">Ударопрочность, %</label>
-                                            <input type="number" class="form-control" id="kf" name="kf" step="any">
-                                        </div>
-                                        <div class="mb-3">
-                                            <label for="kt" class="form-label">Устойчивость к колебательным нагрузкам, %</label>
-                                            <input type="number" class="form-control" id="kt" name="kt" step="any">
-                                        </div>
-                                        <div class="mb-3">
-                                            <label for="h" class="form-label">Гигроскопичность, %</label>
-                                            <input type="number" class="form-control" id="h" name="h" step="any">
-                                        </div>
-                                        <div class="mb-3">
-                                            <label for="mass_loss" class="form-label">Потеря массы, %</label>
-                                            <input type="number" class="form-control" id="mass_loss" name="mass_loss" step="any">
-                                        </div>
-                                        <div class="mb-3">
-                                            <label for="tign" class="form-label">Температура зажигания, °С</label>
-                                            <input type="number" class="form-control" id="tign" name="tign" step="any">
-                                        </div>
-                                        <div class="mb-3">
-                                            <label for="tb" class="form-label">Температура выгорания, °C</label>
-                                            <input type="number" class="form-control" id="tb" name="tb" step="any">
-                                        </div>
-                                        <div class="mb-3">
-                                            <label for="tau_d1" class="form-label">Задержка газофазного зажигания, C</label>
-                                            <input type="number" class="form-control" id="tau_d1" name="tau_d1" step="any">
-                                        </div>
-                                        <div class="mb-3">
-                                            <label for="tau_d2" class="form-label">Задержка гетерогенного зажигания, C</label>
-                                            <input type="number" class="form-control" id="tau_d2" name="tau_d2" step="any">
-                                        </div>
-                                        <div class="mb-3">
-                                            <label for="tau_b" class="form-label">Время горения, С</label>
-                                            <input type="number" class="form-control" id="tau_b" name="tau_b" step="any">
-                                        </div>
-                                        <div class="mb-3">
-                                            <label for="q" class="form-label">Теплота сгорания, МДж/кг</label>
-                                            <input type="number" class="form-control" id="q" name="q" step="any">
-                                        </div>
-                                        <div class="mb-3">
-                                            <label for="ad" class="form-label">Содержание золы на сухую массу, %</label>
-                                            <input type="number" class="form-control" id="ad" name="ad" step="any">
-                                        </div>
-                                        <div class="modal-footer">
-                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
-                                            <button type="submit" class="btn bg-gradient-primary">Добавить</button>
-                                        </div>
-                                    </form>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                {% endif %}
-
-                {% if show_data %}
-                    {% for table in tables %}
-                        <div class="card mb-4">
-                            <div class="card-header">
-                                {{ table.name }}
-                            </div>
-                            <div class="card-body">
-                                <div class="table-responsive">
-                                    {{ table.data | safe }}
-                                </div>
-                                
-                                <!-- Простая пагинация - только выбор количества строк -->
-                                <div class="d-flex justify-content-between align-items-center mt-3">
-                                    <div>
-                                        <span>Строк на странице:</span>
-                                        <form method="GET" class="d-inline">
-                                            <select name="per_page" class="form-select d-inline-block w-auto" onchange="this.form.submit()">
-                                                <option value="10" {% if per_page == 10 %}selected{% endif %}>10</option>
-                                                <option value="30" {% if per_page == 30 %}selected{% endif %}>30</option>
-                                                <option value="50" {% if per_page == 50 %}selected{% endif %}>50</option>
-                                                <option value="1000000" {% if per_page == 1000000 %}selected{% endif %}>Все</option>
-                                            </select>
-                                            <input type="hidden" name="page" value="1">
-                                        </form>
-                                    </div>
-                                    
-                                    <div>
-                                        <span class="text-muted">
-                                            Всего строк: {{ total_rows[loop.index0] }}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    {% endfor %}
-                    
-                    {% if not tables %}
-                        <p>Таблицы отсутствуют. Загрузите данные.</p>
-                    {% endif %}
-                {% endif %}
-
-                <!-- Сообщения -->
-                {% for message in get_flashed_messages(with_categories=true) %}
-                    <div class="alert alert-{{ message[0] }} alert-dismissible fade show" role="alert">
-                        {{ message[1] }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
-                {% endfor %}
+                </div>
             </div>
+            {% endif %}
+
+            {% if show_data %}
+            {% for table in tables %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    {{ table.name }}
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        {{ table.data | safe }}
+                    </div>
+
+                    <!-- Простая пагинация - только выбор количества строк -->
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                        <div>
+                            <span>Строк на странице:</span>
+                            <form method="GET" class="d-inline">
+                                <select name="per_page" class="form-select d-inline-block w-auto"
+                                    onchange="this.form.submit()">
+                                    <option value="10" {% if per_page==10 %}selected{% endif %}>10</option>
+                                    <option value="30" {% if per_page==30 %}selected{% endif %}>30</option>
+                                    <option value="50" {% if per_page==50 %}selected{% endif %}>50</option>
+                                    <option value="1000000" {% if per_page==1000000 %}selected{% endif %}>Все</option>
+                                </select>
+                                <input type="hidden" name="page" value="1">
+                            </form>
+                        </div>
+
+                        <div>
+                            <span class="text-muted">
+                                Всего строк: {{ total_rows[loop.index0] }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+
+            {% if not tables %}
+            <p>Таблицы отсутствуют. Загрузите данные.</p>
+            {% endif %}
+            {% endif %}
+
+            <!-- Сообщения -->
+            {% for message in get_flashed_messages(with_categories=true) %}
+            <div class="alert alert-{{ message[0] }} alert-dismissible fade show" role="alert">
+                {{ message[1] }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
         </div>
     </div>
+</div>
 
-    {% block extra_js %}
-    <style>
-        .toast-container {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            z-index: 1050;
-        }
-        .toast {
-            min-width: 300px;
-        }
-        .table-responsive {
-            max-height: 400px;
-            max-width: 100%;
-            overflow-x: auto;
-            overflow-y: auto;
-        }
-        .table {
-            font-size: 0.9rem;
-        }
-        .search-criterion {
-            display: flex;
-            align-items: flex-end;
-            margin-bottom: 10px;
-            border: none !important;
-            outline: none !important;
-        }
-        .search-criterion .col-md-3,
-        .search-criterion .col-md-4,
-        .search-criterion .col-md-2 {
-            display: flex;
-            flex-direction: column;
-        }
-        .search-criterion label {
-            margin-bottom: 5px;
-        }
-        .search-criterion .btn {
-            height: 38px; /* такая же высота как у инпутов */
-        }
-    </style>
-    <script>
+{% block extra_js %}
+<style>
+    .toast-container {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 1050;
+    }
 
-        document.addEventListener('DOMContentLoaded', function() {
-            initSearchCriteria();
-        console.log('=== ОТЛАДКА JS: Начало замены заголовков ===');
-    
-            const headerMapping = {
-                'composition': 'Составы',
-                'density': 'Плотность, кг/м3',
-                'kf': 'Ударопрочность, %',
-                'kt': 'Устойчивость к колебательным нагрузкам, %', 
-                'h': 'Гигроскопичность, %',
-                'mass_loss': 'Потеря массы, %',
-                'tign': 'Температура зажигания, °С',
-                'tb': 'Температура выгорания, °C',
-                'tau_d1': 'Задержка газофазного зажигания, C',
-                'tau_d2': 'Задержка гетерогенного зажигания, C',
-                'tau_b': 'Время горения, С',
-                'co2': 'Концентрации диоксида углерода, %',
-                'co': 'Концентрации монооксида углерода, %', 
-                'so2': 'Концентрации оксидов серы, ppm',
-                'nox': 'Концентрации оксидов азота, ppm',
-                'q': 'Теплота сгорания, МДж/кг',
-                'ad': 'Содержание золы на сухую массу, %',
-                'component': 'Компоненты',
-                'war': 'Влажность на аналитическую массу, %',
-                'vd': 'Содержание летучих на сухую массу, %',
-                'cd': 'Содержание углерода на сухую массу, %',
-                'hd': 'Содержание водорода на сухую массу, %', 
-                'nd': 'Содержание азота на сухую массу, %',
-                'sd': 'Содержание серы на сухую массу, %',
-                'od': 'Содержание кислорода на сухую массу, %'
-            };
+    .toast {
+        min-width: 300px;
+    }
 
-            // Находим все таблицы и заменяем заголовки
-            const tables = document.querySelectorAll('table');
-            console.log(`=== ОТЛАДКА JS: Найдено таблиц: ${tables.length}`);
-            
-            tables.forEach((table, index) => {
-                const headers = table.querySelectorAll('thead th');
-                console.log(`=== ОТЛАДКА JS: Таблица ${index + 1}, заголовков: ${headers.length}`);
-                
-                headers.forEach((th, thIndex) => {
-                    const englishHeader = th.textContent.trim();
-                    console.log(`=== ОТЛАДКА JS: Заголовок ${thIndex}: "${englishHeader}"`);
-                    
-                    if (headerMapping[englishHeader]) {
-                        console.log(`=== ОТЛАДКА JS: Заменяем "${englishHeader}" на "${headerMapping[englishHeader]}"`);
-                        th.textContent = headerMapping[englishHeader];
-                    }
-                });
-            });
-            
-            console.log('=== ОТЛАДКА JS: Замена заголовков завершена ===');
-        });
+    .table-responsive {
+        max-height: 400px;
+        max-width: 100%;
+        overflow-x: auto;
+        overflow-y: auto;
+    }
 
-        // Асинхронная отправка формы поиска
-        document.getElementById('searchForm')?.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            const formData = new FormData(this);
-            try {
-                const response = await fetch('/search', {
-                    method: 'POST',
-                    body: formData
-                });
-                const data = await response.json();
-                if (data.success) {
-                    showToast(data.message, 'success');
-                    // Перезагружаем страницу для обновления данных
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 1000);
-                } else {
-                    showToast(data.message, 'danger');
+    .table {
+        font-size: 0.9rem;
+    }
+
+    .search-criterion {
+        display: flex;
+        align-items: flex-end;
+        margin-bottom: 10px;
+        border: none !important;
+        outline: none !important;
+    }
+
+    .search-criterion .col-md-3,
+    .search-criterion .col-md-4,
+    .search-criterion .col-md-2 {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .search-criterion label {
+        margin-bottom: 5px;
+    }
+
+    .search-criterion .btn {
+        height: 38px;
+        /* такая же высота как у инпутов */
+    }
+</style>
+<script>
+
+    document.addEventListener('DOMContentLoaded', function () {
+        initSearchCriteria();
+
+        const headerMapping = {
+            'composition': 'Составы',
+            'density': 'Плотность, кг/м3',
+            'kf': 'Ударопрочность, %',
+            'kt': 'Устойчивость к колебательным нагрузкам, %',
+            'h': 'Гигроскопичность, %',
+            'mass_loss': 'Потеря массы, %',
+            'tign': 'Температура зажигания, °С',
+            'tb': 'Температура выгорания, °C',
+            'tau_d1': 'Задержка газофазного зажигания, C',
+            'tau_d2': 'Задержка гетерогенного зажигания, C',
+            'tau_b': 'Время горения, С',
+            'co2': 'Концентрации диоксида углерода, %',
+            'co': 'Концентрации монооксида углерода, %',
+            'so2': 'Концентрации оксидов серы, ppm',
+            'nox': 'Концентрации оксидов азота, ppm',
+            'q': 'Теплота сгорания, МДж/кг',
+            'ad': 'Содержание золы на сухую массу, %',
+            'component': 'Компоненты',
+            'war': 'Влажность на аналитическую массу, %',
+            'vd': 'Содержание летучих на сухую массу, %',
+            'cd': 'Содержание углерода на сухую массу, %',
+            'hd': 'Содержание водорода на сухую массу, %',
+            'nd': 'Содержание азота на сухую массу, %',
+            'sd': 'Содержание серы на сухую массу, %',
+            'od': 'Содержание кислорода на сухую массу, %'
+        };
+
+        // Находим все таблицы и заменяем заголовки
+        const tables = document.querySelectorAll('table');
+        tables.forEach((table) => {
+            const headers = table.querySelectorAll('thead th');
+            headers.forEach((th) => {
+                const englishHeader = th.textContent.trim();
+                if (headerMapping[englishHeader]) {
+                    th.textContent = headerMapping[englishHeader];
                 }
-            } catch (error) {
-                showToast('Ошибка при поиске: ' + error.message, 'danger');
-            }
+            });
         });
+    });
 
-       // Управление критериями поиска
-        function initSearchCriteria() {
-            const addCriterionBtn = document.getElementById('addCriterionBtn');
-            
-            if (addCriterionBtn) {
-                addCriterionBtn.addEventListener('click', function() {
-                    // Создаем новый ряд критериев
-                    const criteriaRow = document.createElement('div');
-                    criteriaRow.className = 'row search-criterion mt-2';
-                    criteriaRow.innerHTML = `
+    // Асинхронная отправка формы поиска
+    document.getElementById('searchForm')?.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        try {
+            const response = await fetch('/search', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                showToast('Ошибка сервера: ' + response.status + ' ' + response.statusText, 'danger');
+                return;
+            }
+
+            const data = await response.json();
+
+            if (data.success) {
+                showToast(data.message, 'success');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            } else {
+                showToast(data.message, 'danger');
+            }
+        } catch (error) {
+            showToast('Ошибка при поиске: ' + error.message, 'danger');
+        }
+    });
+
+    // Управление критериями поиска
+    function initSearchCriteria() {
+        const addCriterionBtn = document.getElementById('addCriterionBtn');
+
+        if (addCriterionBtn) {
+            addCriterionBtn.addEventListener('click', function () {
+                // Создаем новый ряд критериев
+                const criteriaRow = document.createElement('div');
+                criteriaRow.className = 'row search-criterion mt-2';
+                criteriaRow.innerHTML = `
                         <div class="col-md-3 d-flex flex-column">
-                            <select class="form-select" name="search_column[]">
+                            <select class="form-select" name="search_column">
                                 <option value="">Выберите столбец</option>
+                                <option value="composition">Составы</option>
                                 <option value="density">Плотность, кг/м3</option>
                                 <option value="kf">Ударопрочность, %</option>
                                 <option value="kt">Устойчивость к колебательным нагрузкам, %</option>
@@ -355,7 +387,6 @@
                                 <option value="nox">Концентрации оксидов азота, ppm</option>
                                 <option value="q">Теплота сгорания, МДж/кг</option>
                                 <option value="ad">Содержание золы на сухую массу, %</option>
-                                <option value="component">Компоненты</option>
                                 <option value="war">Влажность на аналитическую массу, %</option>
                                 <option value="vd">Содержание летучих на сухую массу, %</option>
                                 <option value="cd">Содержание углерода на сухую массу, %</option>
@@ -366,7 +397,7 @@
                             </select>
                         </div>
                         <div class="col-md-3 d-flex flex-column">
-                            <select class="form-select" name="search_operator[]">
+                            <select class="form-select" name="search_operator">
                                 <option value="=">Равно</option>
                                 <option value=">">Больше</option>
                                 <option value=">=">Больше или равно</option>
@@ -377,7 +408,7 @@
                             </select>
                         </div>
                         <div class="col-md-4 d-flex flex-column">
-                            <input type="text" class="form-control" name="search_value[]" placeholder="Введите значение для поиска">
+                            <input type="text" class="form-control" name="search_value" placeholder="Введите значение для поиска">
                         </div>
                        <div class="col-md-2 d-flex flex-column">
                         <button type="button" class="btn btn-danger remove-criterion w-100 mb-1">
@@ -385,52 +416,52 @@
                         </button>
                     </div>
                     `;
-                    
-                    // Находим родительский элемент кнопок (card-body)
-                    const buttonsContainer = document.querySelector('.d-flex.gap-2.mt-3');
-                    const parentElement = buttonsContainer.parentNode;
-                    
-                    // Вставляем новый критерий ПЕРЕД кнопками в том же родительском элементе
-                    parentElement.insertBefore(criteriaRow, buttonsContainer);
-                    
-                    // Добавляем обработчик для кнопки удаления
-                    const removeBtn = criteriaRow.querySelector('.remove-criterion');
-                    removeBtn.addEventListener('click', function() {
-                        criteriaRow.remove();
-                    });
+
+                // Находим родительский элемент кнопок (card-body)
+                const buttonsContainer = document.querySelector('.d-flex.gap-2.mt-3');
+                const parentElement = buttonsContainer.parentNode;
+
+                // Вставляем новый критерий ПЕРЕД кнопками в том же родительском элементе
+                parentElement.insertBefore(criteriaRow, buttonsContainer);
+
+                // Добавляем обработчик для кнопки удаления
+                const removeBtn = criteriaRow.querySelector('.remove-criterion');
+                removeBtn.addEventListener('click', function () {
+                    criteriaRow.remove();
                 });
-            }
+            });
         }
+    }
 
-        // Асинхронная отправка формы добавления данных
-        document.getElementById('addDataForm')?.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            const formData = new FormData(this);
-            try {
-                const response = await fetch('/add_data', {
-                    method: 'POST',
-                    body: formData
-                });
-                const data = await response.json();
-                if (data.success) {
-                    showToast(data.message, 'success');
-                    // Закрываем модальное окно и перезагружаем страницу
-                    bootstrap.Modal.getInstance(document.getElementById('addDataModal')).hide();
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 1000);
-                } else {
-                    showToast(data.message, 'danger');
-                }
-            } catch (error) {
-                showToast('Ошибка при добавлении данных: ' + error.message, 'danger');
+    // Асинхронная отправка формы добавления данных
+    document.getElementById('addDataForm')?.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        try {
+            const response = await fetch('/add_data', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await response.json();
+            if (data.success) {
+                showToast(data.message, 'success');
+                // Закрываем модальное окно и перезагружаем страницу
+                bootstrap.Modal.getInstance(document.getElementById('addDataModal')).hide();
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            } else {
+                showToast(data.message, 'danger');
             }
-        });
+        } catch (error) {
+            showToast('Ошибка при добавлении данных: ' + error.message, 'danger');
+        }
+    });
 
-        function showToast(message, type) {
-            const toastContainer = document.createElement('div');
-            toastContainer.className = 'toast-container';
-            toastContainer.innerHTML = `
+    function showToast(message, type) {
+        const toastContainer = document.createElement('div');
+        toastContainer.className = 'toast-container';
+        toastContainer.innerHTML = `
                 <div class="toast align-items-center text-white bg-${type} border-0" role="alert" aria-live="assertive" aria-atomic="true">
                     <div class="d-flex">
                         <div class="toast-body">${message}</div>
@@ -438,16 +469,16 @@
                     </div>
                 </div>
             `;
-            document.body.appendChild(toastContainer);
-            const toast = toastContainer.querySelector('.toast');
-            bootstrap.Toast.getOrCreateInstance(toast).show();
-            setTimeout(() => toastContainer.remove(), 3000);
-        }
+        document.body.appendChild(toastContainer);
+        const toast = toastContainer.querySelector('.toast');
+        bootstrap.Toast.getOrCreateInstance(toast).show();
+        setTimeout(() => toastContainer.remove(), 3000);
+    }
 
-        function clearSearch() {
-            fetch('/clear_search', {
-                method: 'POST'
-            })
+    function clearSearch() {
+        fetch('/clear_search', {
+            method: 'POST'
+        })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
@@ -460,14 +491,16 @@
             .catch(error => {
                 showToast('Ошибка: ' + error.message, 'danger');
             });
-        }
+    }
 
-        function resetSearch() {
-            document.getElementById('search_column').value = '';
-            document.getElementById('search_operator').value = '=';
-            document.getElementById('search_value').value = '';
-            window.location.href = '/tables';
-        }
-    </script>
-    {% endblock extra_js %}
+    function resetSearch() {
+        const searchColumnEl = document.getElementById('search_column');
+        const searchValueEl = document.getElementById('search_value');
+        if (searchColumnEl) searchColumnEl.value = '';
+        document.getElementById('search_operator').value = '=';
+        if (searchValueEl) searchValueEl.value = '';
+        window.location.href = '/tables';
+    }
+</script>
+{% endblock extra_js %}
 {% endblock %}

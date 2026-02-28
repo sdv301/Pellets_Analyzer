@@ -1301,7 +1301,7 @@ def handle_3d_scatter(ax, data, x_param, y_param, z_param, color_param):
 
 def generate_graph_simple(data, x_param='ad', y_param='q', graph_type='scatter'):
     """Простая версия для обратной совместимости"""
-    graph, _ = generate_graph(data, x_param, y_param, graph_type)
+    graph, _, _ = generate_graph(data, x_param, y_param, graph_type)
     return graph
 
 def get_data_statistics(data):

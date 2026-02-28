@@ -550,17 +550,25 @@ class PelletMLSystem:
             if not ml_optimizations.empty:
                 print(f"📊 Добавляю {len(ml_optimizations)} ML оптимизаций к тренировочным данным")
                 
+                # Все целевые свойства для маппинга
+                all_target_props = list(self.predictor.target_properties_mapping.keys())
+                
                 for _, opt in ml_optimizations.iterrows():
-                    # Создаем запись для ML оптимизации
                     composition_text = ", ".join([f"{v}% {k}" for k, v in opt['optimal_composition'].items()])
                     
-                    # Создаем новую строку с предсказанными значениями
-                    new_row = {
-                        'composition': composition_text,
-                        'q': opt['optimal_value'] if opt['target_property'] == 'q' else None,
-                        'ad': opt['optimal_value'] if opt['target_property'] == 'ad' else None,
-                        # Добавьте другие свойства по аналогии
-                    }
+                    # Создаем строку со всеми свойствами = None, кроме целевого
+                    new_row = {'composition': composition_text}
+                    for prop in all_target_props:
+                        new_row[prop] = opt['optimal_value'] if opt['target_property'] == prop else None
+                    
+                    # Дополняем линейными предсказаниями из компонентов
+                    if not self.components.empty:
+                        comp_dict = opt['optimal_composition']
+                        for prop in all_target_props:
+                            if new_row.get(prop) is None:
+                                linear_val = self.linear_predict(comp_dict, prop)
+                                if linear_val is not None:
+                                    new_row[prop] = linear_val
                     
                     training_data = pd.concat([training_data, pd.DataFrame([new_row])], ignore_index=True)
             
@@ -663,7 +671,19 @@ class PelletMLSystem:
             return {'success': False, 'error': 'Обучение не удалось'}
 
     def optimize_composition(self, target_property: str, maximize: bool = True, constraints: Dict[str, Tuple[float, float]] = None) -> Dict:
-        """Оптимизирует состав и сохраняет результат в базу"""
+        """Оптимизирует состав и сохраняет результат в базу.
+        Использует данные компонентов для стартовой точки оптимизации."""
+        
+        # Если ML модель не обучена, пробуем оптимизацию на основе компонентов
+        if target_property not in self.predictor.models:
+            if self.components.empty:
+                return {'success': False, 'error': f'Модель для {target_property} не обучена и нет данных компонентов'}
+            # Пробуем линейную оптимизацию через компоненты
+            linear_result = self._optimize_from_components(target_property, maximize, constraints)
+            if linear_result.get('success'):
+                linear_result['message'] = '(линейная оптимизация по компонентам) ' + linear_result.get('message', '')
+            return linear_result
+        
         result = self.ml_optimizer.optimize_composition(target_property, maximize, constraints)
         
         if result.get('success'):
@@ -680,20 +700,72 @@ class PelletMLSystem:
                     'model_metrics': self.predictor.training_metrics.get(target_property, {})
                 }
                 
-                # Сохраняем оптимизацию
                 insert_ml_optimization(self.db_path, optimization_data)
-                
-                # ДОБАВЛЯЕМ В ТРЕНИРОВОЧНЫЕ ДАННЫЕ для самоулучшения
                 add_ml_optimization_to_training_data(self.db_path, optimization_data)
-                print(f"💾 Сохранен результат оптимизации для {target_property} в базу и тренировочные данные")
                 
-                # Перезагружаем тренировочные данные для следующего обучения
+                # Перезагружаем тренировочные данные
                 self.training_data = self.load_training_data()
                 
             except Exception as e:
                 print(f"⚠️ Не удалось сохранить оптимизацию в базу: {e}")
         
         return result
+    
+    def _optimize_from_components(self, target_property: str, maximize: bool = True, constraints: Dict[str, Tuple[float, float]] = None) -> Dict:
+        """Оптимизация состава через линейное предсказание на основе данных компонентов."""
+        if self.components.empty or target_property not in self.components.columns:
+            return {'success': False, 'error': f'Нет данных компонентов для свойства {target_property}'}
+        
+        # Получаем компоненты с известными значениями свойства
+        valid_comps = self.components.dropna(subset=[target_property])
+        if valid_comps.empty:
+            return {'success': False, 'error': f'Нет данных о {target_property} для компонентов'}
+        
+        component_names = valid_comps['component'].tolist()
+        component_values = valid_comps[target_property].tolist()
+        n = len(component_names)
+        
+        from scipy.optimize import minimize as scipy_minimize
+        
+        def objective(fractions):
+            val = sum(f * v for f, v in zip(fractions, component_values))
+            return -val if maximize else val
+        
+        cons = [{'type': 'eq', 'fun': lambda x: sum(x) - 1.0}]
+        bounds = [(0.0, 1.0)] * n
+        
+        if constraints:
+            for comp, (min_val, max_val) in constraints.items():
+                if comp in component_names:
+                    idx = component_names.index(comp)
+                    bounds[idx] = (max(min_val / 100.0, 0.0), min(max_val / 100.0, 1.0))
+        
+        x0 = np.full(n, 1.0 / n)
+        
+        try:
+            result = scipy_minimize(objective, x0, method='SLSQP', bounds=bounds, constraints=cons)
+            if result.success:
+                optimal_comp = {name: round(frac * 100, 2) for name, frac in zip(component_names, result.x) if frac > 0.001}
+                total = sum(optimal_comp.values())
+                if total > 0 and abs(total - 100) > 0.1:
+                    optimal_comp = {k: round((v / total) * 100, 2) for k, v in optimal_comp.items()}
+                
+                optimal_value = -result.fun if maximize else result.fun
+                display_name = self.predictor.target_properties_mapping.get(target_property, target_property)
+                direction = "максимизации" if maximize else "минимизации"
+                comp_text = ", ".join([f"{k}: {v:.1f}%" for k, v in optimal_comp.items()])
+                message = f"Оптимальный состав для {direction} {display_name}: {comp_text}. Ожидаемое значение: {optimal_value:.2f}."
+                
+                return {
+                    'success': True,
+                    'optimal_composition': optimal_comp,
+                    'optimal_value': optimal_value,
+                    'message': message
+                }
+        except Exception as e:
+            pass
+        
+        return {'success': False, 'error': 'Не удалось оптимизировать состав по данным компонентов'}
 
     def retrain_on_new_data(self, target_properties: List[str] = None, algorithm: str = 'gradient_boosting') -> Dict:
         """Переобучает модели на обновленных данных"""

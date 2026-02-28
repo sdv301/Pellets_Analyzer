@@ -1,0 +1,106 @@
+<!-- templates/ml_saved_models.html -->
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-lg" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+                <div class="card-body p-4 text-white">
+                    <h1 class="display-6 fw-bold mb-2">🧠 Сохранённые ML модели</h1>
+                    <p class="lead mb-0 opacity-8">Обученные модели и их метрики качества</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white py-3 border-0">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-brain me-2"></i>Активные модели</h5>
+                        <a href="/ml_dashboard" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-arrow-left me-1"></i>К ML панели
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if saved_models is defined and not saved_models.empty %}
+                    <div class="row g-3">
+                        {% for _, model in saved_models.iterrows() %}
+                        <div class="col-xl-4 col-md-6">
+                            <div class="card border-0 shadow-sm h-100"
+                                style="border-left: 4px solid #667eea !important;">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-3">
+                                        <h6 class="fw-bold text-primary mb-0">{{ model.target_property }}</h6>
+                                        <span class="badge bg-success">Активна</span>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <div class="d-flex justify-content-between mb-1">
+                                            <small class="text-muted">R² Score</small>
+                                            <small class="fw-bold">{{ "%.1f"|format((model.r2_score or 0) * 100)
+                                                }}%</small>
+                                        </div>
+                                        <div class="progress" style="height: 6px;">
+                                            <div class="progress-bar bg-success"
+                                                style="width: {{ (model.r2_score or 0) * 100 }}%"></div>
+                                        </div>
+                                    </div>
+
+                                    <div class="row text-center">
+                                        <div class="col-4">
+                                            <small class="text-muted d-block">MAE</small>
+                                            <strong>{{ "%.3f"|format(model.mae or 0) }}</strong>
+                                        </div>
+                                        <div class="col-4">
+                                            <small class="text-muted d-block">CV R²</small>
+                                            <strong>{{ "%.3f"|format(model.cv_r2 or 0) }}</strong>
+                                        </div>
+                                        <div class="col-4">
+                                            <small class="text-muted d-block">Данных</small>
+                                            <strong>{{ model.training_data_size or 0 }}</strong>
+                                        </div>
+                                    </div>
+
+                                    <hr>
+                                    <small class="text-muted">
+                                        <i class="fas fa-cog me-1"></i>{{ model.algorithm or 'N/A' }}
+                                        <br>
+                                        <i class="fas fa-clock me-1"></i>{{ model.timestamp }}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-robot fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">Нет сохранённых моделей</h5>
+                        <p class="text-muted">Обучите первую модель на <a href="/ml_dashboard">ML панели</a></p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .card {
+        border-radius: 16px !important;
+    }
+
+    .progress {
+        border-radius: 10px;
+        height: 8px;
+    }
+
+    .progress-bar {
+        border-radius: 10px;
+    }
+</style>
+{% endblock content %}

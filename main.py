@@ -3,6 +3,7 @@ from flask import Flask, render_template, request, jsonify, session, flash
 from flask_session import Session
 import pandas as pd
 import os
+import numpy as np
 from data_processor import process_data_source
 from database import query_db, insert_data, init_db
 from ai_ml_integration import AIMLAnalyzer
@@ -164,14 +165,14 @@ def load_file():
             'uploaded_files': uploaded_files
         })
     try:
-        process_messages, components_sheet_name = process_data_source(file_path, db_path)
+        process_messages, components_sheet_name, sheet_data = process_data_source(file_path, db_path)
         for msg in process_messages:
             category = "danger" if "Error" in msg or "Warning" in msg else "success"
             flash(msg, category)
         
         measured_data = query_db(db_path, "measured_parameters")
         components_data = query_db(db_path, "components")
-        graph, _, _ = generate_graph(measured_data)  # Обновленный вызов
+        graph, message, compositions = generate_graph(measured_data)  # Обновленный вызов
         if measured_data.empty and components_data.empty:
             return jsonify({
                 'success': False,
@@ -205,17 +206,22 @@ def load_file():
 @app.route('/search', methods=['POST'])
 def search():
     try:
-        search_column = request.form.get('search_column')
-        search_operator = request.form.get('search_operator', '=')
-        search_value = request.form.get('search_value', '').strip()
+        # Handle both single and multiple criteria (use first non-empty)
+        search_columns = request.form.getlist('search_column')
+        search_operators = request.form.getlist('search_operator')
+        search_values = request.form.getlist('search_value')
         
-        print(f"=== ПОИСК: column={search_column}, operator={search_operator}, value={search_value}")
+        # Get first non-empty values (for backward compatibility, also check single values)
+        search_column = request.form.get('search_column') or (search_columns[0] if search_columns and search_columns[0] else None)
+        search_operator = request.form.get('search_operator') or (search_operators[0] if search_operators and search_operators[0] else '=')
+        search_value_raw = request.form.get('search_value') or (search_values[0] if search_values and search_values[0] else '')
+        search_value = search_value_raw.strip() if search_value_raw else ''
         
         # Базовая проверка
         if not search_column or not search_value:
             return jsonify({
                 'success': False,
-                'message': 'Заполните все поля поиска'
+                'message': 'Заполните все поля поиска.'
             })
         
         # Получаем все данные
@@ -227,12 +233,8 @@ def search():
                 'message': 'Нет данных для поиска. Сначала загрузите файл.'
             })
         
-        print(f"=== ВСЕХ ДАННЫХ: {len(all_measured_data)} строк")
-        
         # Простая и надежная фильтрация
         filtered_data = simple_filter(all_measured_data, search_column, search_operator, search_value)
-        
-        print(f"=== НАЙДЕНО: {len(filtered_data)} строк")
         
         if filtered_data.empty:
             return jsonify({
@@ -254,7 +256,6 @@ def search():
         })
         
     except Exception as e:
-        print(f"=== ОШИБКА ПОИСКА: {str(e)}")
         return jsonify({
             'success': False,
             'message': f'Ошибка при поиске: {str(e)}'
@@ -286,7 +287,7 @@ def add_data():
         insert_data(db_path, "measured_parameters", df)
         measured_data = query_db(db_path, "measured_parameters")
         components_data = query_db(db_path, "components")
-        graph, _, _ = generate_graph(measured_data)  # Обновленный вызов
+        graph, message, compositions = generate_graph(measured_data)  # Обновленный вызов
         session['show_data'] = True
         session['data_loaded'] = True
         session['measured_data'] = measured_data.to_json()
@@ -411,8 +412,6 @@ def compare_data():
             else:
                 break
         
-        print(f"=== СРАВНЕНИЕ: выбрано {len(compositions)} составов: {compositions}")
-        
         if len(compositions) < 2:
             return jsonify({
                 'success': False,
@@ -421,7 +420,6 @@ def compare_data():
         
         # Получаем выбранные критерии
         selected_criteria = request.form.getlist('criteria[]')
-        print(f"=== ВЫБРАННЫЕ КРИТЕРИИ: {selected_criteria}")
         
         # Получаем данные из базы
         measured_data = query_db(db_path, "measured_parameters")
@@ -490,10 +488,6 @@ def compare_data():
         })
         
     except Exception as e:
-        print(f"=== ОШИБКА СРАВНЕНИЯ: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        
         return jsonify({
             'success': False,
             'message': f'Ошибка при сравнении: {str(e)}'
@@ -678,16 +672,12 @@ def create_graph():
             height = int(request.form.get('height', 600))
             show_grid = request.form.get('show_grid') == 'on'
             
+            # ДЕБАГ
             selected_compositions_json = request.form.get('selected_compositions', '[]')
             try:
                 selected_compositions = json.loads(selected_compositions_json) if selected_compositions_json else []
             except json.JSONDecodeError:
                 selected_compositions = []
-
-            # ДЕБАГ ИНФОРМАЦИЯ
-            print(f"=== CREATE_GRAPH DEBUG ===")
-            print(f"Selected compositions JSON: {selected_compositions_json}")
-            print(f"Selected compositions: {selected_compositions} (type: {type(selected_compositions)}, len: {len(selected_compositions)})")
             
     
             stats = get_data_statistics(measured_data)
@@ -701,7 +691,6 @@ def create_graph():
             
             # ИСПРАВЛЕННАЯ ПРОВЕРКА: Если нет выбранных составов, используем ВСЕ доступные
             if selected_compositions is not None and len(selected_compositions) == 0:
-                print(f"=== ПУСТОЙ СПИСОК СОСТАВОВ, ИСПОЛЬЗУЕМ ВСЕ ДОСТУПНЫЕ")
                 # Если составы не выбраны, используем все доступные
                 if 'composition' in measured_data.columns:
                     selected_compositions = measured_data['composition'].unique().tolist()
@@ -763,7 +752,7 @@ def create_graph():
             })
 
     # GET запрос - ИСПРАВЛЕННАЯ СТРОКА
-    graph, _, _ = generate_graph(measured_data)  # Теперь распаковываем 3 значения
+    graph, message, compositions = generate_graph(measured_data)  # Теперь распаковываем 3 значения
     stats = get_data_statistics(measured_data)
     
     return render_template(
@@ -805,7 +794,7 @@ def ml_dashboard():
         'ml_dashboard.html', 
         segment='ML Анализ',
         uploaded_files=uploaded_files,
-        compositions=measured_data['composition'].tolist() if not measured_data.empty else [],
+        compositions = measured_data['composition'].tolist() if not measured_data.empty and 'composition' in measured_data.columns else [],
         ml_status=ml_status
         
     )
@@ -831,7 +820,7 @@ def ml_system_train():
         # Обучаем модель
         success = ml_system.train_models(target_properties, algorithm)
         
-        if success:
+        if isinstance(success, dict) and success.get('success'):
             status = ml_system.get_ml_system_status()
             
             # ФОРМИРУЕМ ОТВЕТ ДЛЯ ФРОНТЕНДА
@@ -1012,7 +1001,7 @@ def ml_verify_optimization():
         }
         
         from database import update_ml_optimization_with_actual
-        success = update_ml_optimization_with_actual(db_path, optimization_id, actual_properties)
+        success = update_ml_optimization_with_actual(db_path, int(optimization_id), actual_properties)
         
         if success:
             # Переобучаем модели на верифицированных данных
@@ -1077,4 +1066,4 @@ def ai_ml_history():
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=False)

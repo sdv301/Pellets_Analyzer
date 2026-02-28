@@ -255,8 +255,64 @@ def add_ml_optimization_to_training_data(db_path, optimization_data, actual_prop
     conn.close()
 
 
+def update_ml_optimization_with_actual(db_path, optimization_id, actual_properties):
+    """Обновляет запись ML оптимизации реальными измерениями и добавляет данные в тренировочный набор."""
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # Получаем оптимизацию
+        cursor.execute('SELECT * FROM ml_optimizations WHERE id = ?', (optimization_id,))
+        row = cursor.fetchone()
+        if not row:
+            conn.close()
+            return False
+        
+        # Получаем оптимальный состав из JSON
+        optimal_composition = json.loads(row[5])  # optimal_composition_json
+        composition_text = ", ".join([f"{v}% {k}" for k, v in optimal_composition.items()])
+        
+        # Добавляем реальные измерения в measured_parameters
+        query = '''
+        INSERT OR REPLACE INTO measured_parameters 
+        (composition, density, kf, kt, h, mass_loss, tign, tb, tau_d1, tau_d2, tau_b, co2, co, so2, nox, q, ad)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        '''
+        cursor.execute(query, (
+            composition_text,
+            actual_properties.get('density'),
+            actual_properties.get('kf'),
+            actual_properties.get('kt'),
+            actual_properties.get('h'),
+            actual_properties.get('mass_loss'),
+            actual_properties.get('tign'),
+            actual_properties.get('tb'),
+            actual_properties.get('tau_d1'),
+            actual_properties.get('tau_d2'),
+            actual_properties.get('tau_b'),
+            actual_properties.get('co2'),
+            actual_properties.get('co'),
+            actual_properties.get('so2'),
+            actual_properties.get('nox'),
+            actual_properties.get('q'),
+            actual_properties.get('ad')
+        ))
+        
+        conn.commit()
+        conn.close()
+        return True
+        
+    except Exception as e:
+        print(f"Ошибка обновления оптимизации: {e}")
+        return False
+
+
+ALLOWED_TABLES = {'measured_parameters', 'components', 'ml_optimizations', 'ml_model_metrics'}
+
 def query_db(db_path, table, query="SELECT * FROM {}", params=None):
     """Запрос данных из таблицы."""
+    if table not in ALLOWED_TABLES:
+        raise ValueError(f"Недопустимое имя таблицы: {table}")
     conn = sqlite3.connect(db_path)
     if params:
         df = pd.read_sql_query(query.format(table), conn, params=params)

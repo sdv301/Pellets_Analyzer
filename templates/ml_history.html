@@ -1,0 +1,87 @@
+<!-- templates/ml_history.html -->
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-lg" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <div class="card-body p-4 text-white">
+                    <h1 class="display-6 fw-bold mb-2">📊 История ML оптимизаций</h1>
+                    <p class="lead mb-0 opacity-8">Результаты предыдущих оптимизаций составов пеллет</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white py-3 border-0">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-history me-2"></i>Журнал оптимизаций</h5>
+                        <a href="/ml_dashboard" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-arrow-left me-1"></i>К ML панели
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if optimizations_history is defined and not optimizations_history.empty %}
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Дата</th>
+                                    <th>Целевое свойство</th>
+                                    <th>Направление</th>
+                                    <th>Оптимальное значение</th>
+                                    <th>Состав</th>
+                                    <th>Алгоритм</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for _, row in optimizations_history.iterrows() %}
+                                <tr>
+                                    <td><span class="badge bg-secondary">{{ row.id }}</span></td>
+                                    <td>{{ row.timestamp }}</td>
+                                    <td><span class="fw-semibold">{{ row.target_property }}</span></td>
+                                    <td>
+                                        {% if row.maximize %}
+                                            <span class="badge bg-success">📈 Максимизация</span>
+                                        {% else %}
+                                            <span class="badge bg-info">📉 Минимизация</span>
+                                        {% endif %}
+                                    </td>
+                                    <td><strong>{{ "%.4f"|format(row.optimal_value) }}</strong></td>
+                                    <td>
+                                        <small>
+                                        {% for comp, val in row.optimal_composition.items() %}
+                                            {{ comp }}: {{ "%.1f"|format(val) }}%{% if not loop.last %}, {% endif %}
+                                        {% endfor %}
+                                        </small>
+                                    </td>
+                                    <td><span class="badge bg-outline-secondary">{{ row.algorithm or 'gradient_boosting' }}</span></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">Нет истории оптимизаций</h5>
+                        <p class="text-muted">Выполните первую оптимизацию на <a href="/ml_dashboard">ML панели</a></p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.card { border-radius: 16px !important; }
+.table th { font-weight: 600; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; }
+</style>
+{% endblock content %}
