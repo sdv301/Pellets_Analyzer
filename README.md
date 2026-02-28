@@ -1,6 +1,6 @@
 
 <p align="center">
-  <img src="C:\Users\sdvf5\.gemini\antigravity\brain\5a0f82dd-45fd-4dc9-b5a9-1375c6fdbbb1\pellets_analyzer_banner_1772281126153.png" alt="Pellets Analyzer Banner" width="800">
+  <img src="static/images/banner.png" alt="Pellets Analyzer Banner" width="800">
 </p>
 
 # Pellets Analyzer — Интеллектуальный анализ топливных пеллет
