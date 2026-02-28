@@ -1,6 +1,6 @@
 
 <p align="center">
-  <img src="static/images/banner.png" alt="Pellets Analyzer Banner" width="800">
+  <img src="static\assets\images\banner.png" alt="Pellets Analyzer Banner" width="800">
 </p>
 
 # Pellets Analyzer — Интеллектуальный анализ топливных пеллет
