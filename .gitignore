@@ -220,3 +220,4 @@ __marimo__/
 
 # или конкретно для вашего файла
 pellets_data.db
+verify_syntax.py
