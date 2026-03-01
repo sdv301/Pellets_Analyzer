@@ -90,20 +90,6 @@
                 </a>
             </li>
 
-            <li class="nav-item mt-3">
-                <h6 class="ps-4 ms-2 text-uppercase text-xs font-weight-bolder opacity-6">Аккаунт</h6>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {% if segment == 'Профиль' %}active nav-active-gradient text-white{% endif %}"
-                    href="{{ url_for('profile') }}">
-                    <div
-                        class="icon icon-shape icon-sm shadow border-radius-md bg-white text-center me-2 d-flex align-items-center justify-content-center">
-                        <i
-                            class="fas fa-user {% if segment == 'Профиль' %}text-white{% else %}text-dark{% endif %} text-sm"></i>
-                    </div>
-                    <span class="nav-link-text ms-1">Профиль и Настройки</span>
-                </a>
-            </li>
         </ul>
     </div>
 

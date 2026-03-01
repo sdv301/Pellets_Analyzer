@@ -23,8 +23,15 @@
         </ul>
       </div>
       <ul class="navbar-nav justify-content-end">
+        <li class="nav-item d-flex align-items-center me-3">
+          <div class="form-check form-switch p-0 m-0 d-flex align-items-center" title="Переключить тему">
+            <i class="fas fa-sun text-warning me-2"></i>
+            <input class="form-check-input m-0 cursor-pointer" type="checkbox" id="themeToggle">
+            <i class="fas fa-moon text-secondary ms-2" id="moonIcon"></i>
+          </div>
+        </li>
         <li class="nav-item d-flex align-items-center">
-          <!-- Убраны ссылки на авторизацию, так как у тебя нет этой функциональности -->
+          <!-- Убраны ссылки на авторизацию -->
         </li>
         <li class="nav-item d-xl-none ps-3 d-flex align-items-center">
           <a href="javascript:;" class="nav-link text-body p-0" id="iconNavbarSidenav">
@@ -44,7 +51,25 @@
   document.addEventListener('DOMContentLoaded', function () {
     const searchInput = document.getElementById('globalSearchInput');
     const resultsContainer = document.getElementById('globalSearchResults');
+    const themeToggle = document.getElementById('themeToggle');
     let searchTimeout;
+
+    // Инициализация темы
+    if (themeToggle) {
+      if (localStorage.getItem('theme') === 'dark') {
+        themeToggle.checked = true;
+      }
+
+      themeToggle.addEventListener('change', function () {
+        if (this.checked) {
+          document.documentElement.setAttribute('data-theme', 'dark');
+          localStorage.setItem('theme', 'dark');
+        } else {
+          document.documentElement.removeAttribute('data-theme');
+          localStorage.setItem('theme', 'light');
+        }
+      });
+    }
 
     if (searchInput) {
       searchInput.addEventListener('input', function () {

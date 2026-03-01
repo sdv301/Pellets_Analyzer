@@ -83,6 +83,7 @@
         position: absolute;
         right: 10%;
         top: 10%;
+        pointer-events: none;
     }
 
     @keyframes float {
@@ -102,14 +103,11 @@
     /* Checkboxes */
     .custom-checkbox .form-check-input {
         position: absolute;
-        width: 1px;
-        height: 1px;
-        padding: 0;
-        margin: -1px;
-        overflow: hidden;
-        clip: rect(0, 0, 0, 0);
-        white-space: nowrap;
-        border: 0;
+        opacity: 0;
+        cursor: pointer;
+        width: 100%;
+        height: 100%;
+        z-index: 2;
     }
 
     .custom-checkbox .form-check-label {
