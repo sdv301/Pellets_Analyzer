@@ -8,6 +8,9 @@ from sklearn.preprocessing import StandardScaler
 from scipy.optimize import minimize
 import warnings
 import re
+import os
+import joblib
+from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List, Tuple, Optional
 warnings.filterwarnings('ignore')
 
@@ -112,6 +115,9 @@ class PelletPropertyPredictor:
         self.training_metrics = {}
         self.parser = CompositionParser()
         self.ml_system = ml_system  # Для доступа к linear_predict
+        self.models_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models')
+        if not os.path.exists(self.models_dir):
+            os.makedirs(self.models_dir)
         
         # Определяем целевые свойства из базы данных (новые колонки)
         self.target_properties_mapping = {
@@ -176,97 +182,168 @@ class PelletPropertyPredictor:
         
         return X, component_list, final_valid_indices
     
-    def train(self, data: pd.DataFrame, target_properties: List[str], algorithm: str = 'gradient_boosting') -> bool:
-        """Исправленная версия с совместимостью для фронтенда"""
+    def _train_single_property(self, prop: str, X_prop: np.ndarray, y_prop: pd.Series, algorithm: str, feature_names: List[str]) -> Tuple[str, Dict]:
+        """Обучает модель для одного свойства с использованием GridSearchCV"""
+        scaler = StandardScaler()
+        X_scaled = scaler.fit_transform(X_prop)
+        
+        if algorithm == 'random_forest':
+            base_model = RandomForestRegressor(random_state=42)
+            param_grid = {
+                'n_estimators': [50, 100],
+                'max_depth': [None, 5, 10],
+                'min_samples_split': [2, 5]
+            }
+        else:  # gradient_boosting
+            base_model = GradientBoostingRegressor(random_state=42)
+            param_grid = {
+                'n_estimators': [50, 100],
+                'learning_rate': [0.01, 0.1],
+                'max_depth': [3, 5]
+            }
+            
+        # GridSearchCV для подбора параметров
+        grid_search = GridSearchCV(
+            base_model, 
+            param_grid, 
+            cv=min(3, len(y_prop)), 
+            scoring='r2', 
+            n_jobs=-1 # Внутреннее распараллеливание sklearn
+        )
+        grid_search.fit(X_scaled, y_prop)
+        
+        model = grid_search.best_estimator_
+        
+        # Предсказания для расчета метрик
+        y_pred = model.predict(X_scaled)
+        r2 = r2_score(y_prop, y_pred)
+        mae = mean_absolute_error(y_prop, y_pred)
+        
+        # Кросс-валидация для оценки
+        cv_scores = cross_val_score(model, X_scaled, y_prop, cv=min(3, len(y_prop)), scoring='r2')
+        avg_cv_r2 = np.mean(cv_scores)
+        
+        metrics = {
+            'model': model,
+            'scaler': scaler,
+            'r2_score': float(r2),
+            'mae': float(mae),
+            'cv_r2': float(avg_cv_r2),
+            'feature_importance': {}
+        }
+        
+        # Feature importance
+        if hasattr(model, 'feature_importances_'):
+            importances = model.feature_importances_
+            total = sum(importances)
+            normalized = importances / total if total != 0 else importances
+            metrics['feature_importance'] = {k: float(v) for k, v in zip(feature_names, normalized)}
+            
+        return prop, metrics
+
+    def train(self, data: pd.DataFrame, target_properties: List[str], algorithm: str = 'gradient_boosting', selected_features: List[str] = None) -> Dict:
+        """Многопоточное обучение моделей с AutoML тюнингом"""
         X, feature_names, valid_indices = self.prepare_features(data)
         if len(X) == 0:
-            return False
+            return {'success': False, 'trained_count': 0, 'skipped': [], 'error': 'Нет данных для формирования признаков'}
         
-        self.feature_names = feature_names
+        # Если переданы конкретные фичи, фильтруем
+        if selected_features and len(selected_features) > 0:
+            valid_selected = [f for f in selected_features if f in feature_names]
+            if not valid_selected:
+                 return {'success': False, 'trained_count': 0, 'skipped': [], 'error': 'Ни один из выбранных компонентов не найден в данных'}
+            
+            # Находим индексы выбранных фич в исходной матрице
+            feat_indices = [feature_names.index(f) for f in valid_selected]
+            X = X[:, feat_indices]
+            current_feature_names = valid_selected
+        else:
+            current_feature_names = feature_names
+
+        self.feature_names = current_feature_names
         trained_count = 0
+        skipped_props = []
         
-        print(f"📊 Обучение моделей для {len(X)} samples, {len(feature_names)} features")
+        print(f"📊 Запуск многопоточного обучения ({len(target_properties)} свойств)...")
         
+        # Подготовка задач для ThreadPoolExecutor
+        tasks = []
         for prop in target_properties:
             y = data[prop].iloc[valid_indices]
-            
-            # Проверяем достаточно ли данных
             valid_y = y.dropna()
+            
             if len(valid_y) < 8:
-                print(f"⚠️ Пропуск {prop}: недостаточно данных ({len(valid_y)} < 8)")
+                reason = f"недостаточно данных ({len(valid_y)} из 8)"
+                skipped_props.append({'property': prop, 'reason': reason})
                 continue
-            
-            print(f"🎯 Обучение модели для {prop} ({len(valid_y)} samples)")
-            
-            # Удаляем NaN
+                
             valid_mask = ~y.isna()
             X_prop = X[valid_mask]
             y_prop = y[valid_mask]
-            
-            # Для совместимости с фронтендом используем простой подход
-            scaler = StandardScaler()
-            X_scaled = scaler.fit_transform(X_prop)
-            
-            # Простая модель для избежания переобучения
-            if algorithm == 'random_forest':
-                model = RandomForestRegressor(
-                    n_estimators=50,
-                    max_depth=5,
-                    min_samples_split=5,
-                    min_samples_leaf=2,
-                    random_state=42
-                )
-            else:  # gradient_boosting
-                model = GradientBoostingRegressor(
-                    n_estimators=50,
-                    max_depth=3,
-                    learning_rate=0.1,
-                    random_state=42
-                )
-            
-            # Обучаем на всех данных (как было раньше)
-            model.fit(X_scaled, y_prop)
-            
-            # Предсказания для расчета метрик
-            y_pred = model.predict(X_scaled)
-            r2 = r2_score(y_prop, y_pred)
-            mae = mean_absolute_error(y_prop, y_pred)
-            
-            # Кросс-валидация для оценки
-            cv_scores = cross_val_score(model, X_scaled, y_prop, cv=min(5, len(y_prop)), scoring='r2')
-            avg_cv_r2 = np.mean(cv_scores)
-            
-            self.models[prop] = model
-            self.scalers[prop] = scaler
-            
-            # ВОЗВРАЩАЕМ СТАРУЮ СТРУКТУРУ ДЛЯ СОВМЕСТИМОСТИ
-            self.training_metrics[prop] = {
-                'r2_score': r2,
-                'mae': mae,
-                'cv_r2': avg_cv_r2,
-                # Добавляем feature_importance в корень для совместимости
-                'feature_importance': {}
-            }
-            
-            # Feature importance (отдельно для совместимости)
-            if hasattr(model, 'feature_importances_'):
-                feature_importance = model.feature_importances_
-                total = sum(feature_importance)
-                normalized = feature_importance / total if total != 0 else feature_importance
-                # Сохраняем в двух местах для совместимости
-                self.training_metrics[prop]['feature_importance'] = dict(zip(feature_names, normalized))
-            
-            print(f"   ✅ {prop}: R²={r2:.3f}, MAE={mae:.3f}, CV R²={avg_cv_r2:.3f}")
-            trained_count += 1
-        
+            tasks.append((prop, X_prop, y_prop, algorithm, current_feature_names))
+
+        # Выполнение обучения в пуле потоков
+        with ThreadPoolExecutor(max_workers=min(len(tasks), 4)) as executor:
+            future_to_prop = {executor.submit(self._train_single_property, *task): task[0] for task in tasks}
+            for future in future_to_prop:
+                prop = future_to_prop[future]
+                try:
+                    prop, metrics = future.result()
+                    self.models[prop] = metrics['model']
+                    self.scalers[prop] = metrics['scaler']
+                    self.training_metrics[prop] = {
+                        'r2_score': metrics['r2_score'],
+                        'mae': metrics['mae'],
+                        'cv_r2': metrics['cv_r2'],
+                        'feature_importance': metrics['feature_importance']
+                    }
+                    trained_count += 1
+                    print(f"   ✅ {prop}: R²={metrics['r2_score']:.3f}, CV R²={metrics['cv_r2']:.3f}")
+                except Exception as e:
+                    print(f"   ❌ Ошибка обучения {prop}: {e}")
+                    skipped_props.append({'property': prop, 'reason': str(e)})
+
         self.is_trained = trained_count > 0
-        
         if self.is_trained:
-            print(f"✅ Обучено {trained_count} моделей")
-        else:
-            print("❌ Не удалось обучить ни одной модели")
-        
-        return self.is_trained
+            self.save_models() # Сохраняем на диск после обучения
+            
+        return {
+            'success': self.is_trained,
+            'trained_count': trained_count,
+            'skipped': skipped_props
+        }
+
+    def save_models(self):
+        """Сохранение моделей на диск"""
+        try:
+            data = {
+                'models': self.models,
+                'scalers': self.scalers,
+                'feature_names': self.feature_names,
+                'training_metrics': self.training_metrics
+            }
+            file_path = os.path.join(self.models_dir, 'pellet_models.joblib')
+            joblib.dump(data, file_path)
+            print(f"💾 Модели сохранены в {file_path}")
+        except Exception as e:
+            print(f"⚠️ Ошибка сохранения моделей: {e}")
+
+    def load_models(self) -> bool:
+        """Загрузка моделей с диска"""
+        try:
+            file_path = os.path.join(self.models_dir, 'pellet_models.joblib')
+            if os.path.exists(file_path):
+                data = joblib.load(file_path)
+                self.models = data['models']
+                self.scalers = data['scalers']
+                self.feature_names = data['feature_names']
+                self.training_metrics = data['training_metrics']
+                self.is_trained = True
+                print(f"🧠 Модели загружены из {file_path}")
+                return True
+        except Exception as e:
+            print(f"⚠️ Ошибка загрузки моделей: {e}")
+        return False
     
     def predict(self, composition: Dict[str, float], target_property: str) -> Optional[float]:
         """Предсказывает свойство: ML если обучено, иначе линейное из компонентов"""
@@ -352,126 +429,108 @@ class MLCompositionOptimizer:
                  'error': 'Ни один из доступных компонентов не распознан моделью'
              }
              
+        from scipy.optimize import differential_evolution
+
         # Начальный состав - равномерное распределение по *доступным*
         initial_composition = np.zeros(n_features)
         for idx in available_indices:
             initial_composition[idx] = 1.0 / len(available_indices)
-        
-        def objective(composition):
-            try:
-                comp_dict = dict(zip(feature_names, composition * 100))
-                pred = self.predictor.predict(comp_dict, target_property)
-                if pred is None:
-                    return 1e6 if maximize else -1e6
-                return -pred if maximize else pred
-            except:
-                return 1e6 if maximize else -1e6
-        
-        # Ограничение: сумма = 100%
-        def sum_constraint(composition):
-            return sum(composition) - 1.0
-        
-        cons = [{'type': 'eq', 'fun': sum_constraint}]
-        
-        # Ограничения на компоненты
-        bounds = [(0.0, 1.0) for _ in range(n_features)]
+            
+        # Ограничения на компоненты (для генерации)
+        bounds_percent = [(0.0, 100.0) for _ in range(n_features)]
         
         # Если заданы доступные компоненты, недоступные жестко нулируем
         if available_components:
              for i in range(n_features):
                  if i not in available_indices:
-                     bounds[i] = (0.0, 0.0)
+                     bounds_percent[i] = (0.0, 0.0)
                      
         if constraints:
             for comp, (min_val, max_val) in constraints.items():
                 if comp in feature_names:
                     idx = feature_names.index(comp)
-                    # Преобразуем проценты в доли
-                    new_min = max(min_val / 100.0, bounds[idx][0])
-                    new_max = min(max_val / 100.0, bounds[idx][1])
-                    bounds[idx] = (new_min, new_max)
+                    new_min = max(min_val, bounds_percent[idx][0])
+                    new_max = min(max_val, bounds_percent[idx][1])
+                    bounds_percent[idx] = (new_min, new_max)
         
-        # Генерируем несколько стартовых точек (Multi-start)
-        n_starts = 5
-        start_points = [initial_composition]
-        
-        for _ in range(n_starts - 1):
-            # Случайная точка только из доступных
-            pt = np.zeros(n_features)
-            # Присваиваем случайные веса доступным компонентам
-            rand_weights = np.random.rand(len(available_indices))
-            # Нормализуем к 1
-            rand_weights /= rand_weights.sum()
-            
-            for i, idx in enumerate(available_indices):
-                pt[idx] = rand_weights[i]
+        def objective(composition):
+            try:
+                # Нормализация
+                total = sum(composition)
+                if total <= 1e-6:
+                    return 1e6 if maximize else -1e6
                 
-            # Применяем ограничения, если они нарушены в стартовой точке (упрощенно: просто надеемся, что SLSQP вытянет)
-            start_points.append(pt)
-
-        best_result = None
-        best_value = -np.inf if maximize else np.inf
-        
-        for method in ['SLSQP']:
-            for start_pt in start_points:
-                try:
-                    result = minimize(
-                        objective, 
-                        start_pt, 
-                        method=method, 
-                        bounds=bounds, 
-                        constraints=cons, 
-                        options={'maxiter': 500, 'disp': False}
-                    )
+                normalized = (composition / total) * 100.0
+                
+                # Создаем словарь только с фичами, известными модели
+                comp_dict = {}
+                for i, f_name in enumerate(feature_names):
+                     comp_dict[f_name] = normalized[i]
+                     
+                pred = self.predictor.predict(comp_dict, target_property)
+                if pred is None:
+                    return 1e6 if maximize else -1e6
                     
-                    if result.success:
-                        current_value = -result.fun if maximize else result.fun
-                        if (maximize and current_value > best_value) or (not maximize and current_value < best_value):
-                            best_result = result
-                            best_value = current_value
-                except Exception as e:
-                    continue
+                score = -pred if maximize else pred
+                
+                # Штраф за нарушение ограничений после нормализации
+                penalty = 0.0
+                for i, val in enumerate(normalized):
+                    b_min, b_max = bounds_percent[i]
+                    if val < b_min - 0.1:
+                        penalty += (b_min - val) * 1000
+                    elif val > b_max + 0.1:
+                        penalty += (val - b_max) * 1000
+                        
+                return score + penalty
+            except:
+                return 1e6 if maximize else -1e6
         
-        # Если ни один метод с ограничениями не сработал
-        if best_result is None:
-            print("🔄 Пробую оптимизацию без строгих ограничений параметров (только сумма 100% и список доступных)...")
-            # Сброс ограничений к границам по умолчанию для доступных компонентов
-            loose_bounds = [(0.0, 1.0) if i in available_indices else (0.0, 0.0) for i in range(n_features)]
-            for start_pt in start_points:
-                try:
-                    result = minimize(
-                        objective, 
-                        start_pt, 
-                        method='SLSQP', 
-                        bounds=loose_bounds,
-                        constraints=cons, 
-                        options={'maxiter': 500, 'disp': False}
-                    )
-                    if result.success:
-                        current_value = -result.fun if maximize else result.fun
-                        if (maximize and current_value > best_value) or (not maximize and current_value < best_value):
-                            best_result = result
-                            best_value = current_value
-                except:
-                    pass
+        print("🔄 Пробую глобальную оптимизацию Дифференциальной Эволюцией (Genetic Algorithm)...")
+        # Для DE границы поиска можно задать как 0..1 для доступных
+        de_bounds = [(0.0, 1.0) if i in available_indices else (0.0, 0.0) for i in range(n_features)]
         
-        if best_result is None:
+        try:
+            result = differential_evolution(
+                objective,
+                de_bounds,
+                maxiter=50,
+                popsize=15,
+                mutation=(0.5, 1.0),
+                recombination=0.7,
+                seed=42,
+                disp=False
+            )
+        except Exception as e:
+            print(f"❌ Ошибка в differential_evolution: {e}")
+            return {
+                'success': False, 
+                'error': f'Ошибка оптимизатора: {str(e)}'
+            }
+        
+        if not result.success:
             return {
                 'success': False, 
                 'error': 'Не удалось найти решение. Попробуйте ослабить ограничения.'
             }
         
         # Формируем результат
-        optimal_composition = dict(zip(feature_names, best_result.x * 100))
+        best_comp = result.x
+        total_w = sum(best_comp)
+        if total_w > 0:
+            final_comp = (best_comp / total_w) * 100.0
+        else:
+            final_comp = best_comp
+            
+        optimal_composition = dict(zip(feature_names, final_comp))
         
         # Фильтруем нулевые и нормализуем
         optimal_composition = {k: round(v, 2) for k, v in optimal_composition.items() if v > 0.1}
         total = sum(optimal_composition.values())
         
         if total > 0 and abs(total - 100) > 0.1:
-            optimal_composition = {k: round((v / total) * 100, 2) for k, v in optimal_composition.items()}
-        
-        optimal_value = -best_result.fun if maximize else best_result.fun
+            optimal_composition = {k: round(float(v / total) * 100, 2) for k, v in optimal_composition.items()}
+        optimal_value = float(-result.fun) if maximize else float(result.fun)
         
         # Проверяем соблюдение ограничений
         if constraints:
@@ -491,7 +550,7 @@ class MLCompositionOptimizer:
         # Генерация сообщения
         display_name = self.predictor.target_properties_mapping.get(target_property, target_property)
         direction = "максимизации" if maximize else "минимизации"
-        comp_text = ", ".join([f"{k}: {v:.1f}%" for k, v in optimal_composition.items()])
+        comp_text = ", ".join([f"{v:.1f}% {k}" for k, v in optimal_composition.items()])
         
         message = (f"Оптимальный состав для {direction} {display_name}: {comp_text}. "
                 f"Ожидаемое значение: {optimal_value:.2f}.")
@@ -592,9 +651,24 @@ class PelletMLSystem:
         self.db_path = db_path
         self.predictor = PelletPropertyPredictor(self)
         self.ml_optimizer = MLCompositionOptimizer(self.predictor)
+        
+        # Сначала пробуем загрузить готовые модели с диска
+        models_loaded = self.predictor.load_models()
+        
         self.training_data = self.load_training_data()
         self.components = self.load_components()
-        self.load_saved_models()
+        
+        if not models_loaded:
+            print("💡 Модели не найдены на диске, требуется обучение.")
+
+    def reload_data(self):
+        """Принудительная перезагрузка данных из БД, чтобы учесть новые загрузки Excel"""
+        try:
+            self.components = self.load_components()
+            self.training_data = self.load_training_data()
+            print(f"🔄 Данные ML системы принудительно обновлены (Компонентов: {len(self.components)}, Образцов: {len(self.training_data)})")
+        except Exception as e:
+            print(f"❌ Ошибка обновления данных ML системы: {e}")
 
     def load_components(self) -> pd.DataFrame:
         """Загружает свойства компонентов из БД"""
@@ -696,24 +770,10 @@ class PelletMLSystem:
         
         return status
     def load_saved_models(self):
-        """Загружает сохраненные ML модели из базы данных"""
-        try:
-            from database import get_active_ml_models
-            saved_models = get_active_ml_models(self.db_path)
-            
-            if not saved_models.empty:
-                print("🔍 Загружаю сохраненные ML модели из базы...")
-                for _, model_row in saved_models.iterrows():
-                    prop = model_row['target_property']
-                    print(f"   📊 Модель для {prop}: R²={model_row['r2_score']:.3f}")
-                
-                # Можно добавить логику загрузки весов моделей
-                # Пока просто информируем о наличии сохраненных моделей
-                
-        except Exception as e:
-            print(f"⚠️ Не удалось загрузить сохраненные модели: {e}")
+        """Прокси-метод для загрузки моделей через предиктор"""
+        return self.predictor.load_models()
 
-    def train_models(self, target_properties: List[str] = None, algorithm: str = 'gradient_boosting') -> Dict:
+    def train_models(self, target_properties: List[str] = None, algorithm: str = 'gradient_boosting', selected_features: List[str] = None) -> Dict:
         """Обучает ML модели и сохраняет результаты в базу"""
         if self.training_data.empty:
             print("❌ Нет данных для ML обучения")
@@ -722,7 +782,9 @@ class PelletMLSystem:
         if target_properties is None:
             target_properties = self.predictor.main_target_properties
         
-        success = self.predictor.train(self.training_data, target_properties, algorithm)
+        train_result = self.predictor.train(self.training_data, target_properties, algorithm, selected_features)
+        success = train_result.get('success', False)
+        skipped = train_result.get('skipped', [])
         
         if success:
             print("✅ ML система готова к работе!")
@@ -754,11 +816,16 @@ class PelletMLSystem:
                 'message': 'ML система успешно обучена!',
                 'status': status,
                 'trained_count': len(status['trained_models']),
-                'metrics': {prop: status['model_metrics'][prop] for prop in status['trained_models']}
+                'metrics': {prop: status['model_metrics'].get(prop) for prop in status['trained_models']},
+                'skipped': skipped
             }
         else:
             print("❌ Обучение ML моделей не удалось")
-            return {'success': False, 'error': 'Обучение не удалось'}
+            return {
+                'success': False, 
+                'error': train_result.get('error', 'Обучение не удалось из-за нехватки данных'),
+                'skipped': skipped
+            }
 
     def optimize_composition(self, target_property: str, maximize: bool = True, constraints: Dict[str, Tuple[float, float]] = None, available_components: List[str] = None) -> Dict:
         """Оптимизирует состав и сохраняет результат в базу.
@@ -859,7 +926,7 @@ class PelletMLSystem:
                 optimal_value = -result.fun if maximize else result.fun
                 display_name = self.predictor.target_properties_mapping.get(target_property, target_property)
                 direction = "максимизации" if maximize else "минимизации"
-                comp_text = ", ".join([f"{k}: {v:.1f}%" for k, v in optimal_comp.items()])
+                comp_text = ", ".join([f"{v:.1f}% {k}" for k, v in optimal_comp.items()])
                 message = f"Оптимальный состав для {direction} {display_name}: {comp_text}. Ожидаемое значение: {optimal_value:.2f}."
                 
                 return {
@@ -872,6 +939,92 @@ class PelletMLSystem:
             pass
         
         return {'success': False, 'error': 'Не удалось оптимизировать состав по данным компонентов'}
+
+    def augment_database(self, variations_count: int = 3, confidence_interval: float = 5.0) -> Dict:
+        """
+        Масштабирует экспериментальную базу данных за счет добавления синтетических 
+        образцов в пределах доверительного интервала.
+        """
+        try:
+            from database import query_db, insert_data
+            
+            # Получаем текущие данные
+            measured_data = query_db(self.db_path, "measured_parameters")
+            if measured_data.empty:
+                return {'success': False, 'error': 'База данных пуста, нет данных для аугментации'}
+                
+            print(f"🔄 Запуск аугментации данных: {len(measured_data)} базовых образцов, {variations_count} вариаций, интервал {confidence_interval}%")
+            
+            import random
+            ci = confidence_interval / 100.0  # Например 0.05
+            prop_ci = max(0.01, ci / 2)  # Погрешность для свойств делаем чуть меньше (например 2.5%)
+            
+            synthetic_rows = []
+            
+            # Список всех возможных свойств в measured_parameters (исключая composition)
+            all_props = ['density', 'kf', 'kt', 'h', 'mass_loss', 'tign', 'tb', 'tau_d1', 'tau_d2', 'tau_b', 'co2', 'co', 'so2', 'nox', 'q', 'ad']
+            
+            for _, row in measured_data.iterrows():
+                comp_text = row.get('composition')
+                if not comp_text or pd.isna(comp_text):
+                    continue
+                    
+                comp_dict = self.predictor.parser.parse_composition(comp_text)
+                if not comp_dict:
+                    continue
+                    
+                # Генерация вариаций
+                for _ in range(variations_count):
+                    new_comp = {}
+                    # Вносим шум в компоненты
+                    for comp, val in comp_dict.items():
+                        noise = random.uniform(-ci, ci)
+                        new_comp[comp] = max(0.1, val * (1 + noise))
+                    
+                    # Нормализуем обратно до 100
+                    total = sum(new_comp.values())
+                    if total > 0:
+                        new_comp = {k: round((v / total) * 100, 2) for k, v in new_comp.items()}
+                        
+                    new_comp_text = ", ".join([f"{v}% {k}" for k, v in new_comp.items()])
+                    
+                    new_row = {'composition': new_comp_text}
+                    
+                    # Вносим шум в целевые свойства
+                    for prop in all_props:
+                        val = row.get(prop)
+                        if pd.notna(val) and val is not None:
+                            # Добавляем небольшой шум к известным свойствам
+                            noise = random.uniform(-prop_ci, prop_ci)
+                            new_row[prop] = val * (1 + noise)
+                        else:
+                            new_row[prop] = None
+                            
+                    synthetic_rows.append(new_row)
+            
+            if not synthetic_rows:
+                return {'success': False, 'error': 'Не удалось сгенерировать новые данные'}
+                
+            # Сохраняем в БД
+            synthetic_df = pd.DataFrame(synthetic_rows)
+            insert_data(self.db_path, "measured_parameters", synthetic_df)
+            
+            print(f"✅ Успешно добавлено {len(synthetic_df)} синтетических образцов")
+            
+            # Перезагружаем данные и переобучаем модели
+            self.training_data = self.load_training_data()
+            retrain_result = self.retrain_on_new_data()
+            
+            return {
+                'success': True,
+                'message': f'База успешно масштабирована (+{len(synthetic_df)} образцов) и модели переобучены',
+                'added_count': len(synthetic_df),
+                'retrain_status': retrain_result
+            }
+            
+        except Exception as e:
+            print(f"❌ Ошибка при аугментации: {e}")
+            return {'success': False, 'error': f'Ошибка аугментации: {str(e)}'}
 
     def retrain_on_new_data(self, target_properties: List[str] = None, algorithm: str = 'gradient_boosting') -> Dict:
         """Переобучает модели на обновленных данных"""

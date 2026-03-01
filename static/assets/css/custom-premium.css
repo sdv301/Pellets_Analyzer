@@ -56,6 +56,36 @@
     color: var(--bank-text-main) !important;
 }
 
+[data-theme="dark"] .border-dashed {
+    border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+[data-theme="dark"] .table,
+[data-theme="dark"] .table td,
+[data-theme="dark"] .table th {
+    color: var(--bank-text-main) !important;
+    border-color: var(--bank-border-color) !important;
+}
+
+[data-theme="dark"] .table-striped>tbody>tr:nth-of-type(odd)>* {
+    background-color: rgba(255, 255, 255, 0.02) !important;
+    color: var(--bank-text-main) !important;
+}
+
+[data-theme="dark"] .modal-content {
+    background-color: var(--bank-card-bg) !important;
+    border-color: var(--bank-border-color) !important;
+}
+
+[data-theme="dark"] .modal-header,
+[data-theme="dark"] .modal-footer {
+    border-color: var(--bank-border-color) !important;
+}
+
+[data-theme="dark"] .bg-light {
+    background-color: var(--bank-bg-color) !important;
+}
+
 [data-theme="dark"] .btn-outline-secondary {
     color: #92929F !important;
     border-color: #323248 !important;
@@ -64,6 +94,17 @@
 [data-theme="dark"] .bg-gray-50,
 [data-theme="dark"] .bg-gray-100 {
     background-color: #151521 !important;
+}
+
+[data-theme="dark"] .bg-gradient-light {
+    background-color: #252538 !important;
+    background-image: none !important;
+}
+
+[data-theme="dark"] .btn-white {
+    background-color: #252538 !important;
+    color: var(--bank-text-main) !important;
+    border-color: #323248 !important;
 }
 
 [data-theme="dark"] .input-group-text {
@@ -110,8 +151,35 @@
     border-color: #323248 !important;
 }
 
-[data-theme="dark"] .card .card-header .text-dark {
+[data-theme="dark"] .card .card-header .text-dark,
+[data-theme="dark"] h1,
+[data-theme="dark"] h2,
+[data-theme="dark"] h3,
+[data-theme="dark"] h4,
+[data-theme="dark"] h5,
+[data-theme="dark"] h6 {
     color: #FFFFFF !important;
+}
+
+[data-theme="dark"] .form-label,
+[data-theme="dark"] label,
+[data-theme="dark"] .nav-link-text,
+[data-theme="dark"] .breadcrumb-item,
+[data-theme="dark"] .text-body,
+[data-theme="dark"] span {
+    color: var(--bank-text-main) !important;
+}
+
+[data-theme="dark"] .text-primary {
+    color: #4facfe !important;
+}
+
+[data-theme="dark"] .text-success {
+    color: #43e97b !important;
+}
+
+[data-theme="dark"] .text-warning {
+    color: #fee140 !important;
 }
 
 body {

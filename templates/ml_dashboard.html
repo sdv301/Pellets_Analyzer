@@ -159,6 +159,7 @@
     <div class="step-dot active" onclick="scrollToSection('ml-step-1')" title="Статус Системы"></div>
     <div class="step-dot" onclick="scrollToSection('ml-step-2')" title="Обучение Моделей"></div>
     <div class="step-dot" onclick="scrollToSection('ml-step-3')" title="Оптимизация"></div>
+    <div class="step-dot" onclick="scrollToSection('ml-step-sandbox')" title="Песочница"></div>
     <div class="step-dot" onclick="scrollToSection('ml-step-4')" title="Результаты"></div>
 </div>
 
@@ -172,7 +173,7 @@
             <p class="lead text-muted">Интеллектуальное прогнозирование и оптимизация свойств</p>
         </div>
 
-        <div class="row w-100 mx-auto max-w-1000">
+        <div class="row m-0 justify-content-center max-w-1000 w-100 mx-auto">
             <div class="col-xl-3 col-md-6 mb-4 animate-on-scroll stagger-1">
                 <div class="bank-card h-100 text-center">
                     <div class="icon icon-shape icon-lg shadow text-center border-radius-lg mb-3 mx-auto"
@@ -214,11 +215,39 @@
                 </div>
             </div>
 
-            <div class="col-12 text-center mt-5 animate-on-scroll stagger-4">
-                <button class="btn btn-premium btn-lg me-3" onclick="scrollToSection('ml-step-2')">
+            <div class="col-12 mt-4 animate-on-scroll stagger-4">
+                <div class="bank-card p-4 text-start border border-light">
+                    <h5 class="fw-bolder text-dark mb-2"><i
+                            class="fas fa-layer-group text-primary me-2"></i>Масштабирование Базы (Аугментация)</h5>
+                    <p class="text-muted text-sm mb-4">Генерация синтетических образцов на основе реальных данных для
+                        улучшения качества ML-моделей.</p>
+                    <form id="ml-augmentation-form" class="row g-3 align-items-end">
+                        <div class="col-md-4">
+                            <label class="form-label text-dark fw-bold mb-1">Вариаций на 1 образец</label>
+                            <input type="number" class="form-control" name="variations_count" value="3" min="1"
+                                max="10">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label text-dark fw-bold mb-1">Доверительный интервал (%)</label>
+                            <input type="number" class="form-control" name="confidence_interval" value="5.0" min="0.1"
+                                max="20" step="0.1">
+                        </div>
+                        <div class="col-md-4 text-end" style="position: relative; z-index: 50;">
+                            <button type="submit" class="btn btn-premium w-100 m-0" id="augmentBtn"
+                                style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%) !important; border: none !important; color: #fff !important;">
+                                <i class="fas fa-magic me-2"></i><span class="btn-text">Сгенерировать и Обучить</span>
+                                <div class="spinner-border spinner-border-sm ms-2 d-none" role="status"></div>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="col-12 text-center mt-5 animate-on-scroll stagger-4" style="position: relative; z-index: 50;">
+                <button type="button" class="btn btn-premium btn-lg me-3" onclick="scrollToSection('ml-step-2')">
                     Обучить <i class="fas fa-arrow-down ms-2"></i>
                 </button>
-                <button class="btn btn-outline-premium btn-lg" onclick="scrollToSection('ml-step-3')">
+                <button type="button" class="btn btn-outline-premium btn-lg" onclick="scrollToSection('ml-step-3')">
                     Оптимизировать <i class="fas fa-arrow-down ms-2"></i>
                 </button>
             </div>
@@ -233,7 +262,7 @@
             <p class="text-muted">Выберите свойства для предсказания и алгоритм</p>
         </div>
 
-        <div class="row w-100 mx-auto max-w-1000">
+        <div class="row m-0 justify-content-center max-w-1000 w-100 mx-auto">
             <div class="col-12 animate-on-scroll stagger-1">
                 <div class="bank-card pb-5">
                     <form id="ml-training-form" class="needs-validation" novalidate>
@@ -251,100 +280,180 @@
                                     <option value="gradient_boosting">Gradient Boosting (Градиентный бустинг)</option>
                                 </select>
 
-                                <button type="submit" class="btn btn-premium w-100 py-3" disabled id="trainButton">
-                                    <i class="fas fa-play me-2"></i>
-                                    <span class="btn-text">Запустить Обучение</span>
-                                    <div class="spinner-border spinner-border-sm ms-2 d-none" role="status"></div>
-                                </button>
+                                <div class="progress-wrapper mb-3 d-none" id="trainingProgressWrapper">
+                                    <div class="d-flex justify-content-between text-sm mb-1">
+                                        <span class="font-weight-bold text-primary" id="progressText">Подготовка
+                                            данных...</span>
+                                        <span class="text-muted" id="progressPercent">0%</span>
+                                    </div>
+                                    <div class="progress" style="height: 10px;">
+                                        <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary"
+                                            id="trainingProgressBar" role="progressbar" style="width: 0%"></div>
+                                    </div>
+                                </div>
+                                <div class="col-12 text-end mt-4" style="position: relative; z-index: 50;">
+                                    <button type="submit" class="btn btn-premium btn-lg w-100" id="trainButton">
+                                        <span class="btn-text">Запустить Обучение</span> <i
+                                            class="fas fa-rocket ms-2"></i>
+                                        <div class="spinner-border spinner-border-sm ms-2 d-none" role="status"></div>
+                                    </button>
+                                </div>
                             </div>
 
                             <div class="col-md-7 ps-4">
-                                <div class="d-flex justify-content-between align-items-center mb-3">
-                                    <label class="form-label fw-semibold m-0">Список доступных свойств</label>
-                                    <div>
-                                        <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2 me-1"
-                                            id="selectAllProperties">Все</button>
-                                        <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2"
-                                            id="clearProperties">Очистить</button>
-                                    </div>
-                                </div>
-                                <div class="row g-2" style="max-height: 250px; overflow-y: auto; padding-right: 10px;">
-                                    <div class="col-12">
-                                        <div class="form-check custom-checkbox"><input
-                                                class="form-check-input property-checkbox" type="checkbox"
-                                                name="target_properties[]" value="ad" id="prop_ad"><label
-                                                class="form-check-label" for="prop_ad">🌫️ Содержание золы (%)</label>
+                                <div class="accordion" id="trainingOptionsAccordion">
+                                    <!-- Свойства (Цели) -->
+                                    <div class="accordion-item border-0 mb-3 bg-transparent">
+                                        <h2 class="accordion-header" id="headingProperties">
+                                            <button
+                                                class="accordion-button rounded bg-white shadow-sm fw-bold text-dark"
+                                                type="button" data-bs-toggle="collapse"
+                                                data-bs-target="#collapseProperties" aria-expanded="true"
+                                                aria-controls="collapseProperties">
+                                                <i class="fas fa-bullseye text-danger me-2"></i> Целевые Свойства (Что
+                                                предсказываем)
+                                            </button>
+                                        </h2>
+                                        <div id="collapseProperties" class="accordion-collapse collapse show"
+                                            aria-labelledby="headingProperties">
+                                            <div class="accordion-body bg-white border border-top-0 rounded-bottom p-3">
+                                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                                    <label class="form-label fw-semibold m-0">Список доступных
+                                                        свойств</label>
+                                                    <div>
+                                                        <button type="button"
+                                                            class="btn btn-sm btn-outline-primary py-1 px-2 me-1"
+                                                            id="selectAllProperties">Все</button>
+                                                        <button type="button"
+                                                            class="btn btn-sm btn-outline-secondary py-1 px-2"
+                                                            id="clearProperties">Очистить</button>
+                                                    </div>
+                                                </div>
+                                                <div class="row g-2"
+                                                    style="max-height: 250px; overflow-y: auto; padding-right: 10px;">
+                                                    <div class="col-12">
+                                                        <div class="form-check custom-checkbox"><input
+                                                                class="form-check-input property-checkbox"
+                                                                type="checkbox" name="target_properties[]" value="ad"
+                                                                id="prop_ad"><label class="form-check-label"
+                                                                for="prop_ad">🌫️ Содержание золы (%)</label>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-12">
+                                                        <div class="form-check custom-checkbox"><input
+                                                                class="form-check-input property-checkbox"
+                                                                type="checkbox" name="target_properties[]" value="q"
+                                                                id="prop_q"><label class="form-check-label"
+                                                                for="prop_q">🔥 Теплота сгорания
+                                                                (МДж/кг)</label></div>
+                                                    </div>
+                                                    <div class="col-12">
+                                                        <div class="form-check custom-checkbox"><input
+                                                                class="form-check-input property-checkbox"
+                                                                type="checkbox" name="target_properties[]"
+                                                                value="density" id="prop_density"><label
+                                                                class="form-check-label" for="prop_density">⚖️ Плотность
+                                                                (кг/м³)</label>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-12">
+                                                        <div class="form-check custom-checkbox"><input
+                                                                class="form-check-input property-checkbox"
+                                                                type="checkbox" name="target_properties[]" value="kf"
+                                                                id="prop_kf"><label class="form-check-label"
+                                                                for="prop_kf">📐 Ударопрочность (%)</label>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-12">
+                                                        <div class="form-check custom-checkbox"><input
+                                                                class="form-check-input property-checkbox"
+                                                                type="checkbox" name="target_properties[]" value="kt"
+                                                                id="prop_kt"><label class="form-check-label"
+                                                                for="prop_kt">📏 Устойчивость к вибрациям
+                                                                (%)</label></div>
+                                                    </div>
+                                                    <div class="col-12">
+                                                        <div class="form-check custom-checkbox"><input
+                                                                class="form-check-input property-checkbox"
+                                                                type="checkbox" name="target_properties[]" value="h"
+                                                                id="prop_h"><label class="form-check-label"
+                                                                for="prop_h">💧 Гигроскопичность (%)</label>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-12">
+                                                        <div class="form-check custom-checkbox"><input
+                                                                class="form-check-input property-checkbox"
+                                                                type="checkbox" name="target_properties[]"
+                                                                value="mass_loss" id="prop_mass_loss"><label
+                                                                class="form-check-label" for="prop_mass_loss">⚡ Потеря
+                                                                массы (%)</label>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-12">
+                                                        <div class="form-check custom-checkbox"><input
+                                                                class="form-check-input property-checkbox"
+                                                                type="checkbox" name="target_properties[]" value="tign"
+                                                                id="prop_tign"><label class="form-check-label"
+                                                                for="prop_tign">🌡️ Температура зажигания
+                                                                (°С)</label></div>
+                                                    </div>
+                                                    <div class="col-12">
+                                                        <div class="form-check custom-checkbox"><input
+                                                                class="form-check-input property-checkbox"
+                                                                type="checkbox" name="target_properties[]" value="tb"
+                                                                id="prop_tb"><label class="form-check-label"
+                                                                for="prop_tb">💥 Температура выгорания
+                                                                (°С)</label></div>
+                                                    </div>
+                                                    <!-- Simplified list for cleaner UI, remaining stats mapped in backend still logic works -->
+                                                    <div class="col-12">
+                                                        <div class="form-check custom-checkbox"><input
+                                                                class="form-check-input property-checkbox"
+                                                                type="checkbox" name="target_properties[]" value="tau_b"
+                                                                id="prop_tau_b"><label class="form-check-label"
+                                                                for="prop_tau_b">⏱️ Время горения (с)</label>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-12">
+                                                        <div class="form-check custom-checkbox"><input
+                                                                class="form-check-input property-checkbox"
+                                                                type="checkbox" name="target_properties[]" value="co2"
+                                                                id="prop_co2"><label class="form-check-label"
+                                                                for="prop_co2">🌬️ Выбросы CO₂ (%)</label>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
-                                    <div class="col-12">
-                                        <div class="form-check custom-checkbox"><input
-                                                class="form-check-input property-checkbox" type="checkbox"
-                                                name="target_properties[]" value="q" id="prop_q"><label
-                                                class="form-check-label" for="prop_q">🔥 Теплота сгорания
-                                                (МДж/кг)</label></div>
-                                    </div>
-                                    <div class="col-12">
-                                        <div class="form-check custom-checkbox"><input
-                                                class="form-check-input property-checkbox" type="checkbox"
-                                                name="target_properties[]" value="density" id="prop_density"><label
-                                                class="form-check-label" for="prop_density">⚖️ Плотность (кг/м³)</label>
-                                        </div>
-                                    </div>
-                                    <div class="col-12">
-                                        <div class="form-check custom-checkbox"><input
-                                                class="form-check-input property-checkbox" type="checkbox"
-                                                name="target_properties[]" value="kf" id="prop_kf"><label
-                                                class="form-check-label" for="prop_kf">📐 Ударопрочность (%)</label>
-                                        </div>
-                                    </div>
-                                    <div class="col-12">
-                                        <div class="form-check custom-checkbox"><input
-                                                class="form-check-input property-checkbox" type="checkbox"
-                                                name="target_properties[]" value="kt" id="prop_kt"><label
-                                                class="form-check-label" for="prop_kt">📏 Устойчивость к вибрациям
-                                                (%)</label></div>
-                                    </div>
-                                    <div class="col-12">
-                                        <div class="form-check custom-checkbox"><input
-                                                class="form-check-input property-checkbox" type="checkbox"
-                                                name="target_properties[]" value="h" id="prop_h"><label
-                                                class="form-check-label" for="prop_h">💧 Гигроскопичность (%)</label>
-                                        </div>
-                                    </div>
-                                    <div class="col-12">
-                                        <div class="form-check custom-checkbox"><input
-                                                class="form-check-input property-checkbox" type="checkbox"
-                                                name="target_properties[]" value="mass_loss" id="prop_mass_loss"><label
-                                                class="form-check-label" for="prop_mass_loss">⚡ Потеря массы (%)</label>
-                                        </div>
-                                    </div>
-                                    <div class="col-12">
-                                        <div class="form-check custom-checkbox"><input
-                                                class="form-check-input property-checkbox" type="checkbox"
-                                                name="target_properties[]" value="tign" id="prop_tign"><label
-                                                class="form-check-label" for="prop_tign">🌡️ Температура зажигания
-                                                (°С)</label></div>
-                                    </div>
-                                    <div class="col-12">
-                                        <div class="form-check custom-checkbox"><input
-                                                class="form-check-input property-checkbox" type="checkbox"
-                                                name="target_properties[]" value="tb" id="prop_tb"><label
-                                                class="form-check-label" for="prop_tb">💥 Температура выгорания
-                                                (°С)</label></div>
-                                    </div>
-                                    <!-- Simplified list for cleaner UI, remaining stats mapped in backend still logic works -->
-                                    <div class="col-12">
-                                        <div class="form-check custom-checkbox"><input
-                                                class="form-check-input property-checkbox" type="checkbox"
-                                                name="target_properties[]" value="tau_b" id="prop_tau_b"><label
-                                                class="form-check-label" for="prop_tau_b">⏱️ Время горения (с)</label>
-                                        </div>
-                                    </div>
-                                    <div class="col-12">
-                                        <div class="form-check custom-checkbox"><input
-                                                class="form-check-input property-checkbox" type="checkbox"
-                                                name="target_properties[]" value="co2" id="prop_co2"><label
-                                                class="form-check-label" for="prop_co2">🌬️ Выбросы CO₂ (%)</label>
+
+                                    <!-- Компоненты (Входные признаки) -->
+                                    <div class="accordion-item border-0 bg-transparent">
+                                        <h2 class="accordion-header" id="headingFeatures">
+                                            <button
+                                                class="accordion-button collapsed rounded bg-white shadow-sm fw-bold text-dark"
+                                                type="button" data-bs-toggle="collapse"
+                                                data-bs-target="#collapseFeatures" aria-expanded="false"
+                                                aria-controls="collapseFeatures">
+                                                <i class="fas fa-puzzle-piece text-success me-2"></i> Входные Данные
+                                                (Состав Пеллет)
+                                            </button>
+                                        </h2>
+                                        <div id="collapseFeatures" class="accordion-collapse collapse"
+                                            aria-labelledby="headingFeatures">
+                                            <div class="accordion-body bg-white border border-top-0 rounded-bottom p-3">
+                                                <p class="text-xs text-muted mb-2">Выберите, какие компоненты состава
+                                                    использовать для
+                                                    обучения. По умолчанию используются все доступные в базе.</p>
+                                                <div class="row g-2" style="max-height: 200px; overflow-y: auto;"
+                                                    id="componentFeaturesContainer">
+                                                    <!-- Loading from server... -->
+                                                    <div class="text-center w-100">
+                                                        <div class="spinner-border spinner-border-sm text-primary">
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -414,7 +523,7 @@
                                 </div>
                             </div>
 
-                            <div class="col-12 text-center mt-4">
+                            <div class="col-12 text-center mt-4" style="position: relative; z-index: 50;">
                                 <button type="submit" class="btn btn-premium btn-lg w-100 px-5"
                                     style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%) !important; border: none !important; color: #000 !important;">
                                     <i class="fas fa-bolt me-2 text-dark"></i>
@@ -428,9 +537,47 @@
                 </div>
             </div>
 
-            <div class="col-12 text-center mt-3 animate-on-scroll stagger-2">
-                <button class="btn btn-outline-secondary" onclick="scrollToSection('ml-step-4')">Посмотреть результаты
+            <div class="col-12 text-center mt-3 animate-on-scroll stagger-2" style="position: relative; z-index: 50;">
+                <button type="button" class="btn btn-outline-secondary"
+                    onclick="scrollToSection('ml-step-4')">Посмотреть
+                    результаты
                     <i class="fas fa-arrow-down ms-1"></i></button>
+            </div>
+        </div>
+    </section>
+
+    <!-- SECTION 3.5: Interactive Sandbox -->
+    <section class="scrolly-section" id="ml-step-sandbox">
+        <i class="fas fa-gamepad floating-icon text-info"></i>
+        <div class="text-center mb-5 animate-on-scroll">
+            <h2 class="font-weight-bolder">Интерактивная Песочница</h2>
+            <p class="text-muted">Меняйте состав ползунками и смотрите прогноз нейросети в реальном времени</p>
+        </div>
+
+        <div class="row w-100 mx-auto max-w-1200">
+            <div class="col-lg-5 animate-on-scroll stagger-1">
+                <div class="bank-card pb-4">
+                    <h5 class="fw-bold mb-3"><i class="fas fa-sliders-h text-primary me-2"></i>Настройка состава (%)
+                    </h5>
+                    <div id="sandboxSlidersContainer" class="pe-2" style="max-height: 450px; overflow-y: auto;">
+                        <div class="text-center py-5">
+                            <div class="spinner-border text-primary"></div>
+                            <p class="mt-2 text-muted">Загрузка компонентов...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-7 animate-on-scroll stagger-2">
+                <div class="bank-card h-100 d-flex flex-column align-items-center justify-content-center">
+                    <h5 class="fw-bold mb-4 w-100"><i class="fas fa-chart-radar text-info me-2"></i>Прогноз Свойств</h5>
+                    <div class="w-100" style="height: 400px; position: relative;">
+                        <canvas id="sandboxRadarChart"></canvas>
+                    </div>
+                    <div id="sandboxPredictionBadges" class="d-flex flex-wrap justify-content-center gap-3 mt-4">
+                        <!-- Badges with values will be here -->
+                    </div>
+                </div>
             </div>
         </div>
     </section>
@@ -443,7 +590,7 @@
             <p class="text-muted">Отслеживайте процесс и результаты анализов</p>
         </div>
 
-        <div class="row w-100 mx-auto max-w-1000 h-100">
+        <div class="row m-0 justify-content-center max-w-1000 w-100 mx-auto h-100">
             <div class="col-12 animate-on-scroll stagger-1 h-100">
                 <div class="bank-card h-100 d-flex flex-column">
                     <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
@@ -459,8 +606,60 @@
                             <div class="alert alert-light border text-center text-muted">Ожидание обновления статуса...
                             </div>
                         </div>
+
+                        <!-- Feature Importance Section -->
+                        <div id="featureImportanceSection" class="mt-4 mb-4" style="display: none;">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="text-uppercase text-xs font-weight-bolder text-info m-0">Влияние компонентов
+                                    на результат (SHAP)</h6>
+                                <select id="featureImportancePropSelect"
+                                    class="form-select form-select-sm w-auto border-0 bg-light text-xs font-weight-bold">
+                                    <!-- Options populated via JS -->
+                                </select>
+                            </div>
+                            <div style="height: 250px;">
+                                <canvas id="featureImportanceChart"></canvas>
+                            </div>
+                        </div>
+
                         <div id="trainingResults" class="mb-3" style="display: none;"></div>
                         <div id="optimizationResults" style="display: none;"></div>
+
+                        <!-- Optimization History / Hall of Fame -->
+                        <div id="optimizationHistorySection" class="mt-5">
+                            <h6 class="text-uppercase text-xs font-weight-bolder text-success mb-3">Зал Славы (История
+                                лучших результатов)</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm text-sm" id="historyTable">
+                                    <thead class="text-muted">
+                                        <tr>
+                                            <th>Дата</th>
+                                            <th>Цель</th>
+                                            <th>Результат</th>
+                                            <th>Состав</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="historyTableBody">
+                                        {% if optimization_history %}
+                                        {% for opt in optimization_history %}
+                                        <tr>
+                                            <td><small class="text-xs">{{ opt.timestamp }}</small></td>
+                                            <td><span class="badge bg-light text-dark">{{ opt.target_property }}</span>
+                                            </td>
+                                            <td class="fw-bold">{{ opt.optimal_value }}</td>
+                                            <td><small class="text-muted">{{ opt.optimal_composition_text }}</small>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                        {% else %}
+                                        <tr>
+                                            <td colspan="4" class="text-center py-4 text-muted">История пуста</td>
+                                        </tr>
+                                        {% endif %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="text-center">
@@ -480,47 +679,51 @@
 <script src="{{ url_for('static', filename='assets/js/plugins/bootstrap-notify.js') }}"></script>
 
 <script>
-    // Intersection Observer for Animations and Scroll Snapping tracking
-    const container = document.getElementById('scrollyContainer');
-    const sections = document.querySelectorAll('.scrolly-section');
-    const dots = document.querySelectorAll('.step-dot');
-
-    const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                entry.target.querySelectorAll('.animate-on-scroll').forEach(el => {
-                    el.style.opacity = '1';
-                    el.style.transform = 'translateY(0)';
-                });
-
-                const index = Array.from(sections).indexOf(entry.target);
-                dots.forEach((dot, i) => {
-                    dot.classList.toggle('active', i === index);
-                });
-            }
-        });
-    }, { threshold: 0.5 });
-
-    sections.forEach(section => {
-        observer.observe(section);
-        section.querySelectorAll('.animate-on-scroll').forEach(el => {
-            el.style.opacity = '0';
-            el.style.transform = 'translateY(30px)';
-            el.style.transition = 'opacity 0.6s ease-out, transform 0.6s ease-out';
-            if (el.classList.contains('stagger-1')) el.style.transitionDelay = '100ms';
-            if (el.classList.contains('stagger-2')) el.style.transitionDelay = '200ms';
-            if (el.classList.contains('stagger-3')) el.style.transitionDelay = '300ms';
-            if (el.classList.contains('stagger-4')) el.style.transitionDelay = '400ms';
-        });
-    });
-
-    function scrollToSection(id) {
-        document.getElementById(id).scrollIntoView({ behavior: 'smooth' });
-    }
+    // Make function globally available explicitly
+    window.scrollToSection = function (id) {
+        const el = document.getElementById(id);
+        if (el) { el.scrollIntoView({ behavior: 'smooth' }); }
+    };
 
     /* Core ML Logics mapped directly from prev architecture */
     document.addEventListener('DOMContentLoaded', function () {
         console.log("🛡️ Pellets ML Dashboard: Initializing...");
+
+        // Intersection Observer for Animations and Scroll Snapping tracking
+        const container = document.getElementById('scrollyContainer');
+        const sections = document.querySelectorAll('.scrolly-section');
+        const dots = document.querySelectorAll('.step-dot');
+
+        if (sections.length > 0) {
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.querySelectorAll('.animate-on-scroll').forEach(el => {
+                            el.style.opacity = '1';
+                            el.style.transform = 'translateY(0)';
+                        });
+
+                        const index = Array.from(sections).indexOf(entry.target);
+                        dots.forEach((dot, i) => {
+                            dot.classList.toggle('active', i === index);
+                        });
+                    }
+                });
+            }, { threshold: 0.5 });
+
+            sections.forEach(section => {
+                observer.observe(section);
+                section.querySelectorAll('.animate-on-scroll').forEach(el => {
+                    el.style.opacity = '0';
+                    el.style.transform = 'translateY(30px)';
+                    el.style.transition = 'opacity 0.6s ease-out, transform 0.6s ease-out';
+                    if (el.classList.contains('stagger-1')) el.style.transitionDelay = '100ms';
+                    if (el.classList.contains('stagger-2')) el.style.transitionDelay = '200ms';
+                    if (el.classList.contains('stagger-3')) el.style.transitionDelay = '300ms';
+                    if (el.classList.contains('stagger-4')) el.style.transitionDelay = '400ms';
+                });
+            });
+        }
 
         // Global Error Catcher for easier debugging
         window.addEventListener('error', function (e) {
@@ -541,12 +744,280 @@
         const optForm = document.getElementById('optimization-form');
         if (optForm) optForm.addEventListener('submit', handleOptimization);
 
+        const augForm = document.getElementById('ml-augmentation-form');
+        if (augForm) augForm.addEventListener('submit', handleAugmentation);
+
         const refreshBtn = document.getElementById('refreshModels');
         if (refreshBtn) refreshBtn.addEventListener('click', loadMLStatus);
 
         initTrainingForm();
         initConstraintsSection();
+        loadComponentFeatures();
+
+        // Phase 4: Init New Features
+        initSandbox();
+        initFeatureImportanceChart();
+        initHallOfFame();
     });
+
+    let sandboxRadarChart = null;
+    let featureImportanceChart = null;
+    let sandboxDebounceTimer = null;
+
+    function initSandbox() {
+        console.log("🎮 Initializing Sandbox...");
+        fetch('/ml_system_status')
+            .then(r => r.json())
+            .then(data => {
+                if (data.success && data.system_status.available_components) {
+                    const container = document.getElementById('sandboxSlidersContainer');
+                    const components = data.system_status.available_components;
+                    container.innerHTML = '';
+
+                    const initialValue = (100 / components.length).toFixed(1);
+
+                    components.forEach(comp => {
+                        const div = document.createElement('div');
+                        div.className = 'mb-4 sandbox-slider-item';
+                        div.innerHTML = `
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <label class="text-xs font-weight-bold text-dark m-0">${comp}</label>
+                                <span class="text-xs font-weight-bolder text-primary slider-value" id="val_sandbox_${comp}">${initialValue}%</span>
+                            </div>
+                            <input type="range" class="form-range sandbox-slider" 
+                                   data-comp="${comp}" 
+                                   min="0" max="100" step="0.5" 
+                                   value="${initialValue}" 
+                                   id="input_sandbox_${comp}">
+                        `;
+                        container.appendChild(div);
+                    });
+
+                    // Add event listeners for normalization
+                    const sliders = document.querySelectorAll('.sandbox-slider');
+                    sliders.forEach(slider => {
+                        slider.addEventListener('input', function () {
+                            normalizeSandboxSliders(this);
+                            debouncedSandboxUpdate();
+                        });
+                    });
+
+                    initSandboxRadarChart(data.system_status.target_properties_mapping);
+                    updateSandboxPrediction(); // Initial prediction
+                }
+            });
+    }
+
+    function normalizeSandboxSliders(changedSlider) {
+        const sliders = Array.from(document.querySelectorAll('.sandbox-slider'));
+        const changedComp = changedSlider.getAttribute('data-comp');
+        const newValue = parseFloat(changedSlider.value);
+
+        let otherSliders = sliders.filter(s => s.getAttribute('data-comp') !== changedComp);
+        let currentOtherSum = otherSliders.reduce((sum, s) => sum + parseFloat(s.value), 0);
+        let targetOtherSum = 100 - newValue;
+
+        if (currentOtherSum > 0) {
+            const ratio = targetOtherSum / currentOtherSum;
+            otherSliders.forEach(s => {
+                const sNewVal = parseFloat(s.value) * ratio;
+                s.value = sNewVal.toFixed(1);
+                document.getElementById(`val_sandbox_${s.getAttribute('data-comp')}`).textContent = s.value + '%';
+            });
+        } else if (otherSliders.length > 0) {
+            const equalShare = targetOtherSum / otherSliders.length;
+            otherSliders.forEach(s => {
+                s.value = equalShare.toFixed(1);
+                document.getElementById(`val_sandbox_${s.getAttribute('data-comp')}`).textContent = s.value + '%';
+            });
+        }
+
+        document.getElementById(`val_sandbox_${changedComp}`).textContent = newValue.toFixed(1) + '%';
+    }
+
+    function debouncedSandboxUpdate() {
+        clearTimeout(sandboxDebounceTimer);
+        sandboxDebounceTimer = setTimeout(updateSandboxPrediction, 300);
+    }
+
+    function updateSandboxPrediction() {
+        const sliders = document.querySelectorAll('.sandbox-slider');
+        const composition = {};
+        sliders.forEach(s => {
+            composition[s.getAttribute('data-comp')] = parseFloat(s.value);
+        });
+
+        fetch('/api/predict_composition', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ composition: composition })
+        })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    updateSandboxVisuals(data.results);
+                }
+            });
+    }
+
+    function initSandboxRadarChart(mappings) {
+        const ctx = document.getElementById('sandboxRadarChart').getContext('2d');
+        const labels = Object.values(mappings);
+
+        sandboxRadarChart = new Chart(ctx, {
+            type: 'radar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Предсказанные свойства',
+                    data: labels.map(() => 0),
+                    fill: true,
+                    backgroundColor: 'rgba(79, 172, 254, 0.2)',
+                    borderColor: 'rgb(79, 172, 254)',
+                    pointBackgroundColor: 'rgb(79, 172, 254)',
+                    pointBorderColor: '#fff',
+                    pointHoverBackgroundColor: '#fff',
+                    pointHoverBorderColor: 'rgb(79, 172, 254)'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                elements: { line: { borderWidth: 3 } },
+                scales: {
+                    r: {
+                        angleLines: { display: true, color: 'rgba(255,255,255,0.05)' },
+                        grid: { color: 'rgba(255,255,255,0.1)' },
+                        suggestedMin: 0,
+                        pointLabels: { color: '#8898aa', font: { size: 10 } }
+                    }
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+    }
+
+    function updateSandboxVisuals(results) {
+        if (!sandboxRadarChart) return;
+
+        const labels = sandboxRadarChart.data.labels;
+        const newData = labels.map(label => {
+            const found = Object.values(results).find(r => r.display_name === label);
+            return found ? found.value : 0;
+        });
+
+        // Normalize data for radar chart (simple 0-100 logic for visualization)
+        // In real apps, you'd normalize based on expected min/max per property
+        const maxVal = Math.max(...newData, 1);
+        const normalizedData = newData.map(v => (v / maxVal) * 100);
+
+        sandboxRadarChart.data.datasets[0].data = normalizedData;
+        sandboxRadarChart.update();
+
+        // Update Badges
+        const badgeContainer = document.getElementById('sandboxPredictionBadges');
+        badgeContainer.innerHTML = '';
+        Object.keys(results).forEach(key => {
+            const r = results[key];
+            badgeContainer.innerHTML += `
+                <div class="badge bg-light text-dark p-2 border shadow-sm">
+                    <div class="text-xs text-muted">${r.display_name}</div>
+                    <div class="fw-bold text-primary">${r.value}</div>
+                </div>
+            `;
+        });
+    }
+
+    function initFeatureImportanceChart() {
+        const ctx = document.getElementById('featureImportanceChart').getContext('2d');
+        featureImportanceChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Важность (%)',
+                    data: [],
+                    backgroundColor: 'rgba(67, 233, 123, 0.7)',
+                    borderRadius: 5
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { display: false }, ticks: { color: '#8898aa' } },
+                    y: { grid: { display: false }, ticks: { color: '#8898aa' } }
+                }
+            }
+        });
+    }
+
+    function updateFeatureImportance(metrics) {
+        if (!featureImportanceChart || !metrics || Object.keys(metrics).length === 0) return;
+
+        const select = document.getElementById('featureImportancePropSelect');
+        const currentVal = select.value;
+
+        // Update select options if they changed
+        const props = Object.keys(metrics);
+        if (select.options.length !== props.length) {
+            select.innerHTML = '';
+            props.forEach(prop => {
+                const opt = document.createElement('option');
+                opt.value = prop;
+                opt.textContent = metrics[prop].display_name || prop;
+                select.appendChild(opt);
+            });
+
+            select.onchange = () => updateFeatureImportance(metrics);
+        }
+
+        const targetProp = currentVal && metrics[currentVal] ? currentVal : props[0];
+        const importance = metrics[targetProp].feature_importance;
+
+        if (!importance || Object.keys(importance).length === 0) {
+            document.getElementById('featureImportanceSection').style.display = 'none';
+            return;
+        }
+
+        document.getElementById('featureImportanceSection').style.display = 'block';
+
+        // Sort and limit to top 10
+        const sorted = Object.entries(importance)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 10);
+
+        featureImportanceChart.data.labels = sorted.map(s => s[0]);
+        featureImportanceChart.data.datasets[0].data = sorted.map(s => (s[1] * 100).toFixed(1));
+        featureImportanceChart.data.datasets[0].label = `Важность для ${metrics[targetProp].display_name || targetProp} (%)`;
+        featureImportanceChart.update();
+    }
+
+    function initHallOfFame() {
+        // Any specific history log logic can go here
+    }
+
+    function loadComponentFeatures() {
+        fetch('/ml_system_status')
+            .then(r => r.json())
+            .then(data => {
+                if (data.success && data.system_status.available_components) {
+                    const cContainer = document.getElementById('componentFeaturesContainer');
+                    cContainer.innerHTML = '';
+                    data.system_status.available_components.forEach(comp => {
+                        cContainer.innerHTML += `
+                        <div class="col-6 col-md-4">
+                            <div class="form-check custom-checkbox">
+                                <input class="form-check-input feature-checkbox" type="checkbox" name="input_features[]" value="${comp}" id="feat_${comp}" checked>
+                                <label class="form-check-label text-sm text-truncate w-100" title="${comp}" for="feat_${comp}">${comp}</label>
+                            </div>
+                        </div>`;
+                    });
+                }
+            }).catch(e => console.error("Failed to load components:", e));
+    }
 
     function initConstraintsSection() {
         const advancedConstraints = document.getElementById('advancedConstraints');
@@ -629,14 +1100,21 @@
                     document.getElementById('activeModels').textContent = data.system_status.trained_models.length;
                     document.getElementById('optimizations').textContent = data.system_status.ml_optimizations_count;
 
-                    let totalR2 = 0; let count = 0;
+                    // Update avg accuracy
+                    let totalR2 = 0;
+                    let count = 0;
                     Object.values(data.system_status.model_metrics).forEach(model => {
                         if (model.training_metrics && model.training_metrics.r2_score) {
-                            totalR2 += model.training_metrics.r2_score; count++;
+                            totalR2 += model.training_metrics.r2_score;
+                            count++;
                         }
                     });
-                    const act = count > 0 ? (totalR2 / count * 100).toFixed(1) : 0;
-                    document.getElementById('avgAccuracy').textContent = act + '%';
+
+                    const avgAcc = count > 0 ? (totalR2 / count * 100).toFixed(1) : "0";
+                    document.getElementById('avgAccuracy').textContent = avgAcc + '%';
+
+                    // Refresh Visualizers
+                    updateFeatureImportance(data.system_status.model_metrics);
                 }
             });
     }
@@ -687,7 +1165,14 @@
         const spinner = btn.querySelector('.spinner-border');
         const txt = btn.querySelector('.btn-text');
 
+        const progWrapper = document.getElementById('trainingProgressWrapper');
+        const progBar = document.getElementById('trainingProgressBar');
+        const progText = document.getElementById('progressText');
+        const progPercent = document.getElementById('progressPercent');
+
         btn.disabled = true; spinner.classList.remove('d-none'); txt.textContent = 'Обучение...';
+        progWrapper.classList.remove('d-none');
+        progBar.style.width = '10%'; progText.textContent = 'Подготовка данных...'; progPercent.textContent = '10%';
 
         // Auto scroll to results
         scrollToSection('ml-step-4');
@@ -701,18 +1186,97 @@
             console.log("Form data target_properties:", formData.getAll('target_properties[]'));
             console.log("Form data algorithm:", formData.get('algorithm'));
 
-            // We use method POST with FormData as expected by /ml_system_train in main.py
+            // Validate input features
+            const features = formData.getAll('input_features[]');
+            if (features.length === 0) {
+                // Try getting them manually if form didn't catch them
+                document.querySelectorAll('.feature-checkbox:checked').forEach(c => formData.append('input_features[]', c.value));
+            }
+
+            // Simulate progress visually while fetching
+            let p = 10;
+            const simInterval = setInterval(() => {
+                if (p < 90) { p += Math.random() * 15; progBar.style.width = `${p}%`; progPercent.textContent = `${Math.round(p)}%`; progText.textContent = 'Обучение моделей...'; }
+            }, 800);
+
             const r = await fetch('/ml_system_train', {
                 method: 'POST',
                 body: formData
             });
             const data = await r.json();
+            clearInterval(simInterval);
+
+            progBar.style.width = '100%'; progPercent.textContent = '100%'; progText.textContent = 'Готово!';
             console.log("Backend response:", data);
+
+            if (data.success) {
+                let alertIcon = 'success';
+                let alertTitle = 'Успех!';
+                let alertText = data.message;
+                let htmlMessage = `<i class="fas fa-check-circle me-2"></i>${data.message}`;
+
+                if (data.skipped && data.skipped.length > 0) {
+                    alertIcon = 'warning';
+                    alertTitle = 'Частичный Успех';
+                    const skippedList = data.skipped.map(s => `<li><b>${s.property}</b>: ${s.reason}</li>`).join('');
+                    alertText = `${data.message}<br><br><b>Пропущены параметры:</b><ul class="text-start mt-2 mb-0">${skippedList}</ul>`;
+                    htmlMessage = `<i class="fas fa-exclamation-circle me-2"></i>Обучено моделей: ${data.trained_count}. Некоторые свойства пропущены из-за нехватки данных.`;
+                }
+
+                Swal.fire({
+                    icon: alertIcon,
+                    title: alertTitle,
+                    html: alertText,
+                    showConfirmButton: true
+                });
+                resDiv.innerHTML = `<div class="alert alert-${alertIcon === 'success' ? 'success' : 'warning'} border-0 text-dark animate__animated animate__fadeIn">${htmlMessage}</div>`;
+                updateSystemStats(); loadMLStatus();
+            } else {
+                let errorHtml = data.error || data.message;
+                if (data.skipped && data.skipped.length > 0) {
+                    const skippedList = data.skipped.map(s => `<li><b>${s.property}</b>: ${s.reason}</li>`).join('');
+                    errorHtml += `<br><br><b>Пропущены параметры:</b><ul class="text-start mt-2 mb-0">${skippedList}</ul>`;
+                }
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Ошибка',
+                    html: errorHtml
+                });
+                resDiv.innerHTML = `<div class="alert alert-danger border-0 text-white animate__animated animate__shakeX"><i class="fas fa-exclamation-triangle me-2"></i>Ошибка: ${data.error || data.message}</div>`;
+            }
+        } catch (error) {
+            console.error(error);
+            resDiv.innerHTML = `<div class="alert alert-danger border-0 text-white"><i class="fas fa-bug"></i> Ошибка запроса на сервер</div>`;
+        } finally {
+            btn.disabled = false; spinner.classList.add('d-none'); txt.textContent = 'Запустить Обучение';
+        }
+    }
+
+    async function handleAugmentation(e) {
+        e.preventDefault();
+        const btn = document.getElementById('augmentBtn');
+        const spinner = btn.querySelector('.spinner-border');
+        const txt = btn.querySelector('.btn-text');
+
+        btn.disabled = true; spinner.classList.remove('d-none'); txt.textContent = 'Обработка...';
+
+        scrollToSection('ml-step-4');
+        const resDiv = document.getElementById('trainingResults');
+        resDiv.style.display = 'block';
+        resDiv.innerHTML = '<div class="alert alert-info border-0"><i class="fas fa-spinner fa-spin me-2"></i>Идёт генерация данных и переобучение нейросети...</div>';
+
+        try {
+            const formData = new FormData(this);
+            const r = await fetch('/ml_augment_database', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await r.json();
 
             if (data.success) {
                 Swal.fire({
                     icon: 'success',
-                    title: 'Успех!',
+                    title: 'База расширена!',
                     text: data.message,
                     timer: 3000,
                     showConfirmButton: false
@@ -723,15 +1287,15 @@
                 Swal.fire({
                     icon: 'error',
                     title: 'Ошибка',
-                    text: data.error || data.message
+                    text: data.error || 'Произошла ошибка при аугментации'
                 });
-                resDiv.innerHTML = `<div class="alert alert-danger border-0 text-white animate__animated animate__shakeX"><i class="fas fa-exclamation-triangle me-2"></i>Ошибка: ${data.error || data.message}</div>`;
+                resDiv.innerHTML = `<div class="alert alert-danger border-0 text-white"><i class="fas fa-exclamation-triangle me-2"></i>Ошибка: ${data.error}</div>`;
             }
         } catch (error) {
             console.error(error);
-            resDiv.innerHTML = `<div class="alert alert-danger border-0 text-white"><i class="fas fa-bug"></i> Ошибка запроса на сервер</div>`;
+            resDiv.innerHTML = `<div class="alert alert-danger border-0 text-white"><i class="fas fa-bug border-0"></i> Ошибка сети</div>`;
         } finally {
-            btn.disabled = false; spinner.classList.add('d-none'); txt.textContent = 'Запустить Обучение';
+            btn.disabled = false; spinner.classList.add('d-none'); txt.textContent = 'Сгенерировать и Обучить';
         }
     }
 

@@ -2,20 +2,20 @@
 
 {% block content %}
 <div class="container-fluid py-4">
-    <div class="row mb-4">
+    <div class="row ">
         <div class="col-12">
-            <div class="card shadow-sm border-0 animate-on-scroll mb-4 position-relative overflow-hidden">
+            <div class="card shadow-sm border-0 animate-on-scroll mb-4 position-relative overflow-hidden premium-card">
                 <div class="card-body p-4 position-relative" style="z-index: 1;">
                     <div class="row align-items-center">
                         <div class="col-md-8">
-                            <h1 class="display-6 fw-bold mb-2 text-dark">💰 Экономическая часть</h1>
+                            <h1 class="display-6 fw-bold mb-2 premium-text">💰 Экономическая часть</h1>
                             <p class="lead mb-0 text-muted">Оценка стоимости ингредиентов и расчет рентабельности
                                 производства топливных пеллет.</p>
                         </div>
                         <div class="col-md-4 text-end">
-                            <div class="bg-white rounded-pill px-3 py-2 d-inline-block border shadow-sm">
+                            <div class="premium-badge px-3 py-2 d-inline-block shadow-sm">
                                 <i class="fas fa-calculator text-primary me-2"></i>
-                                <span class="fw-bold fs-6 text-muted">Модуль расчетов</span>
+                                <span class="fw-bold fs-6">Модуль расчетов</span>
                             </div>
                         </div>
                     </div>
@@ -24,42 +24,508 @@
         </div>
     </div>
 
-    <!-- Заглушка для контента -->
+    <!-- Интерактивный калькулятор -->
     <div class="row">
-        <div class="col-lg-8 col-md-12 mb-4">
-            <div class="card shadow-sm border-0 animate-on-scroll stagger-1 h-100">
-                <div class="card-header bg-white py-3 border-0">
-                    <h5 class="mb-0 text-dark font-weight-bolder">
-                        <i class="fas fa-coins me-2 text-warning"></i>Калькулятор себестоимости
+        <!-- Блок Ввода Параметров -->
+        <div class="col-lg-5 col-md-12 mb-4">
+            <div class="card shadow-sm border-0 animate-on-scroll stagger-1 h-100 premium-card">
+                <div class="card-header bg-transparent py-3 border-0">
+                    <h5 class="mb-0 font-weight-bolder premium-text">
+                        <i class="fas fa-sliders-h me-2 text-warning"></i>Параметры Заказчика
                     </h5>
                 </div>
-                <div class="card-body text-center py-5">
-                    <div class="opacity-5 mb-3">
-                        <i class="fas fa-tools fa-4x text-muted"></i>
-                    </div>
-                    <h5 class="text-muted">Модуль в разработке</h5>
-                    <p class="text-muted mb-0">Здесь появится функционал для ввода цен на компоненты и автоматического
-                        расчета себестоимости 1 тонны готовой продукции для каждого состава.</p>
+                <div class="card-body pt-0">
+                    <form id="economics-form">
+                        <div class="mb-3">
+                            <label class="form-label text-muted fw-bold">Тепловая мощность котла (кВт)</label>
+                            <input type="number" class="form-control premium-input" id="q_boiler" value="80" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-muted fw-bold">Время работы котла на запасе (ч)</label>
+                            <input type="number" class="form-control premium-input" id="t_hours" value="720" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-muted fw-bold">Расстояние транспортировки (км)</label>
+                            <input type="number" class="form-control premium-input" id="distance" value="258" required>
+                        </div>
+                        <div class="row">
+                            <div class="col-6 mb-3">
+                                <label class="form-label text-muted fw-bold">Коэфф. мощности</label>
+                                <input type="number" step="0.1" max="1" min="0" class="form-control premium-input"
+                                    id="capacity_factor" value="0.8" required>
+                            </div>
+                            <div class="col-6 mb-3">
+                                <label class="form-label text-muted fw-bold">КПД котла</label>
+                                <input type="number" step="0.01" max="1" min="0" class="form-control premium-input"
+                                    id="efficiency" value="0.9" required>
+                            </div>
+                        </div>
+
+                        <hr class="horizontal light my-3">
+                        <h6 class="text-uppercase text-body text-xs font-weight-bolder mb-3">Состав Смеси (%)</h6>
+
+                        <div id="components-container">
+                            <!-- Динамические компоненты добавляются сюда -->
+                            <div class="row align-items-center mb-2 component-row">
+                                <div class="col-6">
+                                    <select class="form-select premium-input component-select text-white">
+                                        <option value="Опилки" selected>Опилки</option>
+                                        <option value="Солома">Солома</option>
+                                        <option value="Картон">Картон</option>
+                                        <option value="Подсолнечный жмых">Подсолнечный жмых</option>
+                                        <option value="Рисовая шелуха">Рисовая шелуха</option>
+                                        <option value="Угольный шлам">Угольный шлам</option>
+                                        <option value="Торф">Торф</option>
+                                        <option value="Бурый уголь">Бурый уголь</option>
+                                        <option value="CMC">CMC</option>
+                                        <option value="Пластик">Пластик</option>
+                                        <option value="Листья">Листья</option>
+                                        <option value="Отработанное моторное масло">Отр. моторное масло</option>
+                                        <option value="Рапсовое масло">Рапсовое масло</option>
+                                    </select>
+                                </div>
+                                <div class="col-4">
+                                    <input type="number" class="form-control premium-input component-percentage"
+                                        value="100" min="0" max="100" step="0.1">
+                                </div>
+                                <div class="col-2">
+                                    <button type="button" class="btn btn-sm btn-outline-danger w-100 remove-btn"
+                                        disabled><i class="fas fa-trash"></i></button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Прогресс-бар расчета -->
+                        <div id="calc-progress-container" class="mb-3 d-none">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="text-xs text-muted fw-bold" id="calc-progress-text">Расчет...</span>
+                                <span class="text-xs text-muted fw-bold" id="calc-progress-percent">0%</span>
+                            </div>
+                            <div class="progress" style="height: 6px;">
+                                <div id="calc-progress-bar" class="progress-bar bg-gradient-success" role="progressbar"
+                                    style="width: 0%"></div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <span class="text-xs text-muted">Сумма: <span id="total-percentage"
+                                    class="fw-bold text-success">100</span>%</span>
+                            <button type="button" class="btn btn-sm btn-outline-info" id="add-component-btn"><i
+                                    class="fas fa-plus me-1"></i>Добавить</button>
+                        </div>
+
+                        <button type="submit" class="btn bg-gradient-success w-100 shadow-sm" id="calc-btn">
+                            <i class="fas fa-calculator me-2"></i>Рассчитать себестоимость
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>
 
-        <div class="col-lg-4 col-md-12 mb-4">
-            <div class="card shadow-sm border-0 animate-on-scroll stagger-2 h-100">
-                <div class="card-header bg-white py-3 border-0">
-                    <h5 class="mb-0 text-dark font-weight-bolder">
-                        <i class="fas fa-chart-pie me-2 text-info"></i>Аналитика
+        <!-- Блок Результатов Аналитики -->
+        <div class="col-lg-7 col-md-12 mb-4">
+            <div class="card shadow-sm border-0 animate-on-scroll stagger-2 h-100 premium-card">
+                <div class="card-header bg-transparent py-3 border-0 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 font-weight-bolder premium-text">
+                        <i class="fas fa-chart-pie me-2 text-info"></i>Результаты Расчета
                     </h5>
+                    <span class="badge w-30" style="background: rgba(30, 219, 137, 0.2); color: #1edb89;"
+                        id="status-badge">Ожидание...</span>
                 </div>
-                <div class="card-body text-center py-5">
-                    <div class="opacity-5 mb-3">
-                        <i class="fas fa-chart-bar fa-4x text-muted"></i>
+                <div class="card-body pt-0" id="results-placeholder">
+                    <div class="text-center py-5">
+                        <div class="opacity-5 mb-3">
+                            <i class="fas fa-chart-bar fa-4x text-muted"></i>
+                        </div>
+                        <h5 class="text-muted">Введите параметры слева</h5>
+                        <p class="text-muted mb-0">Калькулятор автоматически рассчитает затраты на хранение,
+                            производство и транспортировку пеллет по заданному составу.</p>
                     </div>
-                    <h5 class="text-muted">Анализ рынка</h5>
-                    <p class="text-muted mb-0">Графики сравнения прогнозируемой цены реализации с себестоимостью.</p>
+                </div>
+
+                <div class="card-body pt-0 d-none" id="results-content">
+                    <div class="row mb-4">
+                        <div class="col-md-6 mb-3">
+                            <div class="p-3 bg-dark rounded-3 border border-secondary border-opacity-25 h-100">
+                                <h6 class="text-uppercase text-muted text-xs font-weight-bolder mb-2">Итоговые Затраты
+                                </h6>
+                                <h3 class="mb-0 text-white font-weight-bolder" id="res-total-cost">0 <span
+                                        class="text-sm font-weight-normal text-muted">руб</span></h3>
+                                <p class="text-xs text-success mb-0 mt-1"><i class="fas fa-check-circle me-1"></i>На
+                                    указанный период работы</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="p-3 bg-dark rounded-3 border border-secondary border-opacity-25 h-100">
+                                <h6 class="text-uppercase text-muted text-xs font-weight-bolder mb-2">Необходимая Масса
+                                    Топлива</h6>
+                                <h3 class="mb-0 text-info font-weight-bolder" id="res-mass">0 <span
+                                        class="text-sm font-weight-normal text-muted">кг</span></h3>
+                                <p class="text-xs text-info mb-0 mt-1" id="res-volume"><i
+                                        class="fas fa-box me-1"></i>Объем: 0 м3</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-md-7">
+                            <div class="chart-container" style="position: relative; height:250px;">
+                                <canvas id="costBreakdownChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="col-md-5 d-flex flex-column justify-content-center">
+                            <div class="d-flex align-items-center mb-3">
+                                <span class="badge border border-info px-2 py-1 me-2"
+                                    style="background: rgba(23, 162, 184, 0.2);"><i
+                                        class="fas fa-warehouse text-info"></i></span>
+                                <div>
+                                    <h6 class="mb-0 text-sm text-white">Хранение</h6>
+                                    <span class="text-xs text-muted" id="res-storage-cost">0 руб</span>
+                                </div>
+                            </div>
+                            <div class="d-flex align-items-center mb-3">
+                                <span class="badge border border-warning px-2 py-1 me-2"
+                                    style="background: rgba(255, 193, 7, 0.2);"><i
+                                        class="fas fa-cogs text-warning"></i></span>
+                                <div>
+                                    <h6 class="mb-0 text-sm text-white">Производство</h6>
+                                    <span class="text-xs text-muted" id="res-prod-cost">0 руб</span>
+                                </div>
+                            </div>
+                            <div class="d-flex align-items-center mb-3">
+                                <span class="badge border border-success px-2 py-1 me-2"
+                                    style="background: rgba(40, 167, 69, 0.2);"><i
+                                        class="fas fa-truck text-success"></i></span>
+                                <div>
+                                    <h6 class="mb-0 text-sm text-white">Транспортировка</h6>
+                                    <span class="text-xs text-muted" id="res-trans-cost">0 руб</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h6 class="text-uppercase text-body text-xs font-weight-bolder mb-3 mt-4">Характеристики полученной
+                        смеси</h6>
+                    <div class="table-responsive">
+                        <table class="table align-items-center mb-0 text-sm text-white">
+                            <tbody>
+                                <tr>
+                                    <td><span class="text-muted"><i class="fas fa-weight-hanging me-2"></i>Плотность
+                                            расч. (\(\rho\))</span></td>
+                                    <td class="text-end fw-bold" id="res-mix-density">-</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="text-muted"><i class="fas fa-fire me-2"></i>Теплоемкость
+                                            (\(Q^r_i\))</span></td>
+                                    <td class="text-end fw-bold" id="res-mix-qai">-</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="text-muted"><i class="fas fa-money-bill-wave me-2"></i>Затраты на
+                                            сырье (руб/кг)</span></td>
+                                    <td class="text-end fw-bold" id="res-mix-raw">-</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="text-muted"><i class="fas fa-industry me-2"></i>Суммарно
+                                            производство (руб/кг)</span></td>
+                                    <td class="text-end fw-bold" id="res-mix-total-prod">-</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
                 </div>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+
+        let costChart = null;
+
+        // ----- Dynamic Component List Logic -----
+        const container = document.getElementById('components-container');
+        const addBtn = document.getElementById('add-component-btn');
+        const displayTotal = document.getElementById('total-percentage');
+        let availableComponents = [];
+
+        function loadAvailableComponents() {
+            fetch('/api/get_components_economics')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        availableComponents = data.components;
+                        // Refresh existing selects
+                        document.querySelectorAll('.component-select').forEach(select => {
+                            const currentVal = select.value;
+                            updateSelectOptions(select, currentVal);
+                        });
+                    }
+                });
+        }
+
+        function updateSelectOptions(select, selectedValue) {
+            select.innerHTML = availableComponents.map(c =>
+                `<option value="${c.component}" ${c.component === selectedValue ? 'selected' : ''}>${c.component}</option>`
+            ).join('');
+        }
+
+        function updateTotal() {
+            let sum = 0;
+            document.querySelectorAll('.component-percentage').forEach(input => {
+                sum += parseFloat(input.value) || 0;
+            });
+
+            displayTotal.innerText = sum.toFixed(1);
+            if (Math.abs(sum - 100) > 0.1) {
+                displayTotal.className = "fw-bold text-danger";
+            } else {
+                displayTotal.className = "fw-bold text-success";
+            }
+        }
+
+        // Attach listener to initial row
+        document.querySelectorAll('.component-percentage').forEach(input => {
+            input.addEventListener('input', updateTotal);
+        });
+
+        addBtn.addEventListener('click', function () {
+            const row = document.createElement('div');
+            row.className = 'row align-items-center mb-2 component-row animate__animated animate__fadeIn';
+            row.innerHTML = `
+            <div class="col-6">
+                <select class="form-select premium-input component-select text-white">
+                    ${availableComponents.map(c => `<option value="${c.component}">${c.component}</option>`).join('')}
+                </select>
+            </div>
+            <div class="col-4">
+                <input type="number" class="form-control premium-input component-percentage" value="0" min="0" max="100" step="0.1">
+            </div>
+            <div class="col-2">
+                <button type="button" class="btn btn-sm btn-outline-danger w-100 remove-btn"><i class="fas fa-trash"></i></button>
+            </div>
+        `;
+
+            container.appendChild(row);
+
+            // Setup listeners for new row
+            row.querySelector('.component-percentage').addEventListener('input', updateTotal);
+            row.querySelector('.remove-btn').addEventListener('click', function () {
+                row.classList.replace('animate__fadeIn', 'animate__fadeOut');
+                setTimeout(() => {
+                    row.remove();
+                    updateTotal();
+                    checkRemoveButtons();
+                }, 300);
+            });
+
+            checkRemoveButtons();
+            updateTotal();
+        });
+
+        function checkRemoveButtons() {
+            const rows = document.querySelectorAll('.component-row');
+            rows.forEach((row, index) => {
+                const btn = row.querySelector('.remove-btn');
+                if (rows.length === 1) {
+                    btn.disabled = true;
+                } else {
+                    btn.disabled = false;
+                }
+            });
+        }
+
+        loadAvailableComponents();
+
+        // ----- Chart Rendering Logic -----
+        function renderChart(storage, prod, trans) {
+            const ctx = document.getElementById('costBreakdownChart').getContext('2d');
+
+            if (costChart) costChart.destroy();
+
+            costChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Хранение', 'Производство', 'Транспортировка'],
+                    datasets: [{
+                        data: [storage, prod, trans],
+                        backgroundColor: [
+                            'rgba(23, 162, 184, 0.8)', // Info
+                            'rgba(255, 193, 7, 0.8)',  // Warning
+                            'rgba(40, 167, 69, 0.8)'   // Success
+                        ],
+                        borderColor: [
+                            'rgba(23, 162, 184, 1)',
+                            'rgba(255, 193, 7, 1)',
+                            'rgba(40, 167, 69, 1)'
+                        ],
+                        borderWidth: 1,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false // We use custom html legend
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function (context) {
+                                    let label = context.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed !== null) {
+                                        label += new Intl.NumberFormat('ru-RU').format(context.parsed) + ' руб';
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    cutout: '65%'
+                }
+            });
+        }
+
+
+        // ----- Form Submission & API Call -----
+        document.getElementById('economics-form').addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            // validate 100%
+            let sum = 0;
+            document.querySelectorAll('.component-percentage').forEach(input => sum += parseFloat(input.value) || 0);
+            if (Math.abs(sum - 100) > 0.1) {
+                Swal.fire({
+                    title: 'Ошибка',
+                    text: 'Сумма компонентов должна быть ровно 100%',
+                    icon: 'error',
+                    background: '#1e1e2d',
+                    color: '#fff'
+                });
+                return;
+            }
+
+            // build payload
+            const payload = {
+                q_boiler: document.getElementById('q_boiler').value,
+                t_hours: document.getElementById('t_hours').value,
+                distance: document.getElementById('distance').value,
+                capacity_factor: document.getElementById('capacity_factor').value,
+                efficiency: document.getElementById('efficiency').value,
+                components: {}
+            };
+
+            document.querySelectorAll('.component-row').forEach(row => {
+                let name = row.querySelector('.component-select').value;
+                // Hack for string mapped mismatch option vs py dict if needed
+                if (name === "Отр. моторное масло") name = "Отработанное моторное масло";
+
+                let perc = parseFloat(row.querySelector('.component-percentage').value) || 0;
+                if (perc > 0) {
+                    // If duplicates are added manually, sum them
+                    payload.components[name] = (payload.components[name] || 0) + perc;
+                }
+            });
+
+            const btn = document.getElementById('calc-btn');
+            const progContainer = document.getElementById('calc-progress-container');
+            const progBar = document.getElementById('calc-progress-bar');
+            const progText = document.getElementById('calc-progress-text');
+            const progPercent = document.getElementById('calc-progress-percent');
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Обработка...';
+            progContainer.classList.remove('d-none');
+
+            // Simulating steps
+            let p = 0;
+            progText.innerText = "Сбор данных...";
+            const interval = setInterval(() => {
+                if (p < 30) p += 5;
+                else if (p < 70) {
+                    p += 2;
+                    progText.innerText = "Расчет характеристик смеси...";
+                } else if (p < 95) {
+                    p += 1;
+                    progText.innerText = "Анализ логистики и хранения...";
+                }
+                progBar.style.width = p + '%';
+                progPercent.innerText = p + '%';
+            }, 100);
+
+            fetch('/api/calculate_economics', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+                .then(response => response.json())
+                .then(data => {
+                    clearInterval(interval);
+                    progBar.style.width = '100%';
+                    progPercent.innerText = '100%';
+                    progText.innerText = 'Готово!';
+
+                    setTimeout(() => {
+                        progContainer.classList.add('d-none');
+                        btn.innerHTML = '<i class="fas fa-calculator me-2"></i>Рассчитать себестоимость';
+                        btn.disabled = false;
+                    }, 500);
+
+                    if (data.success) {
+                        // Show panels
+                        document.getElementById('results-placeholder').classList.add('d-none');
+                        document.getElementById('results-content').classList.remove('d-none');
+                        document.getElementById('status-badge').innerText = "Расчет завершен";
+
+                        const fmt = new Intl.NumberFormat('ru-RU');
+
+                        // Populate numbers
+                        document.getElementById('res-total-cost').innerHTML = `${fmt.format(data.total_cost)} <span class="text-sm font-weight-normal text-muted">руб</span>`;
+                        document.getElementById('res-mass').innerHTML = `${fmt.format(data.storage.mass_kg)} <span class="text-sm font-weight-normal text-muted">кг</span>`;
+                        document.getElementById('res-volume').innerHTML = `<i class="fas fa-box me-1"></i>Объем: ${fmt.format(data.storage.volume_m3)} м3 (Нужно: ${data.storage.area_m2} м2)`;
+
+                        document.getElementById('res-storage-cost').innerText = `${fmt.format(data.storage.cost)} руб`;
+                        document.getElementById('res-prod-cost').innerText = `${fmt.format(data.production.cost)} руб`;
+                        document.getElementById('res-trans-cost').innerText = `${fmt.format(data.transport.cost)} руб`;
+
+                        // Metrics
+                        document.getElementById('res-mix-density').innerText = `${data.mix_metrics.density} кг/м3`;
+                        document.getElementById('res-mix-qai').innerText = `${data.mix_metrics.heat_capacity} МДж/кг`;
+                        document.getElementById('res-mix-raw').innerText = `${data.mix_metrics.cost_raw} руб/кг`;
+                        const totalProdCostKg = data.mix_metrics.cost_raw + data.mix_metrics.cost_crush + data.mix_metrics.cost_granule;
+                        document.getElementById('res-mix-total-prod').innerText = `${fmt.format(totalProdCostKg)} руб/кг`;
+
+                        renderChart(data.storage.cost, data.production.cost, data.transport.cost);
+
+                        // Scroll to results
+                        document.getElementById('results-content').scrollIntoView({ behavior: 'smooth', block: 'end' });
+                    } else {
+                        Swal.fire({
+                            title: 'Ошибка',
+                            text: data.error || 'Не удалось выполнить расчёт',
+                            icon: 'error',
+                            background: '#1e1e2d',
+                            color: '#fff'
+                        });
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    btn.innerHTML = '<i class="fas fa-calculator me-2"></i>Рассчитать себестоимость';
+                    btn.disabled = false;
+                    Swal.fire('Ошибка', 'Сервер не отвечает', 'error');
+                });
+
+        });
+
+    });
+</script>
 {% endblock %}

@@ -853,25 +853,27 @@ def ml_dashboard():
     uploaded_files = os.listdir(app.config['UPLOAD_FOLDER']) if os.path.exists(app.config['UPLOAD_FOLDER']) else []
     measured_data = query_db(db_path, "measured_parameters")
     
-    # Lazy import: Импортируем внутри роута, чтобы избежать цикла
     from ml_optimizer import get_ml_system
     ml_system = get_ml_system()  # Получаем глобальный экземпляр
+    ml_system.reload_data()      # Принудительно перезагружаем данные
     
-    # Получаем статус ML моделей
-    ml_status = {}
-    try:
-        ml_status = ml_system.get_ml_system_status()
-    except Exception as e:
-        print(f"Ошибка получения статуса ML: {e}")
-        print(f"Training data size: {len(ml_system.training_data) if ml_system.training_data is not None else 'None'}")
+    status = ml_system.get_ml_system_status()
+    
+    # Дополнительно получаем историю для "Зала Славы"
+    from database import get_ml_optimizations
+    optimizations_history = get_ml_optimizations(db_path, limit=10)
+    # Преобразуем Row объекты в список словарей для JSON совместимости в шаблоне
+    history_list = []
+    if not optimizations_history.empty:
+        history_list = optimizations_history.to_dict('records')
 
     return render_template(
         'ml_dashboard.html', 
         segment='ML Анализ',
         uploaded_files=uploaded_files,
         compositions = measured_data['composition'].tolist() if not measured_data.empty and 'composition' in measured_data.columns else [],
-        ml_status=ml_status
-        
+        ml_status=status,
+        history_list=history_list
     )
 
 @app.route('/ml_system_train', methods=['POST'])
@@ -880,6 +882,7 @@ def ml_system_train():
     try:
         from ml_optimizer import get_ml_system
         ml_system = get_ml_system()
+        ml_system.reload_data()  # Перед тренировкой обязательно обновляем данные
         
         # Получаем target_properties из формы
         target_properties = request.form.getlist('target_properties[]')
@@ -892,10 +895,17 @@ def ml_system_train():
         # Получаем алгоритм из запроса
         algorithm = request.form.get('algorithm', 'random_forest').lower()
         
-        # Обучаем модель
-        success = ml_system.train_models(target_properties, algorithm)
+        # Получаем выбранные входные компоненты (фичи) для обучения
+        input_features = request.form.getlist('input_features[]')
+        if not input_features:
+            input_features = None # По-умолчанию использовать все, если ничего не пришло
+            
+        print(f"🔧 Выбранные входные компоненты: {input_features if input_features else 'Все (по умолчанию)'}")
         
-        if isinstance(success, dict) and success.get('success'):
+        # Обучаем модель
+        result = ml_system.train_models(target_properties, algorithm, selected_features=input_features)
+        
+        if result.get('success'):
             status = ml_system.get_ml_system_status()
             
             # ФОРМИРУЕМ ОТВЕТ ДЛЯ ФРОНТЕНДА
@@ -903,26 +913,18 @@ def ml_system_train():
                 'success': True,
                 'message': 'ML система успешно обучена!',
                 'status': status,
-                'trained_count': len(status.get('trained_models', [])),
-                'metrics': {}
+                'trained_count': result.get('trained_count', len(status.get('trained_models', []))),
+                'skipped': result.get('skipped', []),
+                'metrics': result.get('metrics', {})
             }
-            
-            # Добавляем метрики для каждой обученной модели
-            for prop in status.get('trained_models', []):
-                metrics = status['model_metrics'].get(prop, {})
-                training_metrics = metrics.get('training_metrics', {})
-                response_data['metrics'][prop] = {
-                    'r2_score': training_metrics.get('r2_score', 0),
-                    'mae': training_metrics.get('mae', 0),
-                    'cv_r2': training_metrics.get('cv_r2', 0)
-                }
             
             print(f"✅ Обучение завершено. Метрики: {response_data['metrics']}")
             return jsonify(response_data)
         else:
             return jsonify({
                 'success': False,
-                'error': 'Не удалось обучить ML систему. Проверьте данные.'
+                'error': result.get('error', 'Не удалось обучить ML систему. Проверьте данные.'),
+                'skipped': result.get('skipped', [])
             })
             
     except Exception as e:
@@ -930,6 +932,39 @@ def ml_system_train():
         return jsonify({
             'success': False,
             'error': f'Ошибка обучения системы: {str(e)}'
+        })
+
+@app.route('/ml_augment_database', methods=['POST'])
+def ml_augment_database():
+    """Масштабирует базу данных и переобучает систему"""
+    try:
+        from ml_optimizer import get_ml_system
+        ml_system = get_ml_system()
+        
+        # Получаем параметры из формы
+        try:
+            variations_count = int(request.form.get('variations_count', 3))
+            confidence_interval = float(request.form.get('confidence_interval', 5.0))
+        except ValueError:
+            return jsonify({
+                'success': False,
+                'error': 'Некорректные параметры для аугментации (ожидаются числа)'
+            })
+            
+        print(f"🚀 Запуск аугментации: вариаций={variations_count}, интервал={confidence_interval}%")
+        
+        result = ml_system.augment_database(
+            variations_count=variations_count,
+            confidence_interval=confidence_interval
+        )
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        print(f"❌ Ошибка аугментации: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Ошибка аугментации: {str(e)}'
         })
 
 @app.route('/ml_optimize', methods=['POST'])
@@ -1020,6 +1055,7 @@ def ml_system_status():
         # Lazy import внутри роута
         from ml_optimizer import get_ml_system
         ml_system = get_ml_system()
+        ml_system.reload_data() # Обновляем чтобы подтянуть новые фичи
         status = ml_system.get_ml_system_status()
         return jsonify({
             'success': True,
@@ -1030,6 +1066,38 @@ def ml_system_status():
             'success': False,
             'error': str(e)
         })
+
+@app.route('/api/predict_composition', methods=['POST'])
+def api_predict_composition():
+    """API для мгновенного предсказания (песочница)"""
+    try:
+        data = request.json
+        composition = data.get('composition', {})
+        
+        from ml_optimizer import get_ml_system
+        ml_system = get_ml_system()
+        
+        if not ml_system.predictor.is_trained:
+            return jsonify({'success': False, 'error': 'Модели не обучены'})
+            
+        results = {}
+        target_props = ml_system.predictor.main_target_properties
+        
+        for prop in target_props:
+            pred = ml_system.predictor.predict(composition, prop)
+            if pred is not None:
+                display_name = ml_system.predictor.target_properties_mapping.get(prop, prop)
+                results[prop] = {
+                    'value': round(float(pred), 3),
+                    'display_name': display_name
+                }
+                
+        return jsonify({
+            'success': True,
+            'results': results
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/ml_history')
 def ml_history():
@@ -1139,6 +1207,174 @@ def ai_ml_history():
             'error': str(e)
         })
 
+# Встроенные данные по компонентам из Excel
+COMPONENTS_DATA = {
+    "Опилки": {"Ro": 1118, "Qai": 18.18, "Cc": 1, "Cu": 0.2, "Cg": 1.2},
+    "Солома": {"Ro": 977, "Qai": 15.26, "Cc": 1.4, "Cu": 0.9, "Cg": 2.8},
+    "Картон": {"Ro": 1040, "Qai": 15.28, "Cc": 2, "Cu": 1.1, "Cg": 2.4},
+    "Подсолнечный жмых": {"Ro": 969, "Qai": 19.17, "Cc": 15, "Cu": 0.6, "Cg": 2},
+    "Рисовая шелуха": {"Ro": 1105, "Qai": 14.81, "Cc": 2.3, "Cu": 1.2, "Cg": 3.3},
+    "Угольный шлам": {"Ro": 1000, "Qai": 7.79, "Cc": 3, "Cu": 0.9, "Cg": 2.5},
+    "Торф": {"Ro": 1051, "Qai": 11.09, "Cc": 4.5, "Cu": 1.5, "Cg": 3.5},
+    "Бурый уголь": {"Ro": 1123, "Qai": 21.6, "Cc": 6, "Cu": 1.2, "Cg": 2.9},
+    "CMC": {"Ro": 1064, "Qai": 7, "Cc": 120, "Cu": 1.5, "Cg": 2},
+    "Пластик": {"Ro": 1008, "Qai": 19.83, "Cc": 23, "Cu": 2.2, "Cg": 5},
+    "Листья": {"Ro": 1099, "Qai": 15.58, "Cc": 0.1, "Cu": 1.5, "Cg": 4},
+    "Отработанное моторное масло": {"Ro": 1016, "Qai": 23.33, "Cc": 10, "Cu": 1.2, "Cg": 1.8},
+    "Рапсовое масло": {"Ro": 1012, "Qai": 20.15, "Cc": 80, "Cu": 1.2, "Cg": 1.8},
+}
+
+@app.route('/api/get_components_economics')
+def get_components_economics():
+    """Возвращает список компонентов с их экономическими параметрами"""
+    try:
+        df = query_db(db_path, "components")
+        if df.empty:
+            # Возвращаем встроенные данные как фоллбек
+            fallback = []
+            for name, d in COMPONENTS_DATA.items():
+                fallback.append({
+                    'component': name,
+                    'ro': d['Ro'],
+                    'cost_raw': d['Cc'],
+                    'cost_crush': d['Cu'],
+                    'cost_granule': d['Cg']
+                })
+            return jsonify({'success': True, 'components': fallback})
+        
+        # Заменяем NaN/None на значения из COMPONENTS_DATA если они там есть
+        result = []
+        for _, row in df.iterrows():
+            name = row['component']
+            ro = row.get('ro')
+            c_raw = row.get('cost_raw')
+            c_crush = row.get('cost_crush')
+            c_gran = row.get('cost_granule')
+            
+            if pd.isna(ro) or pd.isna(c_raw) or pd.isna(c_crush) or pd.isna(c_gran):
+                if name in COMPONENTS_DATA:
+                    d = COMPONENTS_DATA[name]
+                    ro = ro if not pd.isna(ro) else d['Ro']
+                    c_raw = c_raw if not pd.isna(c_raw) else d['Cc']
+                    c_crush = c_crush if not pd.isna(c_crush) else d['Cu']
+                    c_gran = c_gran if not pd.isna(c_gran) else d['Cg']
+                else:
+                    # Совсем нет данных - ставим 0 или дефолты
+                    ro = ro if not pd.isna(ro) else 1000
+                    c_raw = c_raw if not pd.isna(c_raw) else 0
+                    c_crush = c_crush if not pd.isna(c_crush) else 0
+                    c_gran = c_gran if not pd.isna(c_gran) else 0
+
+            result.append({
+                'component': name,
+                'ro': float(ro),
+                'cost_raw': float(c_raw),
+                'cost_crush': float(c_crush),
+                'cost_granule': float(c_gran)
+            })
+            
+        return jsonify({'success': True, 'components': result})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/calculate_economics', methods=['POST'])
+def calculate_economics():
+    """Рассчитывает экономические показатели по формулам из Excel"""
+    try:
+        data = request.json
+        q_boiler = float(data.get('q_boiler', 80)) # Q котла, кВт
+        t_hours = float(data.get('t_hours', 720)) # Т,ч
+        distance = float(data.get('distance', 258)) # S, км
+        capacity_factor = float(data.get('capacity_factor', 0.8)) # a
+        efficiency = float(data.get('efficiency', 0.9)) # b
+        components = data.get('components', {}) # {"Опилки": 67.5, "Солома": 27.5, ...}
+        
+        # Загружаем актуальные данные из БД
+        db_components = query_db(db_path, "components")
+        db_map = {row['component']: row for _, row in db_components.iterrows()} if not db_components.empty else {}
+
+        # 1. Расчет характеристик смеси
+        mix_ro = 0
+        mix_qai = 0
+        mix_cc = 0
+        mix_cu = 0
+        mix_cg = 0
+        
+        for comp_name, percentage in components.items():
+            fraction = float(percentage) / 100.0
+            
+            # Приоритет: БД -> COMPONENTS_DATA
+            db_row = db_map.get(comp_name, {})
+            c_fallback = COMPONENTS_DATA.get(comp_name, {})
+            
+            # Получаем значения с учетом фоллбека
+            ro = db_row.get('ro') if not pd.isna(db_row.get('ro')) else c_fallback.get('Ro', 1000)
+            qai = db_row.get('q') if not pd.isna(db_row.get('q')) else c_fallback.get('Qai', 0)
+            cc = db_row.get('cost_raw') if not pd.isna(db_row.get('cost_raw')) else c_fallback.get('Cc', 0)
+            cu = db_row.get('cost_crush') if not pd.isna(db_row.get('cost_crush')) else c_fallback.get('Cu', 0)
+            cg = db_row.get('cost_granule') if not pd.isna(db_row.get('cost_granule')) else c_fallback.get('Cg', 0)
+
+            mix_ro += fraction * float(ro)
+            mix_qai += fraction * float(qai)
+            mix_cc += fraction * float(cc)
+            mix_cu += fraction * float(cu)
+            mix_cg += fraction * float(cg)
+                  
+        if mix_ro == 0 or mix_qai == 0:
+            return jsonify({'success': False, 'error': 'Некорректный состав или отсутствуют данные в базе'})
+
+        # 2. Хранение
+        # Vхран=(Qкотла*Т*а*3.6)/(Qai,V смеси*b*Ро)
+        v_hran_m3 = (q_boiler * t_hours * capacity_factor * 3.6) / (mix_qai * efficiency * mix_ro)
+        mass_kg = round(v_hran_m3 * mix_ro, 0)
+        
+        import math
+        area_m2 = math.ceil(mass_kg / 1100) # Площадь хранилища
+        storage_cost = area_m2 * 380 # Саренда = 380 руб/м2
+        
+        # 3. Производство
+        production_cost = (mix_cc + mix_cu + mix_cg) * mass_kg
+        
+        # 4. Транспортировка
+        base_rate = 6000 # БС
+        cost_per_km = 85 # Скм
+        trip_cost = base_rate + (cost_per_km * distance * 2) # Cрейса
+        truck_capacity = 20000 # mг
+        trucks_needed = math.ceil(mass_kg / truck_capacity) # К
+        transport_cost = trip_cost * trucks_needed # ТС
+        
+        # 5. Итого
+        total_cost = storage_cost + production_cost + transport_cost
+        
+        return jsonify({
+            'success': True,
+            'mix_metrics': {
+                'density': round(mix_ro, 0),
+                'heat_capacity': round(mix_qai, 2),
+                'cost_raw': round(mix_cc, 2),
+                'cost_crush': round(mix_cu, 2),
+                'cost_granule': round(mix_cg, 2)
+            },
+            'storage': {
+                'volume_m3': round(v_hran_m3, 2),
+                'mass_kg': mass_kg,
+                'area_m2': area_m2,
+                'cost': storage_cost
+            },
+            'production': {
+                'cost': round(production_cost, 2)
+            },
+            'transport': {
+                'trip_cost': trip_cost,
+                'trucks': trucks_needed,
+                'cost': transport_cost
+            },
+            'total_cost': round(total_cost, 2)
+        })
+        
+    except Exception as e:
+        print(f"Error calculating economics: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=False)

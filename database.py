@@ -42,7 +42,11 @@ def init_db(db_path):
         hd REAL,
         nd REAL,
         sd REAL,
-        od REAL
+        od REAL,
+        ro REAL,
+        cost_raw REAL,
+        cost_crush REAL,
+        cost_granule REAL
     )
     ''')
 
@@ -87,6 +91,36 @@ def init_db(db_path):
 
     conn.commit()
     conn.close()
+    
+    # Запуск миграции для существующих баз
+    try:
+        check_and_migrate_db(db_path)
+    except Exception as e:
+        print(f"⚠️ Ошибка при миграции БД: {e}")
+
+def check_and_migrate_db(db_path):
+    """Проверяет и добавляет недостающие колонки в существующие таблицы."""
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    
+    # 1. Проверка таблицы components
+    cursor.execute("PRAGMA table_info(components)")
+    columns = [row[1] for row in cursor.fetchall()]
+    
+    new_columns = {
+        'ro': 'REAL',
+        'cost_raw': 'REAL',
+        'cost_crush': 'REAL',
+        'cost_granule': 'REAL'
+    }
+    
+    for col, dtype in new_columns.items():
+        if col not in columns:
+            print(f"🔧 Миграция: Добавление колонки {col} в таблицу components")
+            cursor.execute(f"ALTER TABLE components ADD COLUMN {col} {dtype}")
+            
+    conn.commit()
+    conn.close()
 
 def insert_data(db_path, table, data):
     """Пакетная вставка данных."""
@@ -107,12 +141,18 @@ def insert_data(db_path, table, data):
         cursor.executemany(query, records)
         
     elif table == "components":
-        expected_columns = ['component', 'war', 'ad', 'vd', 'q', 'cd', 'hd', 'nd', 'sd', 'od']
+        expected_columns = ['component', 'war', 'ad', 'vd', 'q', 'cd', 'hd', 'nd', 'sd', 'od', 
+                           'ro', 'cost_raw', 'cost_crush', 'cost_granule']
+        
+        # Если в DataFrame нет новых колонок, заполняем их None/NaN
+        for col in ['ro', 'cost_raw', 'cost_crush', 'cost_granule']:
+            if col not in data.columns:
+                data[col] = None
         
         data = data[expected_columns] if all(col in data.columns for col in expected_columns) else data
         
         query = '''
-        INSERT OR REPLACE INTO components VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT OR REPLACE INTO components VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         '''
         records = [tuple(row) for _, row in data.iterrows()]
         cursor.executemany(query, records)

@@ -221,3 +221,18 @@ __marimo__/
 # или конкретно для вашего файла
 pellets_data.db
 verify_syntax.py
+Экономический модуль.xlsx
+
+# Temporary parsing and testing artifacts
+parse_excel_robust.py
+parse_xlsx_native.py
+excel_native_parsed.json
+test_api.py
+tmp_test_economics.py
+test_ml_data.py
+read_excel.py
+verify_syntax.py
+test_all.py
+# ML Models and cache
+models/
+.joblib

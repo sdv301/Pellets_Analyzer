@@ -124,7 +124,7 @@
             <p class="lead text-muted">Интеллектуальный помощник для работы с базой данных топливных брикетов</p>
         </div>
 
-        <div class="row w-100 mx-auto max-w-1000">
+        <div class="row m-0 justify-content-center max-w-1000 w-100 mx-auto">
             <!-- Recommendations -->
             <div class="col-12 mb-4 animate-on-scroll stagger-2" id="system-recommendations" style="display: none;">
                 <div class="bank-card border-bottom border-warning border-3">
@@ -175,7 +175,7 @@
             <p class="text-muted">Используйте свободный текстовый запрос или выберите из готовых шаблонов</p>
         </div>
 
-        <div class="row w-100 mx-auto max-w-1000">
+        <div class="row m-0 justify-content-center max-w-1000 w-100 mx-auto">
             <div class="col-lg-7 mb-4 animate-on-scroll stagger-1">
                 <div class="bank-card h-100">
                     <form id="ai-ml-analysis-form" class="h-100 d-flex flex-column">
@@ -238,7 +238,7 @@
             <p class="text-muted">Результаты анализа, выводы и следующие шаги</p>
         </div>
 
-        <div class="row w-100 mx-auto max-w-1000 h-100">
+        <div class="row m-0 justify-content-center max-w-1000 w-100 mx-auto h-100">
             <div class="col-12 animate-on-scroll stagger-1 h-100">
                 <div class="bank-card h-100 d-flex flex-column">
 
@@ -268,50 +268,54 @@
 <script src="{{ url_for('static', filename='assets/js/plugins/bootstrap-notify.js') }}"></script>
 
 <script>
-    // Intersection Observer for Animations and Scroll Snapping tracking
-    const container = document.getElementById('scrollyContainer');
-    const sections = document.querySelectorAll('.scrolly-section');
-    const dots = document.querySelectorAll('.step-dot');
-
-    // Watch for scroll into view
-    const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                // Fade in animation
-                entry.target.querySelectorAll('.animate-on-scroll').forEach(el => {
-                    el.style.opacity = '1';
-                    el.style.transform = 'translateY(0)';
-                });
-
-                // Update side dots
-                const index = Array.from(sections).indexOf(entry.target);
-                dots.forEach((dot, i) => {
-                    dot.classList.toggle('active', i === index);
-                });
-            }
-        });
-    }, { threshold: 0.5 });
-
-    sections.forEach(section => {
-        observer.observe(section);
-        // Setup initial pre-fade state
-        section.querySelectorAll('.animate-on-scroll').forEach(el => {
-            el.style.opacity = '0';
-            el.style.transform = 'translateY(30px)';
-            el.style.transition = 'opacity 0.6s ease-out, transform 0.6s ease-out';
-            if (el.classList.contains('stagger-1')) el.style.transitionDelay = '100ms';
-            if (el.classList.contains('stagger-2')) el.style.transitionDelay = '200ms';
-            if (el.classList.contains('stagger-3')) el.style.transitionDelay = '300ms';
-            if (el.classList.contains('stagger-4')) el.style.transitionDelay = '400ms';
-        });
-    });
-
-    function scrollToSection(id) {
-        document.getElementById(id).scrollIntoView({ behavior: 'smooth' });
-    }
+    // Make function globally available explicitly
+    window.scrollToSection = function (id) {
+        const el = document.getElementById(id);
+        if (el) { el.scrollIntoView({ behavior: 'smooth' }); }
+    };
 
     // AI Logic Integrations
     document.addEventListener('DOMContentLoaded', function () {
+        // Intersection Observer for Animations and Scroll Snapping tracking
+        const container = document.getElementById('scrollyContainer');
+        const sections = document.querySelectorAll('.scrolly-section');
+        const dots = document.querySelectorAll('.step-dot');
+
+        if (sections.length > 0) {
+            // Watch for scroll into view
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        // Fade in animation
+                        entry.target.querySelectorAll('.animate-on-scroll').forEach(el => {
+                            el.style.opacity = '1';
+                            el.style.transform = 'translateY(0)';
+                        });
+
+                        // Update side dots
+                        const index = Array.from(sections).indexOf(entry.target);
+                        dots.forEach((dot, i) => {
+                            dot.classList.toggle('active', i === index);
+                        });
+                    }
+                });
+            }, { threshold: 0.5 });
+
+            sections.forEach(section => {
+                observer.observe(section);
+                // Setup initial pre-fade state
+                section.querySelectorAll('.animate-on-scroll').forEach(el => {
+                    el.style.opacity = '0';
+                    el.style.transform = 'translateY(30px)';
+                    el.style.transition = 'opacity 0.6s ease-out, transform 0.6s ease-out';
+                    if (el.classList.contains('stagger-1')) el.style.transitionDelay = '100ms';
+                    if (el.classList.contains('stagger-2')) el.style.transitionDelay = '200ms';
+                    if (el.classList.contains('stagger-3')) el.style.transitionDelay = '300ms';
+                    if (el.classList.contains('stagger-4')) el.style.transitionDelay = '400ms';
+                });
+            });
+        }
+
         loadSystemStatus();
         loadRecommendations();
 
