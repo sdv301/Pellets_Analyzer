@@ -1,0 +1,323 @@
+{% extends 'base.html' %}
+
+{% block title %}Профиль и Настройки{% endblock %}
+
+{% block extrastyle %}
+<style>
+    /* Герой Баннер с Изогнутым Изображением */
+    .profile-header {
+        position: relative;
+        overflow: hidden;
+        border-radius: 20px;
+        min-height: 300px;
+        display: flex;
+        align-items: flex-end;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    }
+
+    .profile-header-img {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        z-index: 1;
+        /* Используем неиспользованный изогнутый баннер */
+    }
+
+    .profile-header-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(180deg, rgba(24, 20, 243, 0.1) 0%, rgba(24, 20, 243, 0.8) 100%);
+        z-index: 2;
+    }
+
+    .profile-header-content {
+        position: relative;
+        z-index: 3;
+        color: white;
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+    }
+
+    .profile-avatar {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        border: 4px solid white;
+        background-color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+    }
+
+    .profile-avatar i {
+        font-size: 3rem;
+        color: var(--bank-primary);
+    }
+
+    /* Карточки с Паттернами */
+    .pattern-card {
+        position: relative;
+        overflow: hidden;
+        border: none;
+        border-radius: 20px;
+        background: white;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .pattern-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    }
+
+    .pattern-bg {
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 150px;
+        opacity: 0.05;
+        z-index: 0;
+        pointer-events: none;
+    }
+
+    .card-content-relative {
+        position: relative;
+        z-index: 1;
+    }
+
+    .rocket-illustration {
+        max-width: 180px;
+        filter: drop-shadow(0 10px 10px rgba(0, 0, 0, 0.1));
+    }
+
+    .switch-premium {
+        width: 50px;
+        height: 26px;
+    }
+
+    .switch-premium:checked {
+        background-color: var(--bank-primary);
+        border-color: var(--bank-primary);
+    }
+</style>
+{% endblock extrastyle %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+    <!-- Hero Banner (Утилизация curved0.jpg) -->
+    <div class="profile-header animate-on-scroll">
+        <img src="{{ url_for('static', filename='assets/img/curved-images/curved0.jpg') }}" alt="Profile Banner"
+            class="profile-header-img">
+        <div class="profile-header-overlay"></div>
+        <div class="profile-header-content w-100">
+            <div class="profile-avatar">
+                <i class="fas fa-user-astronaut"></i>
+            </div>
+            <div class="flex-grow-1">
+                <h2 class="mb-0 text-white font-weight-bolder">Системный Администратор</h2>
+                <p class="mb-0 text-white-50"><i class="fas fa-desktop me-2"></i> Локальная Аналитическая Станция</p>
+            </div>
+            <div>
+                <button class="btn btn-white text-primary px-4 py-2" onclick="testPremiumNotification()">
+                    <i class="fas fa-bell me-2"></i> Тест Уведомлений
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+
+        <!-- About Section (Утилизация rocket-dark.png) -->
+        <div class="col-lg-7 col-md-12 mb-4">
+            <div class="card pattern-card h-100 p-4 animate-on-scroll stagger-1">
+                <div class="row h-100 align-items-center card-content-relative">
+                    <div class="col-md-7">
+                        <h4 class="font-weight-bolder text-dark mb-3">Pellets Analyzer <span
+                                class="badge bg-primary fs-7 align-middle ms-2">v2.0</span></h4>
+                        <p class="text-muted mb-4">
+                            Современный инструмент для анализа, оптимизации и визуализации данных по топливным брикетам.
+                            Система использует машинное обучение и продвинутую математику для подбора наилучших
+                            составов.
+                        </p>
+                        <ul class="list-unstyled mb-0">
+                            <li class="mb-2"><i class="fas fa-check-circle text-success me-2"></i> Умный поиск составов
+                            </li>
+                            <li class="mb-2"><i class="fas fa-check-circle text-success me-2"></i> Интеграция с
+                                MLX/PyTorch</li>
+                            <li class="mb-2"><i class="fas fa-check-circle text-success me-2"></i> Scrollytelling
+                                Графики</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-5 text-center">
+                        <img src="{{ url_for('static', filename='assets/img/illustrations/rocket-dark.png') }}"
+                            alt="Rocket" class="rocket-illustration img-fluid">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Settings (Утилизация pattern-lines.svg) -->
+        <div class="col-lg-5 col-md-12 mb-4">
+            <div class="card pattern-card h-100 animate-on-scroll stagger-2">
+                <img src="{{ url_for('static', filename='assets/img/shapes/pattern-lines.svg') }}" class="pattern-bg"
+                    alt="pattern">
+
+                <div class="card-header bg-transparent pb-0 card-content-relative">
+                    <h5 class="font-weight-bolder text-dark mb-0"><i class="fas fa-cog text-primary me-2"></i> Настройки
+                        Системы</h5>
+                </div>
+
+                <div class="card-body card-content-relative">
+                    <ul class="list-group list-group-flush border-0">
+                        <li
+                            class="list-group-item border-0 py-3 ps-0 d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-0 text-dark font-weight-bold">Темная тема</h6>
+                                <p class="text-xs text-muted mb-0">Включить экспериментальный ночной режим</p>
+                            </div>
+                            <div class="form-check form-switch pe-0">
+                                <input class="form-check-input switch-premium" type="checkbox" id="themeSwitch">
+                            </div>
+                        </li>
+                        <li
+                            class="list-group-item border-0 py-3 ps-0 d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-0 text-dark font-weight-bold">Всплывающие подсказки</h6>
+                                <p class="text-xs text-muted mb-0">Отображать обучающие хинты в интерфейсе</p>
+                            </div>
+                            <div class="form-check form-switch pe-0">
+                                <input class="form-check-input switch-premium" type="checkbox" id="hintsSwitch" checked>
+                            </div>
+                        </li>
+                        <li
+                            class="list-group-item border-0 py-3 ps-0 d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-0 text-dark font-weight-bold">Кэширование ML моделей</h6>
+                                <p class="text-xs text-muted mb-0">Сохранять веса в памяти для быстрого запуска</p>
+                            </div>
+                            <div class="form-check form-switch pe-0">
+                                <input class="form-check-input switch-premium" type="checkbox" id="cacheSwitch" checked>
+                            </div>
+                        </li>
+                    </ul>
+
+                    <div class="mt-4 pt-3 border-top">
+                        <button class="btn btn-outline-danger w-100" onclick="clearCache()">
+                            <i class="fas fa-trash-alt me-2"></i> Очистить кэш базы данных
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<!-- Подключаем Bootstrap Notify плагин из неиспользованных ассетов -->
+<script src="{{ url_for('static', filename='assets/js/plugins/bootstrap-notify.js') }}"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Анимации при загрузке
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }
+            });
+        }, { threshold: 0.1 });
+
+        document.querySelectorAll('.animate-on-scroll').forEach(el => {
+            el.style.opacity = '0';
+            el.style.transform = 'translateY(20px)';
+            el.style.transition = 'opacity 0.6s ease-out, transform 0.6s ease-out';
+
+            if (el.classList.contains('stagger-1')) el.style.transitionDelay = '100ms';
+            if (el.classList.contains('stagger-2')) el.style.transitionDelay = '200ms';
+
+            observer.observe(el);
+        });
+
+        // Показываем приветственное уведомление
+        setTimeout(() => {
+            premiumNotify('Добро пожаловать в настройки профиля!', 'info', 'fas fa-info-circle');
+        }, 500);
+
+        // Логика Темной Темы
+        const themeSwitch = document.getElementById('themeSwitch');
+        if (localStorage.getItem('theme') === 'dark') {
+            themeSwitch.checked = true;
+        }
+
+        themeSwitch.addEventListener('change', function () {
+            if (this.checked) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                localStorage.setItem('theme', 'dark');
+                premiumNotify('Темная тема включена', 'success', 'fas fa-moon');
+            } else {
+                document.documentElement.removeAttribute('data-theme');
+                localStorage.setItem('theme', 'light');
+                premiumNotify('Светлая тема включена', 'info', 'fas fa-sun');
+            }
+        });
+    });
+
+    function premiumNotify(message, type = 'primary', icon = 'fas fa-bell') {
+        $.notify({
+            icon: icon,
+            message: message
+        }, {
+            type: type,
+            timer: 3000,
+            placement: {
+                from: 'bottom',
+                align: 'right'
+            },
+            animate: {
+                enter: 'animated fadeInUp',
+                exit: 'animated fadeOutDown'
+            },
+            template: `
+            <div data-notify="container" class="col-xs-11 col-sm-3 alert alert-{0} alert-with-icon shadow-lg border-0" role="alert" style="border-radius: 12px; font-family: 'Inter', sans-serif;">
+                <button type="button" aria-hidden="true" class="close" data-notify="dismiss">×</button>
+                <i data-notify="icon" class="me-2 fs-5"></i>
+                <span data-notify="title" class="font-weight-bold d-block mb-1">{1}</span>
+                <span data-notify="message" style="font-size: 0.9rem;">{2}</span>
+            </div>
+            `
+        });
+    }
+
+    function testPremiumNotification() {
+        const types = ['primary', 'success', 'warning', 'danger', 'info'];
+        const icons = ['fas fa-star', 'fas fa-check-circle', 'fas fa-exclamation-triangle', 'fas fa-times-circle', 'fas fa-info-circle'];
+
+        const randomIdx = Math.floor(Math.random() * types.length);
+
+        premiumNotify(
+            'Это тестовое уведомление с использованием плагина bootstrap-notify!',
+            types[randomIdx],
+            icons[randomIdx]
+        );
+    }
+
+    function clearCache() {
+        if (confirm('Вы уверены, что хотите очистить кэш базы данных?')) {
+            premiumNotify('Кэш базы данных успешно очищен.', 'success', 'fas fa-check-circle');
+        }
+    }
+</script>
+{% endblock extra_js %}
+{% endblock content %}

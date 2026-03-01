@@ -1,0 +1,348 @@
+/* ==========================================================================
+   BankDash UI Style Overrides for Soft UI Dashboard
+   Theme: Clean Corporate, Solid Colors, Soft Shadows
+   ========================================================================== */
+
+/* --- 1. Global Variables & Base Overrides --- */
+:root {
+    --bank-primary: #2D60FF;
+    --bank-primary-hover: #1814F3;
+    --bank-bg-color: #F5F7FA;
+    --bank-card-bg: #FFFFFF;
+    --bank-text-main: #343C6A;
+    --bank-text-muted: #718EBF;
+    --bank-border-color: #E6EFF5;
+    --bank-shadow-soft: 0px 4px 10px rgba(0, 0, 0, 0.05);
+    --bank-shadow-hover: 0px 10px 25px rgba(0, 0, 0, 0.08);
+    --transition-smooth: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+/* --- 1.1 Dark Mode Overrides --- */
+[data-theme="dark"] {
+    --bank-bg-color: #151521;
+    --bank-card-bg: #1E1E2D;
+    --bank-text-main: #FFFFFF;
+    --bank-text-muted: #92929F;
+    --bank-border-color: #323248;
+    --bank-shadow-soft: 0 4px 10px rgba(0, 0, 0, 0.5);
+    --bank-shadow-hover: 0 10px 25px rgba(0, 0, 0, 0.7);
+}
+
+/* Принудительные фиксы для темной темы */
+[data-theme="dark"] .card-header,
+[data-theme="dark"] .bg-white,
+[data-theme="dark"] .card-body,
+[data-theme="dark"] .sidenav {
+    background-color: var(--bank-card-bg) !important;
+}
+
+[data-theme="dark"] .form-control,
+[data-theme="dark"] .form-select {
+    background-color: #151521 !important;
+    border-color: var(--bank-border-color) !important;
+    color: var(--bank-text-main) !important;
+}
+
+[data-theme="dark"] .table tbody tr:hover {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+[data-theme="dark"] .list-group-item {
+    background-color: transparent !important;
+    color: var(--bank-text-main) !important;
+}
+
+[data-theme="dark"] .text-dark {
+    color: var(--bank-text-main) !important;
+}
+
+[data-theme="dark"] .btn-outline-secondary {
+    color: #92929F !important;
+    border-color: #323248 !important;
+}
+
+[data-theme="dark"] .bg-gray-50,
+[data-theme="dark"] .bg-gray-100 {
+    background-color: #151521 !important;
+}
+
+[data-theme="dark"] .input-group-text {
+    background-color: #252538 !important;
+    border-color: #323248 !important;
+    color: #92929F !important;
+}
+
+[data-theme="dark"] .alert-light {
+    background-color: #252538 !important;
+    border: 1px solid #323248 !important;
+    color: #FFFFFF !important;
+}
+
+[data-theme="dark"] .alert-info {
+    background-color: rgba(45, 96, 255, 0.15) !important;
+    border: 1px solid var(--bank-primary) !important;
+    color: #4facfe !important;
+}
+
+[data-theme="dark"] .alert-success {
+    background-color: rgba(67, 233, 123, 0.15) !important;
+    border: 1px solid #43e97b !important;
+    color: #43e97b !important;
+}
+
+[data-theme="dark"] .alert-warning {
+    background-color: rgba(250, 112, 154, 0.15) !important;
+    border: 1px solid #fa709a !important;
+    color: #fa709a !important;
+}
+
+[data-theme="dark"] .alert-danger {
+    background-color: rgba(191, 25, 25, 0.15) !important;
+    border: 1px solid #ff4b2b !important;
+    color: #ff416c !important;
+}
+
+[data-theme="dark"] .border {
+    border-color: #323248 !important;
+}
+
+[data-theme="dark"] .border-light {
+    border-color: #323248 !important;
+}
+
+[data-theme="dark"] .card .card-header .text-dark {
+    color: #FFFFFF !important;
+}
+
+body {
+    background-color: var(--bank-bg-color) !important;
+    background-image: none !important;
+    /* Remove mesh gradients */
+    color: var(--bank-text-main) !important;
+    font-family: 'Inter', sans-serif;
+    letter-spacing: -0.01em;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    color: var(--bank-text-main) !important;
+    font-weight: 600;
+}
+
+p,
+span,
+div {
+    color: inherit;
+}
+
+.text-muted {
+    color: var(--bank-text-muted) !important;
+}
+
+/* --- 2. BankDash Components (Replacing Glassmorphism) --- */
+.glass-card,
+.card {
+    background: var(--bank-card-bg) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    border: none !important;
+    box-shadow: var(--bank-shadow-soft) !important;
+    border-radius: 20px !important;
+    transition: var(--transition-smooth) !important;
+    overflow: hidden;
+}
+
+.glass-card:hover,
+.hover-lift:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--bank-shadow-hover) !important;
+}
+
+/* Remove old gradients */
+.gradient-text,
+.gradient-text-blue {
+    background: none;
+    -webkit-text-fill-color: initial;
+    color: var(--bank-text-main) !important;
+    font-weight: 700;
+}
+
+.bg-gradient-primary,
+.bg-gradient-info,
+.bg-gradient-success {
+    background: var(--bank-primary) !important;
+}
+
+/* --- 3. Buttons & Interactive Elements --- */
+.btn-premium,
+.btn-primary {
+    background: var(--bank-primary) !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 12px !important;
+    padding: 10px 24px !important;
+    font-weight: 500 !important;
+    letter-spacing: 0.5px !important;
+    box-shadow: none !important;
+    transition: var(--transition-smooth) !important;
+}
+
+.btn-premium::before {
+    display: none;
+    /* Remove glow pseudo-element */
+}
+
+.btn-premium:hover,
+.btn-primary:hover {
+    transform: translateY(-2px) !important;
+    background: var(--bank-primary-hover) !important;
+    box-shadow: 0 4px 12px rgba(45, 96, 255, 0.3) !important;
+}
+
+.btn-outline-premium {
+    background: transparent !important;
+    color: var(--bank-primary) !important;
+    border: 1px solid var(--bank-primary) !important;
+    border-radius: 12px !important;
+    font-weight: 500 !important;
+    transition: var(--transition-smooth) !important;
+}
+
+.btn-outline-premium:hover {
+    background: rgba(45, 96, 255, 0.05) !important;
+    transform: translateY(-2px);
+}
+
+/* Form Controls styling */
+.form-control,
+.form-select {
+    border-radius: 10px !important;
+    border: 1px solid #DFEAF2 !important;
+    padding: 0.75rem 1rem !important;
+    background-color: #FFFFFF !important;
+    color: var(--bank-text-main) !important;
+    transition: var(--transition-smooth) !important;
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: var(--bank-primary) !important;
+    box-shadow: none !important;
+    outline: 0;
+}
+
+/* --- 4. Micro-Animations (Intersection Observer targets) --- */
+.animate-on-scroll {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+}
+
+.animate-on-scroll.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Staggering delays for children */
+.stagger-1 {
+    transition-delay: 0.1s;
+}
+
+.stagger-2 {
+    transition-delay: 0.2s;
+}
+
+.stagger-3 {
+    transition-delay: 0.3s;
+}
+
+.stagger-4 {
+    transition-delay: 0.4s;
+}
+
+/* --- 5. Table Enhancements --- */
+.table-responsive {
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.table thead th {
+    background-color: transparent !important;
+    color: var(--bank-text-muted) !important;
+    font-weight: 500 !important;
+    text-transform: capitalize !important;
+    letter-spacing: 0;
+    border-bottom: 1px solid var(--bank-border-color) !important;
+    padding-bottom: 15px;
+}
+
+.table tbody tr {
+    transition: var(--transition-smooth);
+    border-bottom: 1px solid var(--bank-border-color) !important;
+}
+
+.table tbody tr:hover {
+    background-color: var(--bank-bg-color) !important;
+    transform: none;
+    /* Removed scale effect for a cleaner look */
+}
+
+/* --- 6. Sidebar & Navigation Overrides (BankDash Style) --- */
+.sidenav {
+    background: #FFFFFF !important;
+    backdrop-filter: none !important;
+    border-right: 1px solid var(--bank-border-color) !important;
+}
+
+.navbar-brand span {
+    color: var(--bank-text-main) !important;
+    font-weight: 800 !important;
+    font-size: 1.25rem;
+}
+
+.nav-link {
+    color: var(--bank-text-muted) !important;
+    font-weight: 500 !important;
+    border-radius: 10px !important;
+    margin: 0 1rem;
+    padding: 0.75rem 1rem;
+}
+
+.nav-link i {
+    color: var(--bank-text-muted) !important;
+}
+
+.nav-link.active,
+.nav-active-gradient {
+    background: transparent !important;
+    color: var(--bank-primary) !important;
+    box-shadow: none !important;
+    position: relative;
+}
+
+.nav-link.active::before {
+    content: '';
+    position: absolute;
+    left: -1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 60%;
+    width: 4px;
+    background-color: var(--bank-primary);
+    border-radius: 0 4px 4px 0;
+}
+
+.nav-link.active i,
+.nav-active-gradient i {
+    color: var(--bank-primary) !important;
+}
+
+/* Hide soft-ui default icon bg for active elements */
+.nav-link.active .icon {
+    background: transparent !important;
+    box-shadow: none !important;
+}

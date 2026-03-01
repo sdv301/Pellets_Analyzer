@@ -4,35 +4,44 @@
 <head>
   {% include "includes/head.html" %}
   {% block extrastyle %}{% endblock extrastyle %}
+  <!-- Темная тема (Global Loader) -->
+  <script>
+    (function () {
+      const currentTheme = localStorage.getItem('theme');
+      if (currentTheme === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    })();
+  </script>
 </head>
 
 <body class="g-sidenav-show g-sidenav-hidden bg-gray-100">
   {% block sidebar %}
-    {% include "includes/sidebar.html" %}
+  {% include "includes/sidebar.html" %}
   {% endblock sidebar %}
   <main class="main-content position-relative max-height-vh-100 h-100 border-radius-lg">
     {% block navigation %}
-      {% include "includes/navigation.html" %}
+    {% include "includes/navigation.html" %}
     {% endblock navigation %}
-    
+
     {% block content %}{% endblock content %}
   </main>
-  
+
   {% include "includes/scripts.html" %}
   {% block extra_js %}
-    <script>
-      // Переключение боковой панели
-      document.getElementById('sidebarToggle')?.addEventListener('click', function() {
-        const body = document.body;
-        if (body.classList.contains('g-sidenav-hidden')) {
-          body.classList.remove('g-sidenav-hidden');
-          body.classList.add('g-sidenav-pinned');
-        } else {
-          body.classList.add('g-sidenav-hidden');
-          body.classList.remove('g-sidenav-pinned');
-        }
-      });
-    </script>
+  <script>
+    // Переключение боковой панели
+    document.getElementById('sidebarToggle')?.addEventListener('click', function () {
+      const body = document.body;
+      if (body.classList.contains('g-sidenav-hidden')) {
+        body.classList.remove('g-sidenav-hidden');
+        body.classList.add('g-sidenav-pinned');
+      } else {
+        body.classList.add('g-sidenav-hidden');
+        body.classList.remove('g-sidenav-pinned');
+      }
+    });
+  </script>
   {% endblock extra_js %}
 </body>
 

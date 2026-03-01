@@ -1,449 +1,480 @@
-<!-- templates/ai_analysis.html -->
 {% extends "base.html" %}
 
+{% block title %}ИИ-Анализатор{% endblock %}
+
+{% block extrastyle %}
+<style>
+    /* Scrollytelling Styles */
+    .scrolly-container {
+        height: calc(100vh - 100px);
+        overflow-y: scroll;
+        scroll-snap-type: y mandatory;
+        scroll-behavior: smooth;
+        /* Скрываем скроллбар для эстетики */
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+
+    .scrolly-container::-webkit-scrollbar {
+        display: none;
+    }
+
+    .scrolly-section {
+        min-height: calc(100vh - 100px);
+        scroll-snap-align: start;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 2rem 5%;
+        position: relative;
+    }
+
+    /* Indicators */
+    .step-indicator {
+        position: fixed;
+        right: 30px;
+        top: 50%;
+        transform: translateY(-50%);
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        z-index: 100;
+    }
+
+    .step-dot {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: var(--bank-border-color);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: 2px solid transparent;
+    }
+
+    .step-dot.active {
+        background: var(--bank-primary);
+        box-shadow: 0 0 10px rgba(45, 96, 255, 0.4);
+        transform: scale(1.3);
+    }
+
+    .step-dot:hover {
+        background: var(--bank-primary-hover);
+    }
+
+    .bank-card {
+        background: var(--bank-card-bg);
+        border-radius: 20px;
+        box-shadow: var(--bank-shadow-soft);
+        border: none;
+        padding: 24px;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .bank-card:hover {
+        transform: translateY(-5px);
+        box-shadow: var(--bank-shadow-hover);
+    }
+
+    .floating-icon {
+        font-size: 5rem;
+        color: var(--bank-primary);
+        animation: float 6s ease-in-out infinite;
+        opacity: 0.1;
+        position: absolute;
+        right: 10%;
+        top: 10%;
+    }
+
+    @keyframes float {
+        0% {
+            transform: translateY(0px) rotate(0deg);
+        }
+
+        50% {
+            transform: translateY(-20px) rotate(5deg);
+        }
+
+        100% {
+            transform: translateY(0px) rotate(0deg);
+        }
+    }
+
+    .quick-query-btn {
+        text-align: left;
+        white-space: normal;
+        height: 100%;
+    }
+</style>
+{% endblock extrastyle %}
+
 {% block content %}
-<div class="container-fluid py-4">
-    <h1 class="text-center mb-4">🤖 Интеллектуальный ИИ Анализ</h1>
-    
-    <!-- Системные рекомендации -->
-    <div class="card shadow-sm mb-4" id="system-recommendations" style="display: none;">
-        <div class="card-header bg-warning text-dark">
-            <h5 class="card-title mb-0">
-                <i class="fas fa-lightbulb me-2"></i>Рекомендации по улучшению системы
-            </h5>
-        </div>
-        <div class="card-body">
-            <div id="recommendations-list"></div>
-        </div>
-    </div>
-
-    <!-- Статус системы -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-header bg-info text-white">
-            <h5 class="card-title mb-0">
-                <i class="fas fa-chart-line me-2"></i>Статус системы
-                <button class="btn btn-sm btn-light float-end" onclick="loadSystemStatus()">
-                    <i class="fas fa-sync-alt"></i>
-                </button>
-            </h5>
-        </div>
-        <div class="card-body">
-            <div id="system-status">
-                <div class="row">
-                    <div class="col-md-6">
-                        <h6>📊 Данные:</h6>
-                        <ul id="data-status" class="list-unstyled">
-                            <li><i class="fas fa-spinner fa-spin me-2"></i>Загрузка...</li>
-                        </ul>
-                    </div>
-                    <div class="col-md-6">
-                        <h6>🤖 ML Модели:</h6>
-                        <ul id="ml-status" class="list-unstyled">
-                            <li><i class="fas fa-spinner fa-spin me-2"></i>Загрузка...</li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Блок анализа -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-header bg-primary text-white">
-            <h5 class="card-title mb-0">
-                <i class="fas fa-robot me-2"></i>Интеллектуальный анализ
-            </h5>
-        </div>
-        <div class="card-body">
-            <form id="ai-ml-analysis-form">
-                <div class="mb-3">
-                    <label class="form-label">💬 Ваш запрос к ИИ-аналитику:</label>
-                    <textarea class="form-control" name="query" rows="4" placeholder="Примеры запросов:
-• Найди оптимальный состав для максимальной теплоты сгорания
-• Проанализируй тенденции в данных
-• Какие компоненты влияют на прочность?
-• Предскажи свойства для нового состава
-• Сравни эффективность разных составов"></textarea>
-                </div>
-                <div class="d-flex gap-2">
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-robot me-2"></i>Выполнить анализ
-                    </button>
-                    <button type="button" class="btn btn-outline-secondary" onclick="clearAnalysis()">
-                        <i class="fas fa-eraser me-2"></i>Очистить
-                    </button>
-                </div>
-            </form>
-            
-            <div id="ai-ml-results" class="mt-4"></div>
-        </div>
-    </div>
-
-    <!-- Быстрые запросы -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-header">
-            <h5 class="card-title mb-0">
-                <i class="fas fa-bolt me-2"></i>Быстрые запросы
-            </h5>
-        </div>
-        <div class="card-body">
-            <div class="row g-2">
-                <div class="col-md-4">
-                    <button class="btn btn-outline-primary w-100 quick-query" data-query="Проанализируй основные тенденции в данных">
-                        <i class="fas fa-chart-line me-2"></i>Анализ трендов
-                    </button>
-                </div>
-                <div class="col-md-4">
-                    <button class="btn btn-outline-success w-100 quick-query" data-query="Найди оптимальный состав для максимальной теплоты сгорания">
-                        <i class="fas fa-trophy me-2"></i>Оптимальный состав
-                    </button>
-                </div>
-                <div class="col-md-4">
-                    <button class="btn btn-outline-info w-100 quick-query" data-query="Какие компоненты лучше всего влияют на прочность?">
-                        <i class="fas fa-cube me-2"></i>Анализ компонентов
-                    </button>
-                </div>
-                <div class="col-md-4">
-                    <button class="btn btn-outline-warning w-100 quick-query" data-query="Предскажи свойства для состава: 60% опилки, 30% солома, 10% лигнин">
-                        <i class="fas fa-crystal-ball me-2"></i>Прогноз свойств
-                    </button>
-                </div>
-                <div class="col-md-4">
-                    <button class="btn btn-outline-danger w-100 quick-query" data-query="Какие параметры наиболее важны для качества пеллет?">
-                        <i class="fas fa-star me-2"></i>Ключевые параметры
-                    </button>
-                </div>
-                <div class="col-md-4">
-                    <button class="btn btn-outline-dark w-100 quick-query" data-query="Предложи направления для дальнейших исследований">
-                        <i class="fas fa-flask me-2"></i>Рекомендации
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- История анализов -->
-    <div class="card shadow-sm">
-        <div class="card-header">
-            <h5 class="card-title mb-0">
-                <i class="fas fa-history me-2"></i>История анализов
-                <span class="badge bg-secondary" id="history-count">0</span>
-            </h5>
-        </div>
-        <div class="card-body">
-            <div id="analysis-history" class="small">
-                <div class="text-muted">История анализов появится здесь после выполнения запросов</div>
-            </div>
-        </div>
-    </div>
+<div class="step-indicator">
+    <div class="step-dot active" onclick="scrollToSection('ai-step-1')" title="Статус Системы"></div>
+    <div class="step-dot" onclick="scrollToSection('ai-step-2')" title="Конфигурация Запроса"></div>
+    <div class="step-dot" onclick="scrollToSection('ai-step-3')" title="Результат Анализа"></div>
 </div>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    loadSystemStatus();
-    loadRecommendations();
-    loadAnalysisHistory();
-    
-    // Быстрые запросы
-    document.querySelectorAll('.quick-query').forEach(btn => {
-        btn.addEventListener('click', function() {
-            document.querySelector('textarea[name="query"]').value = this.dataset.query;
-            document.querySelector('textarea[name="query"]').focus();
-        });
-    });
-    
-    // Основная форма анализа
-    document.getElementById('ai-ml-analysis-form').addEventListener('submit', function(e) {
-        e.preventDefault();
-        performAnalysis();
-    });
-});
+<div class="scrolly-container" id="scrollyContainer">
 
-async function loadSystemStatus() {
-    try {
-        const response = await fetch('/ai_ml_system_status');
-        const data = await response.json();
-        
-        if (data.success) {
-            updateSystemStatus(data);
-        } else {
-            showSystemError(data.message || 'Ошибка загрузки статуса');
-        }
-    } catch (error) {
-        showSystemError(`Ошибка соединения: ${error.message}`);
-    }
-}
+    <!-- SECTION 1: System Status & Introduction -->
+    <section class="scrolly-section" id="ai-step-1">
+        <i class="fas fa-robot floating-icon"></i>
+        <div class="text-center mb-5 animate-on-scroll stagger-1">
+            <h1 class="display-4 font-weight-bolder text-primary">ИИ-Анализатор</h1>
+            <p class="lead text-muted">Интеллектуальный помощник для работы с базой данных топливных брикетов</p>
+        </div>
 
-function updateSystemStatus(data) {
-    const dataSummary = data.data_summary || {};
-    const mlStatus = data.ml_status || {};
-    
-    // Обновляем статус данных
-    const dataStatus = document.getElementById('data-status');
-    if (dataSummary.total_samples > 0) {
-        dataStatus.innerHTML = `
-            <li><i class="fas fa-database text-success me-2"></i>Образцов: <strong>${dataSummary.total_samples}</strong></li>
-            <li><i class="fas fa-cube text-success me-2"></i>Компонентов: <strong>${dataSummary.total_components}</strong></li>
-            <li><i class="fas fa-chart-line text-success me-2"></i>Параметров: <strong>${dataSummary.available_properties.length}</strong></li>
-            <li><i class="fas fa-check-circle text-success me-2"></i>Заполненность: <strong>${dataSummary.data_completeness}%</strong></li>
-        `;
-    } else {
-        dataStatus.innerHTML = '<li><i class="fas fa-exclamation-triangle text-warning me-2"></i>Данные не загружены</li>';
-    }
-    
-    // Обновляем статус ML моделей
-    const mlStatusElement = document.getElementById('ml-status');
-    if (mlStatus.is_trained && mlStatus.trained_models.length > 0) {
-        const modelsList = mlStatus.trained_models.map(model => {
-            const perf = mlStatus.model_performance[model] || {};
-            const statusIcon = perf.status === 'excellent' ? 'fa-check-circle text-success' : 
-                             perf.status === 'good' ? 'fa-info-circle text-info' : 'fa-exclamation-triangle text-warning';
-            return `<li><i class="fas ${statusIcon} me-2"></i>${model}: R²=${perf.r2_score || 'N/A'}</li>`;
-        }).join('');
-        mlStatusElement.innerHTML = modelsList;
-    } else {
-        mlStatusElement.innerHTML = '<li><i class="fas fa-info-circle text-info me-2"></i>Модели не обучены</li>';
-    }
-}
-
-async function loadRecommendations() {
-    try {
-        const response = await fetch('/ai_ml_recommendations');
-        const data = await response.json();
-        
-        if (data.success && data.recommendations.length > 0) {
-            showRecommendations(data.recommendations);
-        }
-    } catch (error) {
-        console.log('Рекомендации недоступны');
-    }
-}
-
-function showRecommendations(recommendations) {
-    const container = document.getElementById('system-recommendations');
-    const list = document.getElementById('recommendations-list');
-    
-    const recommendationsHtml = recommendations.map(rec => `
-        <div class="alert alert-${rec.priority === 'high' ? 'danger' : 'warning'} mb-2">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <strong>${rec.type === 'data' ? '📊 Данные' : rec.type === 'ml' ? '🤖 ML' : '⚡ Качество'}:</strong>
-                    ${rec.message}
+        <div class="row w-100 mx-auto max-w-1000">
+            <!-- Recommendations -->
+            <div class="col-12 mb-4 animate-on-scroll stagger-2" id="system-recommendations" style="display: none;">
+                <div class="bank-card border-bottom border-warning border-3">
+                    <h5 class="text-warning mb-3"><i class="fas fa-lightbulb me-2"></i>Рекомендации ИИ</h5>
+                    <div id="recommendations-list"></div>
                 </div>
-                <button class="btn btn-sm btn-${rec.priority === 'high' ? 'danger' : 'warning'}" onclick="handleRecommendationAction('${rec.action}')">
-                    Исправить
+            </div>
+
+            <div class="col-md-6 mb-4 animate-on-scroll stagger-3">
+                <div class="bank-card h-100 text-center">
+                    <div
+                        class="icon icon-shape icon-lg bg-gradient-primary shadow text-center border-radius-lg mb-3 mx-auto">
+                        <i class="fas fa-database text-white fa-lg opacity-10"></i>
+                    </div>
+                    <h5 class="font-weight-bolder">Статус Данных</h5>
+                    <ul id="data-status" class="list-unstyled text-start mt-4 px-3">
+                        <li><i class="fas fa-spinner fa-spin text-primary me-2"></i>Сбор информации...</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="col-md-6 mb-4 animate-on-scroll stagger-4">
+                <div class="bank-card h-100 text-center">
+                    <div
+                        class="icon icon-shape icon-lg bg-gradient-info shadow text-center border-radius-lg mb-3 mx-auto">
+                        <i class="fas fa-brain text-white fa-lg opacity-10"></i>
+                    </div>
+                    <h5 class="font-weight-bolder">ML Модели</h5>
+                    <ul id="ml-status" class="list-unstyled text-start mt-4 px-3">
+                        <li><i class="fas fa-spinner fa-spin text-info me-2"></i>Проверка кэша...</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="col-12 text-center mt-4 animate-on-scroll stagger-4">
+                <button class="btn btn-premium btn-lg" onclick="scrollToSection('ai-step-2')">
+                    Создать запрос <i class="fas fa-arrow-down ms-2"></i>
                 </button>
             </div>
         </div>
-    `).join('');
-    
-    list.innerHTML = recommendationsHtml;
-    container.style.display = 'block';
-}
+    </section>
 
-function handleRecommendationAction(action) {
-    switch(action) {
-        case 'add_data':
-            window.location.href = '/';
-            break;
-        case 'train_ml':
-            window.location.href = '/ml_dashboard';
-            break;
-        case 'improve_data':
-            showToast('Информация', 'Добавьте недостающие данные в таблицы');
-            break;
-    }
-}
+    <!-- SECTION 2: Query Builder -->
+    <section class="scrolly-section" id="ai-step-2">
+        <i class="fas fa-comment-dots floating-icon text-info"></i>
+        <div class="text-center mb-5 animate-on-scroll">
+            <h2 class="font-weight-bolder">Сформулируйте Задачу</h2>
+            <p class="text-muted">Используйте свободный текстовый запрос или выберите из готовых шаблонов</p>
+        </div>
 
-async function performAnalysis() {
-    const form = document.getElementById('ai-ml-analysis-form');
-    const query = form.querySelector('textarea[name="query"]').value.trim();
-    const button = form.querySelector('button[type="submit"]');
-    const resultsDiv = document.getElementById('ai-ml-results');
-    
-    if (!query) {
-        showToast('Ошибка', 'Введите запрос для анализа', 'error');
-        return;
-    }
-    
-    button.disabled = true;
-    button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Анализ...';
-    resultsDiv.innerHTML = '<div class="alert alert-info"><i class="fas fa-spinner fa-spin me-2"></i>ИИ анализирует запрос...</div>';
-    
-    try {
-        const response = await fetch('/ai_ml_analysis', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({query: query})
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            showAnalysisResult(data);
-            loadAnalysisHistory(); // Обновляем историю
-        } else {
-            showAnalysisError(data.message || 'Ошибка анализа');
-        }
-    } catch (error) {
-        showAnalysisError(`Ошибка соединения: ${error.message}`);
-    } finally {
-        button.disabled = false;
-        button.innerHTML = '<i class="fas fa-robot me-2"></i>Выполнить анализ';
-    }
-}
-
-function showAnalysisResult(data) {
-    const resultsDiv = document.getElementById('ai-ml-results');
-    
-    let actionsHtml = '';
-    if (data.actions && data.actions.length > 0) {
-        actionsHtml = `
-            <div class="mt-3">
-                <h6><i class="fas fa-rocket me-2"></i>Рекомендуемые действия:</h6>
-                <div class="d-flex gap-2 flex-wrap">
-                    ${data.actions.map(action => `
-                        <button class="btn btn-sm btn-outline-primary" onclick="handleAnalysisAction('${action}')">
-                            ${getActionLabel(action)}
-                        </button>
-                    `).join('')}
+        <div class="row w-100 mx-auto max-w-1000">
+            <div class="col-lg-7 mb-4 animate-on-scroll stagger-1">
+                <div class="bank-card h-100">
+                    <form id="ai-ml-analysis-form" class="h-100 d-flex flex-column">
+                        <div class="flex-grow-1">
+                            <label class="form-label font-weight-bold">Ваш запрос к нейросети:</label>
+                            <textarea class="form-control" name="query" rows="8"
+                                style="resize: none; font-size: 1.1rem; line-height: 1.6;"
+                                placeholder="Пример: Найди оптимальный состав для максимальной теплоты сгорания и минимальной зольности..."></textarea>
+                        </div>
+                        <div class="d-flex justify-content-end gap-3 mt-4">
+                            <button type="button" class="btn btn-outline-secondary"
+                                onclick="document.querySelector('textarea[name=\'query\']').value = '';">
+                                <i class="fas fa-eraser me-2"></i>Очистить
+                            </button>
+                            <button type="submit" class="btn btn-premium px-5">
+                                <i class="fas fa-magic me-2"></i>Анализировать
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </div>
-        `;
+
+            <div class="col-lg-5 mb-4 animate-on-scroll stagger-2">
+                <div class="bank-card h-100 bg-gray-50">
+                    <h6 class="font-weight-bolder mb-3"><i class="fas fa-bolt text-warning me-2"></i>Быстрые Шаблоны
+                    </h6>
+                    <div class="d-flex flex-column gap-2 overflow-auto" style="max-height: 300px;">
+                        <button class="btn btn-white text-dark shadow-sm text-start quick-query"
+                            data-query="Проанализируй основные тенденции в данных">
+                            <i class="fas fa-chart-line text-primary w-10 text-center me-2"></i>Анализ трендов и
+                            корреляций
+                        </button>
+                        <button class="btn btn-white text-dark shadow-sm text-start quick-query"
+                            data-query="Найди оптимальный состав для максимальной теплоты сгорания">
+                            <i class="fas fa-fire text-danger w-10 text-center me-2"></i>Максимизация калорийности
+                        </button>
+                        <button class="btn btn-white text-dark shadow-sm text-start quick-query"
+                            data-query="Какие компоненты лучше всего влияют на прочность?">
+                            <i class="fas fa-dumbbell text-success w-10 text-center me-2"></i>Факторы прочности
+                        </button>
+                        <button class="btn btn-white text-dark shadow-sm text-start quick-query"
+                            data-query="Предскажи свойства для состава: 60% опилки, 30% солома, 10% лигнин">
+                            <i class="fas fa-crystal-ball text-info w-10 text-center me-2"></i>Прогноз по пропорциям
+                        </button>
+                        <button class="btn btn-white text-dark shadow-sm text-start quick-query"
+                            data-query="Какие параметры наиболее важны для качества пеллет?">
+                            <i class="fas fa-star text-warning w-10 text-center me-2"></i>Матрица важности
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SECTION 3: Results -->
+    <section class="scrolly-section" id="ai-step-3">
+        <i class="fas fa-chart-pie floating-icon text-success"></i>
+        <div class="text-center mb-5 animate-on-scroll">
+            <h2 class="font-weight-bolder">Отчет Нейросети</h2>
+            <p class="text-muted">Результаты анализа, выводы и следующие шаги</p>
+        </div>
+
+        <div class="row w-100 mx-auto max-w-1000 h-100">
+            <div class="col-12 animate-on-scroll stagger-1 h-100">
+                <div class="bank-card h-100 d-flex flex-column">
+
+                    <div id="ai-ml-results" class="flex-grow-1 overflow-auto pe-3">
+                        <div class="text-center text-muted my-5 pb-5">
+                            <i class="fas fa-robot fa-4x mb-3 text-light"></i>
+                            <h5>Ожидание данных...</h5>
+                            <p>Отправьте запрос на предыдущем шаге, чтобы получить результаты здесь.</p>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <div class="text-center mt-4">
+            <button class="btn btn-outline-primary" onclick="scrollToSection('ai-step-2')">
+                <i class="fas fa-arrow-up me-2"></i>Новый Запрос
+            </button>
+        </div>
+    </section>
+
+</div>
+
+{% block extra_js %}
+<!-- Подключаем Bootstrap Notify (опционально, если нужно для alerts) -->
+<script src="{{ url_for('static', filename='assets/js/plugins/bootstrap-notify.js') }}"></script>
+
+<script>
+    // Intersection Observer for Animations and Scroll Snapping tracking
+    const container = document.getElementById('scrollyContainer');
+    const sections = document.querySelectorAll('.scrolly-section');
+    const dots = document.querySelectorAll('.step-dot');
+
+    // Watch for scroll into view
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                // Fade in animation
+                entry.target.querySelectorAll('.animate-on-scroll').forEach(el => {
+                    el.style.opacity = '1';
+                    el.style.transform = 'translateY(0)';
+                });
+
+                // Update side dots
+                const index = Array.from(sections).indexOf(entry.target);
+                dots.forEach((dot, i) => {
+                    dot.classList.toggle('active', i === index);
+                });
+            }
+        });
+    }, { threshold: 0.5 });
+
+    sections.forEach(section => {
+        observer.observe(section);
+        // Setup initial pre-fade state
+        section.querySelectorAll('.animate-on-scroll').forEach(el => {
+            el.style.opacity = '0';
+            el.style.transform = 'translateY(30px)';
+            el.style.transition = 'opacity 0.6s ease-out, transform 0.6s ease-out';
+            if (el.classList.contains('stagger-1')) el.style.transitionDelay = '100ms';
+            if (el.classList.contains('stagger-2')) el.style.transitionDelay = '200ms';
+            if (el.classList.contains('stagger-3')) el.style.transitionDelay = '300ms';
+            if (el.classList.contains('stagger-4')) el.style.transitionDelay = '400ms';
+        });
+    });
+
+    function scrollToSection(id) {
+        document.getElementById(id).scrollIntoView({ behavior: 'smooth' });
     }
-    
-    resultsDiv.innerHTML = `
-        <div class="alert alert-success">
-            <h6><i class="fas fa-chart-line me-2"></i>Результаты анализа:</h6>
-            <div class="mt-3">${formatAnalysisText(data.analysis)}</div>
-            ${data.recommendations ? `
-            <div class="mt-3">
-                <h6><i class="fas fa-lightbulb me-2"></i>Рекомендации:</h6>
-                <div>${formatAnalysisText(data.recommendations)}</div>
+
+    // AI Logic Integrations
+    document.addEventListener('DOMContentLoaded', function () {
+        loadSystemStatus();
+        loadRecommendations();
+
+        // Quick queries
+        document.querySelectorAll('.quick-query').forEach(btn => {
+            btn.addEventListener('click', function () {
+                document.querySelector('textarea[name="query"]').value = this.dataset.query;
+            });
+        });
+
+        // Form Submit
+        document.getElementById('ai-ml-analysis-form').addEventListener('submit', function (e) {
+            e.preventDefault();
+            performAnalysis();
+        });
+    });
+
+    async function loadSystemStatus() {
+        try {
+            const response = await fetch('/ai_ml_system_status');
+            const data = await response.json();
+            if (data.success) {
+                updateSystemStatus(data);
+            }
+        } catch (error) {
+            console.error('Ошибка загрузки статуса', error);
+        }
+    }
+
+    function updateSystemStatus(data) {
+        const dataSummary = data.data_summary || {};
+        const mlStatus = data.ml_status || {};
+
+        const dataStatus = document.getElementById('data-status');
+        if (dataSummary.total_samples > 0) {
+            dataStatus.innerHTML = `
+                <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Образцов: <span class="badge bg-primary ms-1">${dataSummary.total_samples}</span></li>
+                <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Компонентов: <span class="badge bg-primary ms-1">${dataSummary.total_components}</span></li>
+                <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Заполненность: <span class="badge bg-success ms-1">${dataSummary.data_completeness}%</span></li>
+            `;
+        } else {
+            dataStatus.innerHTML = '<li class="text-danger"><i class="fas fa-times-circle me-2"></i>Данные не загружены</li>';
+        }
+
+        const mlStatusElement = document.getElementById('ml-status');
+        if (mlStatus.is_trained && mlStatus.trained_models.length > 0) {
+            const modelsList = mlStatus.trained_models.map(model => {
+                return `<li class="mb-2"><i class="fas fa-robot text-info me-2"></i>${model} <span class="badge bg-info ms-1">Готов</span></li>`;
+            }).join('');
+            mlStatusElement.innerHTML = modelsList;
+        } else {
+            mlStatusElement.innerHTML = '<li class="text-warning"><i class="fas fa-exclamation-triangle me-2"></i>Модели требуют обучения</li>';
+        }
+    }
+
+    async function loadRecommendations() {
+        try {
+            const response = await fetch('/ai_ml_recommendations');
+            const data = await response.json();
+            if (data.success && data.recommendations && data.recommendations.length > 0) {
+                const container = document.getElementById('system-recommendations');
+                const list = document.getElementById('recommendations-list');
+
+                list.innerHTML = data.recommendations.map(rec => `
+                    <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-white rounded">
+                        <span class="text-dark"><i class="fas fa-circle text-${rec.priority === 'high' ? 'danger' : 'warning'} me-2" style="font-size: 8px;"></i>${rec.message}</span>
+                        <a href="/ml_dashboard" class="btn btn-sm btn-outline-warning mb-0">К действию</a>
+                    </div>
+                `).join('');
+
+                container.style.display = 'block';
+            }
+        } catch (e) { console.warn(e); }
+    }
+
+    async function performAnalysis() {
+        const query = document.querySelector('textarea[name="query"]').value.trim();
+        const button = document.querySelector('#ai-ml-analysis-form button[type="submit"]');
+        const resultsDiv = document.getElementById('ai-ml-results');
+
+        if (!query) {
+            $.notify({ icon: 'fas fa-exclamation-circle', message: 'Введите текст запроса' }, { type: 'warning', timer: 2000, placement: { from: 'bottom', align: 'right' } });
+            return;
+        }
+
+        // Auto-scroll to step 3 mapping
+        scrollToSection('ai-step-3');
+
+        button.disabled = true;
+        resultsDiv.innerHTML = `
+            <div class="d-flex justify-content-center align-items-center h-100 flex-column">
+                <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status"></div>
+                <h5 class="mt-3 text-primary">Нейросеть генерирует ответ...</h5>
+            </div>
+        `;
+
+        try {
+            const response = await fetch('/ai_ml_analysis', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query: query })
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                renderResults(data);
+            } else {
+                resultsDiv.innerHTML = `<div class="alert alert-danger text-white border-0"><i class="fas fa-bug me-2"></i>${data.message || 'Ошибка генерации ответа'}</div>`;
+            }
+        } catch (error) {
+            resultsDiv.innerHTML = `<div class="alert alert-danger text-white border-0"><i class="fas fa-bug me-2"></i>Network Error: ${error.message}</div>`;
+        } finally {
+            button.disabled = false;
+        }
+    }
+
+    function renderResults(data) {
+        const resultsDiv = document.getElementById('ai-ml-results');
+
+        let actionsHtml = '';
+        if (data.actions && data.actions.length > 0) {
+            actionsHtml = `
+                <div class="mt-4 pt-4 border-top">
+                    <h6 class="text-muted"><i class="fas fa-crosshairs me-2"></i>Доступные Действия</h6>
+                    <div class="d-flex gap-2 mt-3">
+                        ${data.actions.map(action => `
+                            <a href="/ml_dashboard" class="btn btn-outline-primary shadow-sm"><i class="fas fa-arrow-right me-1"></i>${action}</a>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        let parsedAnalysis = formatAnalysisText(data.analysis);
+        let parsedRecs = data.recommendations ? formatAnalysisText(data.recommendations) : '';
+
+        resultsDiv.innerHTML = `
+            <div class="p-3 bg-gradient-light border-radius-lg mb-4">
+                <h5 class="text-dark font-weight-bolder mb-3"><i class="fas fa-poll-h text-primary me-2"></i>Результат Анализа</h5>
+                <div class="text-body markdown-content" style="font-size: 1.05rem; line-height: 1.6;">${parsedAnalysis}</div>
+            </div>
+            
+            ${parsedRecs ? `
+            <div class="p-3 bg-white border border-warning border-radius-lg mb-4 shadow-sm">
+                <h5 class="text-warning font-weight-bolder mb-3"><i class="fas fa-lightbulb me-2"></i>Рекомендации Системы</h5>
+                <div class="text-body markdown-content">${parsedRecs}</div>
             </div>
             ` : ''}
+            
             ${actionsHtml}
-        </div>
-    `;
-}
-
-function handleAnalysisAction(action) {
-    const actionUrls = {
-        'train_ml': '/ml_dashboard',
-        'optimize': '/ml_dashboard',
-        'predict': '/ml_dashboard', 
-        'add_data': '/',
-        'view_tables': '/tables',
-        'search': '/tables',
-        'compare': '/compare',
-        'create_graphs': '/create_graph',
-        'analyze': '/ai_analysis'
-    };
-    
-    if (actionUrls[action]) {
-        window.location.href = actionUrls[action];
+        `;
     }
-}
 
-function getActionLabel(action) {
-    const labels = {
-        'train_ml': '🔄 Обучить ML',
-        'optimize': '🎯 Оптимизировать',
-        'predict': '🔮 Предсказать',
-        'add_data': '📊 Добавить данные',
-        'view_tables': '📋 Таблицы',
-        'search': '🔍 Поиск',
-        'compare': '⚖️ Сравнить',
-        'create_graphs': '📈 Графики',
-        'analyze': '🤖 Анализ'
-    };
-    return labels[action] || action;
-}
-
-async function loadAnalysisHistory() {
-    try {
-        const response = await fetch('/ai_ml_history');
-        const data = await response.json();
-        
-        if (data.success) {
-            updateAnalysisHistory(data.history);
-        }
-    } catch (error) {
-        console.log('История недоступна');
+    function formatAnalysisText(text) {
+        return text
+            .replace(/\*\*(.*?)\*\*/g, '<strong class="text-dark">$1</strong>')
+            .replace(/\n\n/g, '</p><p>')
+            .replace(/\n/g, '<br>')
+            .replace(/✅/g, '<span class="text-success fs-5">✅</span>')
+            .replace(/⚠️/g, '<span class="text-warning fs-5">⚠️</span>')
+            .replace(/❌/g, '<span class="text-danger fs-5">❌</span>')
+            .replace(/• (.*?)<br>/g, '<li class="mb-1">$1</li>');
     }
-}
-
-function updateAnalysisHistory(history) {
-    const container = document.getElementById('analysis-history');
-    const countElement = document.getElementById('history-count');
-    
-    if (!history || history.length === 0) {
-        container.innerHTML = '<div class="text-muted">История анализов появится здесь после выполнения запросов</div>';
-        countElement.textContent = '0';
-        return;
-    }
-    
-    countElement.textContent = history.length;
-    
-    const historyHtml = history.slice(0, 5).map(item => `
-        <div class="border-bottom pb-2 mb-2">
-            <div class="d-flex justify-content-between">
-                <small class="text-muted">${new Date(item.timestamp).toLocaleString()}</small>
-                <span class="badge bg-secondary">${item.type}</span>
-            </div>
-            <div class="fw-bold">${item.query}</div>
-        </div>
-    `).join('');
-    
-    container.innerHTML = historyHtml;
-}
-
-function clearAnalysis() {
-    document.querySelector('textarea[name="query"]').value = '';
-    document.getElementById('ai-ml-results').innerHTML = '';
-}
-
-function showSystemError(message) {
-    const dataStatus = document.getElementById('data-status');
-    const mlStatus = document.getElementById('ml-status');
-    
-    dataStatus.innerHTML = `<li><i class="fas fa-exclamation-triangle text-danger me-2"></i>${message}</li>`;
-    mlStatus.innerHTML = `<li><i class="fas fa-exclamation-triangle text-danger me-2"></i>${message}</li>`;
-}
-
-function showAnalysisError(message) {
-    const resultsDiv = document.getElementById('ai-ml-results');
-    resultsDiv.innerHTML = `
-        <div class="alert alert-danger">
-            <h6><i class="fas fa-exclamation-triangle me-2"></i>Ошибка:</h6>
-            ${message}
-        </div>
-    `;
-}
-
-function showToast(title, message, type = 'info') {
-    // Реализация toast уведомлений
-    const toast = document.createElement('div');
-    toast.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
-    toast.style.cssText = 'top: 20px; right: 20px; z-index: 1050; min-width: 300px;';
-    toast.innerHTML = `
-        <strong>${title}</strong> ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    `;
-    document.body.appendChild(toast);
-    
-    setTimeout(() => {
-        if (toast.parentNode) toast.parentNode.removeChild(toast);
-    }, 5000);
-}
-
-function formatAnalysisText(text) {
-    return text
-        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-        .replace(/\n/g, '<br>')
-        .replace(/✅/g, '<span class="text-success">✅</span>')
-        .replace(/⚠️/g, '<span class="text-warning">⚠️</span>')
-        .replace(/❌/g, '<span class="text-danger">❌</span>');
-}
 </script>
-{% endblock %}
+{% endblock extra_js %}
+{% endblock content %}

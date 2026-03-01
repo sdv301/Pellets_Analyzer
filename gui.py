@@ -1337,6 +1337,12 @@ def simple_filter(df, column, operator, value):
         
         # Для числовых полей
         try:
+            if operator == 'BETWEEN':
+                min_val, max_val = value
+                num_min = float(min_val)
+                num_max = float(max_val)
+                return df[(df[column] >= num_min) & (df[column] <= num_max)]
+                
             num_value = float(value)
             
             if operator == '=':

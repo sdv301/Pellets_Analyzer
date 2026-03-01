@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0 animate-on-scroll mb-4 position-relative overflow-hidden">
+                <div class="card-body p-4 position-relative" style="z-index: 1;">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h1 class="display-6 fw-bold mb-2 text-dark">💰 Экономическая часть</h1>
+                            <p class="lead mb-0 text-muted">Оценка стоимости ингредиентов и расчет рентабельности
+                                производства топливных пеллет.</p>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="bg-white rounded-pill px-3 py-2 d-inline-block border shadow-sm">
+                                <i class="fas fa-calculator text-primary me-2"></i>
+                                <span class="fw-bold fs-6 text-muted">Модуль расчетов</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Заглушка для контента -->
+    <div class="row">
+        <div class="col-lg-8 col-md-12 mb-4">
+            <div class="card shadow-sm border-0 animate-on-scroll stagger-1 h-100">
+                <div class="card-header bg-white py-3 border-0">
+                    <h5 class="mb-0 text-dark font-weight-bolder">
+                        <i class="fas fa-coins me-2 text-warning"></i>Калькулятор себестоимости
+                    </h5>
+                </div>
+                <div class="card-body text-center py-5">
+                    <div class="opacity-5 mb-3">
+                        <i class="fas fa-tools fa-4x text-muted"></i>
+                    </div>
+                    <h5 class="text-muted">Модуль в разработке</h5>
+                    <p class="text-muted mb-0">Здесь появится функционал для ввода цен на компоненты и автоматического
+                        расчета себестоимости 1 тонны готовой продукции для каждого состава.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4 col-md-12 mb-4">
+            <div class="card shadow-sm border-0 animate-on-scroll stagger-2 h-100">
+                <div class="card-header bg-white py-3 border-0">
+                    <h5 class="mb-0 text-dark font-weight-bolder">
+                        <i class="fas fa-chart-pie me-2 text-info"></i>Аналитика
+                    </h5>
+                </div>
+                <div class="card-body text-center py-5">
+                    <div class="opacity-5 mb-3">
+                        <i class="fas fa-chart-bar fa-4x text-muted"></i>
+                    </div>
+                    <h5 class="text-muted">Анализ рынка</h5>
+                    <p class="text-muted mb-0">Графики сравнения прогнозируемой цены реализации с себестоимостью.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

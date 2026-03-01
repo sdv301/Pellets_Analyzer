@@ -8,13 +8,13 @@
         <div class="col-12">
             {% if show_data %}
             <!-- Универсальная форма поиска -->
-            <div class="card mb-4">
-                <div class="card-header pb-0 text-center">
-                    <h6>Универсальный поиск данных</h6>
+            <div class="card shadow-sm border-0 animate-on-scroll mb-4">
+                <div class="card-header bg-white pb-0 pt-4 px-4 text-center border-0">
+                    <h6 class="text-dark font-weight-bolder">Универсальный поиск данных</h6>
                 </div>
-                <div class="card-body px-3 pt-0 pb-2">
+                <div class="card-body px-4 pt-4 pb-2">
                     <form method="post" id="searchForm" class="mb-4">
-                        <div class="row">
+                        <div class="row search-criterion">
                             <div class="col-md-3">
                                 <label class="form-label">Столбец для поиска</label>
                                 <select class="form-select" id="search_column" name="search_column">
@@ -47,8 +47,10 @@
                             </div>
                             <div class="col-md-3 ">
                                 <label for="search_operator" class="form-label">Условие</label>
-                                <select class="form-select" id="search_operator" name="search_operator">
+                                <select class="form-select" id="search_operator" name="search_operator"
+                                    onchange="toggleSearchInputs(this.closest('.search-criterion'))">
                                     <option value="=">Равно</option>
+                                    <option value="BETWEEN">Диапазон (ОТ и ДО)</option>
                                     <option value=">">Больше</option>
                                     <option value=">=">Больше или равно</option>
                                     <option value="<">Меньше</option>
@@ -58,20 +60,27 @@
                                 </select>
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label">Значение</label>
-                                <input type="text" class="form-control" id="search_value" name="search_value"
-                                    placeholder="Введите значение для поиска">
+                                <label class="form-label search-value-label" id="search_value_label">Значение</label>
+                                <div class="d-flex gap-2">
+                                    <input type="text" class="form-control" id="search_value" name="search_value"
+                                        placeholder="Введите значение">
+                                    <input type="text" class="form-control d-none" id="search_value_max"
+                                        name="search_value_max" placeholder="До (макс.)">
+                                </div>
                             </div>
                         </div>
+                        <div id="criteriaContainer"></div>
                         <!-- Кнопки управления -->
-                        <div class="d-flex gap-2 mt-3">
-                            <button type="button" class="btn bg-gradient-success" data-bs-toggle="modal"
-                                data-bs-target="#addDataModal">Добавить данные</button>
-                            <button type="button" class="btn bg-gradient-primary" id="addCriterionBtn">Добавить
+                        <div class="d-flex flex-wrap gap-2 mt-4">
+                            <button type="button" class="btn btn-primary flex-grow-1" data-bs-toggle="modal"
+                                data-bs-target="#addDataModal"><i class="fas fa-plus me-1"></i> Добавить данные</button>
+                            <button type="button" class="btn btn-outline-premium flex-grow-1" id="addCriterionBtn"><i
+                                    class="fas fa-filter me-1"></i> Добавить
                                 критерий</button>
-                            <button type="button" class="btn bg-gradient-info" onclick="resetSearch()">Сбросить
-                                поиск</button>
-                            <button type="submit" class="btn bg-gradient-primary">Найти</button>
+                            <button type="button" class="btn btn-light flex-grow-1" onclick="resetSearch()"><i
+                                    class="fas fa-undo me-1"></i> Сбросить</button>
+                            <button type="submit" class="btn btn-primary flex-grow-1"><i class="fas fa-search me-1"></i>
+                                Найти</button>
                         </div>
 
                         {% if search_performed %}
@@ -90,88 +99,150 @@
             <!-- Модальное окно для добавления данных -->
             <div class="modal fade" id="addDataModal" tabindex="-1" aria-labelledby="addDataModalLabel"
                 aria-hidden="true">
-                <div class="modal-dialog">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title" id="addDataModalLabel">Добавить новый состав</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <div class="modal-dialog modal-dialog-centered modal-lg">
+                    <div class="modal-content shadow-sm border-0">
+                        <div class="modal-header bg-light border-bottom-0 pb-3 pt-4 px-4">
+                            <h5 class="modal-title font-weight-bolder text-dark" id="addDataModalLabel">Добавить новый
+                                состав</h5>
+                            <button type="button" class="btn-close text-dark" data-bs-dismiss="modal"
+                                aria-label="Close"></button>
                         </div>
                         <div class="modal-body">
                             <form method="post" id="addDataForm">
-                                <div class="mb-3">
-                                    <label for="composition" class="form-label">Составы *</label>
-                                    <input type="text" class="form-control" id="composition" name="composition"
-                                        required>
+                                <!-- Основные характеристики -->
+                                <h6 class="text-primary mb-3"><i class="fas fa-info-circle me-2"></i>Основные параметры
+                                </h6>
+                                <div class="row">
+                                    <div class="col-md-12 mb-3">
+                                        <label for="composition" class="form-label">Состав *</label>
+                                        <input type="text" class="form-control" id="composition" name="composition"
+                                            required placeholder="Например: Сосна 100%">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="density" class="form-label">Плотность (ρ), кг/м³</label>
+                                        <input type="number" class="form-control" id="density" name="density"
+                                            step="any">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="kf" class="form-label">Ударопрочность, %</label>
+                                        <input type="number" class="form-control" id="kf" name="kf" step="any">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="kt" class="form-label">Устойчивость к колебательным нагрузкам,
+                                            %</label>
+                                        <input type="number" class="form-control" id="kt" name="kt" step="any">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="h" class="form-label">Гигроскопичность, %</label>
+                                        <input type="number" class="form-control" id="h" name="h" step="any">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="mass_loss" class="form-label">Потеря массы, %</label>
+                                        <input type="number" class="form-control" id="mass_loss" name="mass_loss"
+                                            step="any">
+                                    </div>
                                 </div>
-                                <div class="mb-3">
-                                    <label for="density" class="form-label">Плотность (ρ), кг/м³</label>
-                                    <input type="number" class="form-control" id="density" name="density" step="any">
+
+                                <hr class="my-4">
+
+                                <!-- Энергетические и химические параметры -->
+                                <h6 class="text-info mb-3"><i class="fas fa-fire me-2"></i>Энергетические и химические
+                                    свойства</h6>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="q" class="form-label">Теплота сгорания, МДж/кг</label>
+                                        <input type="number" class="form-control" id="q" name="q" step="any">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="ad" class="form-label">Зольность на сухую массу, %</label>
+                                        <input type="number" class="form-control" id="ad" name="ad" step="any">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="war" class="form-label">Влажность (на аналит. массу), %</label>
+                                        <input type="number" class="form-control" id="war" name="war" step="any">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="vd" class="form-label">Содержание летучих, %</label>
+                                        <input type="number" class="form-control" id="vd" name="vd" step="any">
+                                    </div>
                                 </div>
-                                <div class="mb-3">
-                                    <label for="kf" class="form-label">Ударопрочность, %</label>
-                                    <input type="number" class="form-control" id="kf" name="kf" step="any">
+
+                                <h6 class="text-info mt-2 mb-3"><i class="fas fa-atom me-2"></i>Элементный состав (на
+                                    сухую массу)</h6>
+                                <div class="row">
+                                    <div class="col-md-4 mb-3">
+                                        <label for="cd" class="form-label">Углерод (C), %</label>
+                                        <input type="number" class="form-control" id="cd" name="cd" step="any">
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label for="hd" class="form-label">Водород (H), %</label>
+                                        <input type="number" class="form-control" id="hd" name="hd" step="any">
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label for="nd" class="form-label">Азот (N), %</label>
+                                        <input type="number" class="form-control" id="nd" name="nd" step="any">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="sd" class="form-label">Сера (S), %</label>
+                                        <input type="number" class="form-control" id="sd" name="sd" step="any">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="od" class="form-label">Кислород (O), %</label>
+                                        <input type="number" class="form-control" id="od" name="od" step="any">
+                                    </div>
                                 </div>
-                                <div class="mb-3">
-                                    <label for="kt" class="form-label">Устойчивость к колебательным нагрузкам, %</label>
-                                    <input type="number" class="form-control" id="kt" name="kt" step="any">
+
+                                <hr class="my-4">
+
+                                <!-- Температурные характеристики и Эмиссии -->
+                                <h6 class="text-danger mb-3"><i class="fas fa-temperature-high me-2"></i>Горение и
+                                    Эмиссии</h6>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="tign" class="form-label">Температура зажигания, °С</label>
+                                        <input type="number" class="form-control" id="tign" name="tign" step="any">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="tb" class="form-label">Температура выгорания, °C</label>
+                                        <input type="number" class="form-control" id="tb" name="tb" step="any">
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label for="tau_d1" class="form-label">Задержка газ. зажигания, C</label>
+                                        <input type="number" class="form-control" id="tau_d1" name="tau_d1" step="any">
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label for="tau_d2" class="form-label">Задержка гет. зажигания, C</label>
+                                        <input type="number" class="form-control" id="tau_d2" name="tau_d2" step="any">
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label for="tau_b" class="form-label">Время горения, С</label>
+                                        <input type="number" class="form-control" id="tau_b" name="tau_b" step="any">
+                                    </div>
                                 </div>
-                                <div class="mb-3">
-                                    <label for="h" class="form-label">Гигроскопичность, %</label>
-                                    <input type="number" class="form-control" id="h" name="h" step="any">
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="co2" class="form-label">Концентрация CO₂, %</label>
+                                        <input type="number" class="form-control" id="co2" name="co2" step="any">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="co" class="form-label">Концентрация CO, %</label>
+                                        <input type="number" class="form-control" id="co" name="co" step="any">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="so2" class="form-label">Концентрация SO₂, ppm</label>
+                                        <input type="number" class="form-control" id="so2" name="so2" step="any">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="nox" class="form-label">Концентрация NOx, ppm</label>
+                                        <input type="number" class="form-control" id="nox" name="nox" step="any">
+                                    </div>
                                 </div>
-                                <div class="mb-3">
-                                    <label for="mass_loss" class="form-label">Потеря массы, %</label>
-                                    <input type="number" class="form-control" id="mass_loss" name="mass_loss"
-                                        step="any">
-                                </div>
-                                <div class="mb-3">
-                                    <label for="tign" class="form-label">Температура зажигания, °С</label>
-                                    <input type="number" class="form-control" id="tign" name="tign" step="any">
-                                </div>
-                                <div class="mb-3">
-                                    <label for="tb" class="form-label">Температура выгорания, °C</label>
-                                    <input type="number" class="form-control" id="tb" name="tb" step="any">
-                                </div>
-                                <div class="mb-3">
-                                    <label for="tau_d1" class="form-label">Задержка газофазного зажигания, C</label>
-                                    <input type="number" class="form-control" id="tau_d1" name="tau_d1" step="any">
-                                </div>
-                                <div class="mb-3">
-                                    <label for="tau_d2" class="form-label">Задержка гетерогенного зажигания, C</label>
-                                    <input type="number" class="form-control" id="tau_d2" name="tau_d2" step="any">
-                                </div>
-                                <div class="mb-3">
-                                    <label for="tau_b" class="form-label">Время горения, С</label>
-                                    <input type="number" class="form-control" id="tau_b" name="tau_b" step="any">
-                                </div>
-                                <div class="mb-3">
-                                    <label for="co2" class="form-label">Концентрация CO₂, %</label>
-                                    <input type="number" class="form-control" id="co2" name="co2" step="any">
-                                </div>
-                                <div class="mb-3">
-                                    <label for="co" class="form-label">Концентрация CO, %</label>
-                                    <input type="number" class="form-control" id="co" name="co" step="any">
-                                </div>
-                                <div class="mb-3">
-                                    <label for="so2" class="form-label">Концентрация SO₂, ppm</label>
-                                    <input type="number" class="form-control" id="so2" name="so2" step="any">
-                                </div>
-                                <div class="mb-3">
-                                    <label for="nox" class="form-label">Концентрация NOx, ppm</label>
-                                    <input type="number" class="form-control" id="nox" name="nox" step="any">
-                                </div>
-                                <div class="mb-3">
-                                    <label for="q" class="form-label">Теплота сгорания, МДж/кг</label>
-                                    <input type="number" class="form-control" id="q" name="q" step="any">
-                                </div>
-                                <div class="mb-3">
-                                    <label for="ad" class="form-label">Содержание золы на сухую массу, %</label>
-                                    <input type="number" class="form-control" id="ad" name="ad" step="any">
-                                </div>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary"
-                                        data-bs-dismiss="modal">Закрыть</button>
-                                    <button type="submit" class="btn bg-gradient-primary">Добавить</button>
+
+                                <div class="modal-footer border-top-0 pt-4 px-0 pb-0">
+                                    <button type="button" class="btn btn-light px-4"
+                                        data-bs-dismiss="modal">Отмена</button>
+                                    <button type="submit" class="btn btn-primary px-5"><i
+                                            class="fas fa-save me-2"></i>Сохранить данные</button>
                                 </div>
                             </form>
                         </div>
@@ -182,11 +253,11 @@
 
             {% if show_data %}
             {% for table in tables %}
-            <div class="card mb-4">
-                <div class="card-header">
-                    {{ table.name }}
+            <div class="card shadow-sm border-0 animate-on-scroll stagger-{{ loop.index }} mb-4">
+                <div class="card-header bg-white pb-0 pt-4 px-4 border-0">
+                    <h6 class="text-uppercase text-dark font-weight-bolder">{{ table.name }}</h6>
                 </div>
-                <div class="card-body">
+                <div class="card-body px-4">
                     <div class="table-responsive">
                         {{ table.data | safe }}
                     </div>
@@ -327,9 +398,63 @@
         });
     });
 
+    // Логика переключения инпутов для поиска по диапазону
+    function toggleSearchInputs(criterionElement) {
+        const operatorSelect = criterionElement.querySelector('[name="search_operator"]');
+        const minInput = criterionElement.querySelector('[name="search_value"]');
+        const maxInput = criterionElement.querySelector('[name="search_value_max"]');
+        const valueLabel = criterionElement.querySelector('.search-value-label'); // Use a class for dynamic labels
+
+        if (!operatorSelect || !minInput || !maxInput || !valueLabel) return;
+
+        if (operatorSelect.value === 'BETWEEN') {
+            maxInput.classList.remove('d-none');
+            minInput.placeholder = "От (мин.)";
+            valueLabel.textContent = "Диапазон значений";
+        } else {
+            maxInput.classList.add('d-none');
+            maxInput.value = ""; // Очищаем скрытое поле
+            minInput.placeholder = "Введите значение";
+            valueLabel.textContent = "Значение";
+        }
+    }
+
+    // Инициализация правильного отображения при загрузке страницы для основного критерия
+    document.addEventListener("DOMContentLoaded", function () {
+        const mainSearchCriterion = document.querySelector('.search-criterion'); // Assuming the first one is the main
+        if (mainSearchCriterion) {
+            toggleSearchInputs(mainSearchCriterion);
+            mainSearchCriterion.querySelector('[name="search_operator"]').addEventListener('change', () => toggleSearchInputs(mainSearchCriterion));
+        }
+    });
+
     // Асинхронная отправка формы поиска
     document.getElementById('searchForm')?.addEventListener('submit', async function (e) {
         e.preventDefault();
+
+        // Валидация перед отправкой
+        const operator = document.getElementById('search_operator').value;
+        const value = document.getElementById('search_value').value;
+        const valueMax = document.getElementById('search_value_max').value;
+
+        if (!value && operator !== 'BETWEEN') {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Внимание',
+                text: 'Введите значение для поиска'
+            });
+            return;
+        }
+
+        if (operator === 'BETWEEN' && (!value || !valueMax)) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Внимание',
+                text: 'Для поиска по диапазону заполните оба поля (От и До)'
+            });
+            return;
+        }
+
         const formData = new FormData(this);
         try {
             const response = await fetch('/search', {
@@ -417,12 +542,11 @@
                     </div>
                     `;
 
-                // Находим родительский элемент кнопок (card-body)
-                const buttonsContainer = document.querySelector('.d-flex.gap-2.mt-3');
-                const parentElement = buttonsContainer.parentNode;
-
-                // Вставляем новый критерий ПЕРЕД кнопками в том же родительском элементе
-                parentElement.insertBefore(criteriaRow, buttonsContainer);
+                // Просто добавляем в контейнер
+                const container = document.getElementById('criteriaContainer');
+                if (container) {
+                    container.appendChild(criteriaRow);
+                }
 
                 // Добавляем обработчик для кнопки удаления
                 const removeBtn = criteriaRow.querySelector('.remove-criterion');
@@ -434,29 +558,32 @@
     }
 
     // Асинхронная отправка формы добавления данных
-    document.getElementById('addDataForm')?.addEventListener('submit', async function (e) {
-        e.preventDefault();
-        const formData = new FormData(this);
-        try {
-            const response = await fetch('/add_data', {
-                method: 'POST',
-                body: formData
-            });
-            const data = await response.json();
-            if (data.success) {
-                showToast(data.message, 'success');
-                // Закрываем модальное окно и перезагружаем страницу
-                bootstrap.Modal.getInstance(document.getElementById('addDataModal')).hide();
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1000);
-            } else {
-                showToast(data.message, 'danger');
+    const addDataForm = document.getElementById('addDataForm');
+    if (addDataForm) {
+        addDataForm.addEventListener('submit', async function (e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            try {
+                const response = await fetch('/add_data', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                if (data.success) {
+                    showToast(data.message, 'success');
+                    // Закрываем модальное окно и перезагружаем страницу
+                    bootstrap.Modal.getInstance(document.getElementById('addDataModal')).hide();
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                } else {
+                    showToast(data.message, 'danger');
+                }
+            } catch (error) {
+                showToast('Ошибка при добавлении данных: ' + error.message, 'danger');
             }
-        } catch (error) {
-            showToast('Ошибка при добавлении данных: ' + error.message, 'danger');
-        }
-    });
+        });
+    }
 
     function showToast(message, type) {
         const toastContainer = document.createElement('div');
@@ -496,9 +623,22 @@
     function resetSearch() {
         const searchColumnEl = document.getElementById('search_column');
         const searchValueEl = document.getElementById('search_value');
+        const searchMaxEl = document.getElementById('search_value_max');
+        const searchOperatorEl = document.getElementById('search_operator');
+
         if (searchColumnEl) searchColumnEl.value = '';
-        document.getElementById('search_operator').value = '=';
+        if (searchOperatorEl) searchOperatorEl.value = '=';
         if (searchValueEl) searchValueEl.value = '';
+        if (searchMaxEl) {
+            searchMaxEl.value = '';
+            searchMaxEl.classList.add('d-none');
+        }
+
+        // Reset placeholder
+        if (searchValueEl) searchValueEl.placeholder = "Введите значение";
+        const label = document.getElementById('search_value_label');
+        if (label) label.textContent = "Значение";
+
         window.location.href = '/tables';
     }
 </script>

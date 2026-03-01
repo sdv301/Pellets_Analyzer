@@ -303,8 +303,8 @@ class MLCompositionOptimizer:
         self.predictor = predictor
         self.optimization_history = []
     
-    def optimize_composition(self, target_property: str, maximize: bool = True, constraints: Dict[str, Tuple[float, float]] = None) -> Dict:
-        """Оптимизирует состав с проверкой совместимости ограничений"""
+    def optimize_composition(self, target_property: str, maximize: bool = True, constraints: Dict[str, Tuple[float, float]] = None, available_components: List[str] = None) -> Dict:
+        """Оптимизирует состав с проверкой совместимости ограничений и выбором лучших компонентов"""
         if target_property not in self.predictor.models:
             return {'success': False, 'error': f'Модель для {target_property} не обучена'}
         
@@ -337,8 +337,25 @@ class MLCompositionOptimizer:
                     'error': f'Ограничения несовместимы: максимальная сумма {max_total:.1f}% < 100%'
                 }
         
-        # Начальный состав - равномерное распределение
-        initial_composition = np.full(n_features, 1.0 / n_features)
+        # Фильтрация по доступным компонентам
+        available_indices = []
+        if available_components:
+            for i, feat in enumerate(feature_names):
+                if feat in available_components:
+                    available_indices.append(i)
+        else:
+            available_indices = list(range(n_features))
+
+        if not available_indices:
+             return {
+                 'success': False,
+                 'error': 'Ни один из доступных компонентов не распознан моделью'
+             }
+             
+        # Начальный состав - равномерное распределение по *доступным*
+        initial_composition = np.zeros(n_features)
+        for idx in available_indices:
+            initial_composition[idx] = 1.0 / len(available_indices)
         
         def objective(composition):
             try:
@@ -358,53 +375,85 @@ class MLCompositionOptimizer:
         
         # Ограничения на компоненты
         bounds = [(0.0, 1.0) for _ in range(n_features)]
+        
+        # Если заданы доступные компоненты, недоступные жестко нулируем
+        if available_components:
+             for i in range(n_features):
+                 if i not in available_indices:
+                     bounds[i] = (0.0, 0.0)
+                     
         if constraints:
             for comp, (min_val, max_val) in constraints.items():
                 if comp in feature_names:
                     idx = feature_names.index(comp)
                     # Преобразуем проценты в доли
-                    bounds[idx] = (max(min_val / 100.0, 0.0), min(max_val / 100.0, 1.0))
+                    new_min = max(min_val / 100.0, bounds[idx][0])
+                    new_max = min(max_val / 100.0, bounds[idx][1])
+                    bounds[idx] = (new_min, new_max)
         
-        # Пробуем разные методы оптимизации
-        methods = ['SLSQP', 'trust-constr']
+        # Генерируем несколько стартовых точек (Multi-start)
+        n_starts = 5
+        start_points = [initial_composition]
+        
+        for _ in range(n_starts - 1):
+            # Случайная точка только из доступных
+            pt = np.zeros(n_features)
+            # Присваиваем случайные веса доступным компонентам
+            rand_weights = np.random.rand(len(available_indices))
+            # Нормализуем к 1
+            rand_weights /= rand_weights.sum()
+            
+            for i, idx in enumerate(available_indices):
+                pt[idx] = rand_weights[i]
+                
+            # Применяем ограничения, если они нарушены в стартовой точке (упрощенно: просто надеемся, что SLSQP вытянет)
+            start_points.append(pt)
+
         best_result = None
         best_value = -np.inf if maximize else np.inf
         
-        for method in methods:
-            try:
-                result = minimize(
-                    objective, 
-                    initial_composition, 
-                    method=method, 
-                    bounds=bounds, 
-                    constraints=cons, 
-                    options={'maxiter': 500, 'disp': False}
-                )
-                
-                if result.success:
-                    current_value = -result.fun if maximize else result.fun
-                    if (maximize and current_value > best_value) or (not maximize and current_value < best_value):
-                        best_result = result
-                        best_value = current_value
-            except Exception as e:
-                print(f"⚠️ Метод {method} не сработал: {e}")
-                continue
+        for method in ['SLSQP']:
+            for start_pt in start_points:
+                try:
+                    result = minimize(
+                        objective, 
+                        start_pt, 
+                        method=method, 
+                        bounds=bounds, 
+                        constraints=cons, 
+                        options={'maxiter': 500, 'disp': False}
+                    )
+                    
+                    if result.success:
+                        current_value = -result.fun if maximize else result.fun
+                        if (maximize and current_value > best_value) or (not maximize and current_value < best_value):
+                            best_result = result
+                            best_value = current_value
+                except Exception as e:
+                    continue
         
-        # Если ни один метод не сработал, пробуем без ограничений
+        # Если ни один метод с ограничениями не сработал
         if best_result is None:
-            print("🔄 Пробую оптимизацию без ограничений...")
-            try:
-                result = minimize(
-                    objective, 
-                    initial_composition, 
-                    method='SLSQP', 
-                    constraints=cons, 
-                    options={'maxiter': 500, 'disp': False}
-                )
-                if result.success:
-                    best_result = result
-            except:
-                pass
+            print("🔄 Пробую оптимизацию без строгих ограничений параметров (только сумма 100% и список доступных)...")
+            # Сброс ограничений к границам по умолчанию для доступных компонентов
+            loose_bounds = [(0.0, 1.0) if i in available_indices else (0.0, 0.0) for i in range(n_features)]
+            for start_pt in start_points:
+                try:
+                    result = minimize(
+                        objective, 
+                        start_pt, 
+                        method='SLSQP', 
+                        bounds=loose_bounds,
+                        constraints=cons, 
+                        options={'maxiter': 500, 'disp': False}
+                    )
+                    if result.success:
+                        current_value = -result.fun if maximize else result.fun
+                        if (maximize and current_value > best_value) or (not maximize and current_value < best_value):
+                            best_result = result
+                            best_value = current_value
+                except:
+                    pass
         
         if best_result is None:
             return {
@@ -460,6 +509,47 @@ class MLCompositionOptimizer:
             'success': True,
             'optimal_composition': optimal_composition,
             'optimal_value': optimal_value,
+            'message': message
+        }
+
+    def compare_compositions(self, baseline_composition: Dict[str, float], optimized_composition: Dict[str, float], target_property: str, maximize: bool = True) -> Dict:
+        """Сравнивает два состава по целевому свойству и возвращает разницу"""
+        if target_property not in self.predictor.models:
+            return {'success': False, 'error': f'Модель для {target_property} не обучена'}
+            
+        base_val = self.predictor.predict(baseline_composition, target_property)
+        opt_val = self.predictor.predict(optimized_composition, target_property)
+        
+        if base_val is None or opt_val is None:
+            return {'success': False, 'error': 'Не удалось предсказать свойства для одного из составов'}
+            
+        diff_abs = opt_val - base_val
+        
+        # Процентное улучшение (относительно базового)
+        if base_val != 0:
+            diff_pct = (diff_abs / abs(base_val)) * 100
+            
+            # Если мы минимизируем, то отрицательная разница - это улучшение (положительный процент)
+            if not maximize:
+                diff_pct = -diff_pct
+        else:
+            diff_pct = float('inf') if (maximize and diff_abs > 0) or (not maximize and diff_abs < 0) else 0.0
+            
+        is_better = (maximize and opt_val > base_val) or (not maximize and opt_val < base_val)
+        
+        direction_word = "лучше" if is_better else "хуже"
+        if diff_pct == 0:
+            message = "Оптимизированный состав показывает такой же результат как базовый."
+        else:
+            message = f"Оптимизированный состав на {abs(diff_pct):.1f}% {direction_word} базового (База: {base_val:.2f} -> Оптим: {opt_val:.2f})"
+            
+        return {
+            'success': True,
+            'baseline_value': base_val,
+            'optimized_value': opt_val,
+            'difference_absolute': diff_abs,
+            'improvement_percent': diff_pct,
+            'is_better': is_better,
             'message': message
         }
 
@@ -670,7 +760,7 @@ class PelletMLSystem:
             print("❌ Обучение ML моделей не удалось")
             return {'success': False, 'error': 'Обучение не удалось'}
 
-    def optimize_composition(self, target_property: str, maximize: bool = True, constraints: Dict[str, Tuple[float, float]] = None) -> Dict:
+    def optimize_composition(self, target_property: str, maximize: bool = True, constraints: Dict[str, Tuple[float, float]] = None, available_components: List[str] = None) -> Dict:
         """Оптимизирует состав и сохраняет результат в базу.
         Использует данные компонентов для стартовой точки оптимизации."""
         
@@ -679,12 +769,12 @@ class PelletMLSystem:
             if self.components.empty:
                 return {'success': False, 'error': f'Модель для {target_property} не обучена и нет данных компонентов'}
             # Пробуем линейную оптимизацию через компоненты
-            linear_result = self._optimize_from_components(target_property, maximize, constraints)
+            linear_result = self._optimize_from_components(target_property, maximize, constraints, available_components)
             if linear_result.get('success'):
                 linear_result['message'] = '(линейная оптимизация по компонентам) ' + linear_result.get('message', '')
             return linear_result
         
-        result = self.ml_optimizer.optimize_composition(target_property, maximize, constraints)
+        result = self.ml_optimizer.optimize_composition(target_property, maximize, constraints, available_components)
         
         if result.get('success'):
             try:
@@ -711,7 +801,7 @@ class PelletMLSystem:
         
         return result
     
-    def _optimize_from_components(self, target_property: str, maximize: bool = True, constraints: Dict[str, Tuple[float, float]] = None) -> Dict:
+    def _optimize_from_components(self, target_property: str, maximize: bool = True, constraints: Dict[str, Tuple[float, float]] = None, available_components: List[str] = None) -> Dict:
         """Оптимизация состава через линейное предсказание на основе данных компонентов."""
         if self.components.empty or target_property not in self.components.columns:
             return {'success': False, 'error': f'Нет данных компонентов для свойства {target_property}'}
@@ -734,13 +824,29 @@ class PelletMLSystem:
         cons = [{'type': 'eq', 'fun': lambda x: sum(x) - 1.0}]
         bounds = [(0.0, 1.0)] * n
         
+        if available_components:
+            for i, comp_name in enumerate(component_names):
+                if comp_name not in available_components:
+                    bounds[i] = (0.0, 0.0)
+                    
         if constraints:
             for comp, (min_val, max_val) in constraints.items():
                 if comp in component_names:
                     idx = component_names.index(comp)
-                    bounds[idx] = (max(min_val / 100.0, 0.0), min(max_val / 100.0, 1.0))
+                    new_min = max(min_val / 100.0, bounds[idx][0])
+                    new_max = min(max_val / 100.0, bounds[idx][1])
+                    bounds[idx] = (new_min, new_max)
         
-        x0 = np.full(n, 1.0 / n)
+        # Начальная точка с учетом доступности
+        if available_components:
+            available_indices = [i for i, name in enumerate(component_names) if name in available_components]
+            if not available_indices:
+                return {'success': False, 'error': 'Нет данных ни по одному из доступных компонентов'}
+            x0 = np.zeros(n)
+            for idx in available_indices:
+                x0[idx] = 1.0 / len(available_indices)
+        else:
+            x0 = np.full(n, 1.0 / n)
         
         try:
             result = scipy_minimize(objective, x0, method='SLSQP', bounds=bounds, constraints=cons)

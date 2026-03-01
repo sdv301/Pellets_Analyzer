@@ -1,1003 +1,812 @@
-<!-- templates/ml_dashboard.html -->
 {% extends "base.html" %}
 
+{% block title %}ML Анализ Пеллет{% endblock %}
+
+{% block extrastyle %}
+<style>
+    /* Scrollytelling Styles */
+    .scrolly-container {
+        height: calc(100vh - 100px);
+        overflow-y: scroll;
+        scroll-snap-type: y mandatory;
+        scroll-behavior: smooth;
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+
+    .scrolly-container::-webkit-scrollbar {
+        display: none;
+    }
+
+    .scrolly-section {
+        min-height: calc(100vh - 100px);
+        scroll-snap-align: start;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 2rem 5%;
+        position: relative;
+    }
+
+    /* Indicators */
+    .step-indicator {
+        position: fixed;
+        right: 30px;
+        top: 50%;
+        transform: translateY(-50%);
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        z-index: 1050;
+        /* Higher than sidebar/cards */
+    }
+
+    .step-dot {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: var(--bank-border-color);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: 2px solid transparent;
+    }
+
+    .step-dot.active {
+        background: var(--bank-primary);
+        box-shadow: 0 0 10px rgba(45, 96, 255, 0.4);
+        transform: scale(1.3);
+    }
+
+    .step-dot:hover {
+        background: var(--bank-primary-hover);
+    }
+
+    .bank-card {
+        background: var(--bank-card-bg);
+        border-radius: 20px;
+        box-shadow: var(--bank-shadow-soft);
+        border: none;
+        padding: 24px;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .bank-card:hover {
+        transform: translateY(-5px);
+        box-shadow: var(--bank-shadow-hover);
+    }
+
+    .floating-icon {
+        font-size: 5rem;
+        color: var(--bank-primary);
+        animation: float 6s ease-in-out infinite;
+        opacity: 0.1;
+        position: absolute;
+        right: 10%;
+        top: 10%;
+    }
+
+    @keyframes float {
+        0% {
+            transform: translateY(0px) rotate(0deg);
+        }
+
+        50% {
+            transform: translateY(-20px) rotate(5deg);
+        }
+
+        100% {
+            transform: translateY(0px) rotate(0deg);
+        }
+    }
+
+    /* Checkboxes */
+    .custom-checkbox .form-check-input {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+    }
+
+    .custom-checkbox .form-check-label {
+        position: relative;
+        padding-left: 25px;
+        cursor: pointer;
+        color: var(--bank-text-main);
+    }
+
+    .custom-checkbox .form-check-label::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 16px;
+        height: 16px;
+        border: 2px solid #ced4da;
+        background-color: transparent;
+        transition: background-color 0.2s ease, border-color 0.2s ease;
+        border-radius: 4px;
+    }
+
+    .custom-checkbox .form-check-input:checked~.form-check-label::before {
+        background-color: var(--bank-primary);
+        border-color: var(--bank-primary);
+    }
+
+    .custom-checkbox .form-check-label::after {
+        content: '✓';
+        position: absolute;
+        left: 3px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 0.8rem;
+        color: #fff;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+    }
+
+    .custom-checkbox .form-check-input:checked~.form-check-label::after {
+        opacity: 1;
+    }
+</style>
+{% endblock extrastyle %}
+
 {% block content %}
-<div class="container-fluid py-4">
-    <!-- Хедер -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card border-0 shadow-lg bg-gradient-primary1 text-white">
-                <div class="card-body p-4">
-                    <div class="row align-items-center">
-                        <div class="col-md-8">
-                            <h1 class="display-6 fw-bold mb-2">🤖 ML Анализ Пеллет</h1>
-                            <p class="lead mb-0 opacity-8">Интеллектуальное прогнозирование и оптимизация свойств</p>
-                        </div>
-                        <div class="col-md-4 text-end">
-                            <div class="bg-dark-subtle bg-opacity-10 rounded-pill px-3 py-2 d-inline-block">
-                                <i class="fas fa-brain me-2"></i>
-                                <span id="modelsCount">0</span> моделей обучено
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Статус системы -->
-    <div class="row mb-4">
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-0 shadow-sm h-100 hover-lift">
-                <div class="card-body">
-                    <div class="row align-items-center">
-                        <div class="col-3">
-                            <div class="bg-gradient-info1 rounded-circle p-3 text-center">
-                                <i class="fas fa-database text-white fs-4"></i>
-                            </div>
-                        </div>
-                        <div class="col-9">
-                            <h6 class="text-muted mb-1">Данные</h6>
-                            <h4 class="mb-0" id="dataCount">0</h4>
-                            <small class="text-success">записей</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-0 shadow-sm h-100 hover-lift">
-                <div class="card-body">
-                    <div class="row align-items-center">
-                        <div class="col-3">
-                            <div class="bg-gradient-success1 rounded-circle p-3 text-center">
-                                <i class="fas fa-cogs text-white fs-4"></i>
-                            </div>
-                        </div>
-                        <div class="col-9">
-                            <h6 class="text-muted mb-1">Модели</h6>
-                            <h4 class="mb-0" id="activeModels">0</h4>
-                            <small class="text-success">активных</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-0 shadow-sm h-100 hover-lift">
-                <div class="card-body">
-                    <div class="row align-items-center">
-                        <div class="col-3">
-                            <div class="bg-gradient-warning1 rounded-circle p-3 text-center">
-                                <i class="fas fa-bolt text-white fs-4"></i>
-                            </div>
-                        </div>
-                        <div class="col-9">
-                            <h6 class="text-muted mb-1">Точность</h6>
-                            <h4 class="mb-0" id="avgAccuracy">0%</h4>
-                            <small class="text-success">R² score</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-0 shadow-sm h-100 hover-lift">
-                <div class="card-body">
-                    <div class="row align-items-center">
-                        <div class="col-3">
-                            <div class="bg-gradient-danger1 rounded-circle p-3 text-center">
-                                <i class="fas fa-rocket text-white fs-4"></i>
-                            </div>
-                        </div>
-                        <div class="col-9">
-                            <h6 class="text-muted mb-1">Оптимизация</h6>
-                            <h4 class="mb-0" id="optimizations">0</h4>
-                            <small class="text-success">выполнено</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="row">
-          <!-- Форма обучения моделей -->
-            <div class="col-lg-6 mb-4">
-                <div class="card border-0 shadow-sm h-100">
-                    <div class="card-header bg-white py-3 border-0">
-                        <h5 class="mb-0 text-gradient1 text-primary">
-                            <i class="fas fa-graduation-cap me-2"></i>Обучение моделей
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <form id="ml-training-form" class="needs-validation" novalidate>
-                            <div class="row g-3">
-                                <div class="col-12">
-                                    <label class="form-label fw-semibold">🎯 Выбранные свойства</label>
-                                    <div id="selectedProperties" class="mb-3 d-flex flex-wrap gap-2">
-                                        <div class="alert alert-info border-0 bg-white py-1 px-2 d-none" id="noPropertiesSelected">
-                                            <small>Выберите хотя бы одно свойство</small>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-12">
-                                    <label class="form-label fw-semibold">📋 Доступные свойства</label>
-                                    <div class="col-12 mb-3">
-                                        <label class="form-label fw-semibold">Алгоритм обучения</label>
-                                        <select class="form-select" name="algorithm" id="algorithmSelect">
-                                            <option value="random_forest">Random Forest</option>
-                                            <option value="gradient_boosting">Gradient Boosting</option>
-                                        </select>
-                                    </div>
-                                    <div class="mb-2">
-                                        <button type="button" class="btn btn-sm btn-outline-primary me-2" id="selectAllProperties">Выбрать все</button>
-                                        <button type="button" class="btn btn-sm btn-outline-secondary" id="clearProperties">Очистить</button>
-                                    </div>
-                                    <div class="row g-2" style="max-height: 300px; overflow-y: auto;">
-                                        <div class="col-12">
-                                            <div class="form-check custom-checkbox">
-                                                <input class="form-check-input property-checkbox" type="checkbox" name="target_properties[]" value="ad" id="prop_ad">
-                                                <label class="form-check-label" for="prop_ad">🌫️ Содержание золы на сухую массу (%)</label>
-                                            </div>
-                                        </div>
-                                        <div class="col-12">
-                                            <div class="form-check custom-checkbox">
-                                                <input class="form-check-input property-checkbox" type="checkbox" name="target_properties[]" value="q" id="prop_q">
-                                                <label class="form-check-label" for="prop_q">🔥 Теплота сгорания (МДж/кг)</label>
-                                            </div>
-                                        </div>
-                                        <div class="col-12">
-                                            <div class="form-check custom-checkbox">
-                                                <input class="form-check-input property-checkbox" type="checkbox" name="target_properties[]" value="density" id="prop_density">
-                                                <label class="form-check-label" for="prop_density">⚖️ Плотность (кг/м³)</label>
-                                            </div>
-                                        </div>
-                                        <div class="col-12">
-                                            <div class="form-check custom-checkbox">
-                                                <input class="form-check-input property-checkbox" type="checkbox" name="target_properties[]" value="kf" id="prop_kf">
-                                                <label class="form-check-label" for="prop_kf">📐 Ударопрочность (%)</label>
-                                            </div>
-                                        </div>
-                                        <div class="col-12">
-                                            <div class="form-check custom-checkbox">
-                                                <input class="form-check-input property-checkbox" type="checkbox" name="target_properties[]" value="kt" id="prop_kt">
-                                                <label class="form-check-label" for="prop_kt">📏 Устойчивость к колебательным нагрузкам (%)</label>
-                                            </div>
-                                        </div>
-                                        <div class="col-12">
-                                            <div class="form-check custom-checkbox">
-                                                <input class="form-check-input property-checkbox" type="checkbox" name="target_properties[]" value="h" id="prop_h">
-                                                <label class="form-check-label" for="prop_h">💧 Гигроскопичность (%)</label>
-                                            </div>
-                                        </div>
-                                        <div class="col-12">
-                                            <div class="form-check custom-checkbox">
-                                                <input class="form-check-input property-checkbox" type="checkbox" name="target_properties[]" value="mass_loss" id="prop_mass_loss">
-                                                <label class="form-check-label" for="prop_mass_loss">⚡ Потеря массы (%)</label>
-                                            </div>
-                                        </div>
-                                        <div class="col-12">
-                                            <div class="form-check custom-checkbox">
-                                                <input class="form-check-input property-checkbox" type="checkbox" name="target_properties[]" value="tign" id="prop_tign">
-                                                <label class="form-check-label" for="prop_tign">🌡️ Температура зажигания (°С)</label>
-                                            </div>
-                                        </div>
-                                        <div class="col-12">
-                                            <div class="form-check custom-checkbox">
-                                                <input class="form-check-input property-checkbox" type="checkbox" name="target_properties[]" value="tb" id="prop_tb">
-                                                <label class="form-check-label" for="prop_tb">💥 Температура выгорания (°С)</label>
-                                            </div>
-                                        </div>
-                                        <div class="col-12">
-                                            <div class="form-check custom-checkbox">
-                                                <input class="form-check-input property-checkbox" type="checkbox" name="target_properties[]" value="tau_d1" id="prop_tau_d1">
-                                                <label class="form-check-label" for="prop_tau_d1">⏱️ Задержка газофазного зажигания (с)</label>
-                                            </div>
-                                        </div>
-                                        <div class="col-12">
-                                            <div class="form-check custom-checkbox">
-                                                <input class="form-check-input property-checkbox" type="checkbox" name="target_properties[]" value="tau_d2" id="prop_tau_d2">
-                                                <label class="form-check-label" for="prop_tau_d2">⏱️ Задержка гетерогенного зажигания (с)</label>
-                                            </div>
-                                        </div>
-                                        <div class="col-12">
-                                            <div class="form-check custom-checkbox">
-                                                <input class="form-check-input property-checkbox" type="checkbox" name="target_properties[]" value="tau_b" id="prop_tau_b">
-                                                <label class="form-check-label" for="prop_tau_b">⏱️ Время горения (с)</label>
-                                            </div>
-                                        </div>
-                                        <div class="col-12">
-                                            <div class="form-check custom-checkbox">
-                                                <input class="form-check-input property-checkbox" type="checkbox" name="target_properties[]" value="co2" id="prop_co2">
-                                                <label class="form-check-label" for="prop_co2">🌬️ Концентрация диоксида углерода (%)</label>
-                                            </div>
-                                        </div>
-                                        <div class="col-12">
-                                            <div class="form-check custom-checkbox">
-                                                <input class="form-check-input property-checkbox" type="checkbox" name="target_properties[]" value="co" id="prop_co">
-                                                <label class="form-check-label" for="prop_co">🌬️ Концентрация монооксида углерода (%)</label>
-                                            </div>
-                                        </div>
-                                        <div class="col-12">
-                                            <div class="form-check custom-checkbox">
-                                                <input class="form-check-input property-checkbox" type="checkbox" name="target_properties[]" value="so2" id="prop_so2">
-                                                <label class="form-check-label" for="prop_so2">🌫️ Концентрация оксидов серы (ppm)</label>
-                                            </div>
-                                        </div>
-                                        <div class="col-12">
-                                            <div class="form-check custom-checkbox">
-                                                <input class="form-check-input property-checkbox" type="checkbox" name="target_properties[]" value="nox" id="prop_nox">
-                                                <label class="form-check-label" for="prop_nox">🌫️ Концентрация оксидов азота (ppm)</label>
-                                            </div>
-                                        </div>
-                                        <div class="col-12">
-                                            <div class="form-check custom-checkbox">
-                                                <input class="form-check-input property-checkbox" type="checkbox" name="target_properties[]" value="war" id="prop_war">
-                                                <label class="form-check-label" for="prop_war">💧 Влажность на аналитическую массу (%)</label>
-                                            </div>
-                                        </div>
-                                        <div class="col-12">
-                                            <div class="form-check custom-checkbox">
-                                                <input class="form-check-input property-checkbox" type="checkbox" name="target_properties[]" value="vd" id="prop_vd">
-                                                <label class="form-check-label" for="prop_vd">🌬️ Содержание летучих на сухую массу (%)</label>
-                                            </div>
-                                        </div>
-                                        <div class="col-12">
-                                            <div class="form-check custom-checkbox">
-                                                <input class="form-check-input property-checkbox" type="checkbox" name="target_properties[]" value="cd" id="prop_cd">
-                                                <label class="form-check-label" for="prop_cd">⚫ Содержание углерода на сухую массу (%)</label>
-                                            </div>
-                                        </div>
-                                        <div class="col-12">
-                                            <div class="form-check custom-checkbox">
-                                                <input class="form-check-input property-checkbox" type="checkbox" name="target_properties[]" value="hd" id="prop_hd">
-                                                <label class="form-check-label" for="prop_hd">💨 Содержание водорода на сухую массу (%)</label>
-                                            </div>
-                                        </div>
-                                        <div class="col-12">
-                                            <div class="form-check custom-checkbox">
-                                                <input class="form-check-input property-checkbox" type="checkbox" name="target_properties[]" value="nd" id="prop_nd">
-                                                <label class="form-check-label" for="prop_nd">🌬️ Содержание азота на сухую массу (%)</label>
-                                            </div>
-                                        </div>
-                                        <div class="col-12">
-                                            <div class="form-check custom-checkbox">
-                                                <input class="form-check-input property-checkbox" type="checkbox" name="target_properties[]" value="sd" id="prop_sd">
-                                                <label class="form-check-label" for="prop_sd">🔥 Содержание серы на сухую массу (%)</label>
-                                            </div>
-                                        </div>
-                                        <div class="col-12">
-                                            <div class="form-check custom-checkbox">
-                                                <input class="form-check-input property-checkbox" type="checkbox" name="target_properties[]" value="od" id="prop_od">
-                                                <label class="form-check-label" for="prop_od">🌬️ Содержание кислорода на сухую массу (%)</label>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="col-12 mt-4">
-                                    <button type="submit" class="btn btn-primary btn-lg w-100 py-3 fw-semibold border-0" disabled id="trainButton">
-                                        <i class="fas fa-brain me-2"></i>
-                                        <span class="btn-text">Обучить модель</span>
-                                        <div class="spinner-border spinner-border-sm ms-2 d-none" role="status"></div>
-                                    </button>
-                                </div>
-                            </div>
-                        </form>
-
-                        <!-- Результаты обучения -->
-                        <div id="trainingResults" class="mt-4" style="display: none;"></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Форма оптимизации -->
-            <div class="col-lg-6 mb-4">
-                <div class="card border-0 shadow-sm h-100">
-                    <div class="card-header bg-white py-3 border-0">
-                        <h5 class="mb-0 text-gradient1 text-success">
-                            <i class="fas fa-magic me-2"></i>Оптимизация составов
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <form id="optimization-form" class="needs-validation" novalidate>
-                            <div class="row g-3">
-                                <div class="col-12">
-                                    <label class="form-label fw-semibold">🎯 Целевая функция</label>
-                                    <select name="target_property" class="form-select form-select-lg border-0 bg-light" required>
-                                        <option value="">Выберите свойство для оптимизации...</option>
-                                        <option value="q" data-icon="🔥">Максимизировать теплоту сгорания (МДж/кг)</option>
-                                        <option value="density" data-icon="⚖️">Максимизировать плотность (кг/м³)</option>
-                                        <option value="kf" data-icon="📐">Максимизировать ударопрочность (%)</option>
-                                        <option value="kt" data-icon="📏">Максимизировать устойчивость к колебательным нагрузкам (%)</option>
-                                        <option value="vd" data-icon="🌬️">Максимизировать содержание летучих веществ (%)</option>
-                                        <option value="cd" data-icon="⚫">Максимизировать содержание углерода (%)</option>
-                                        <option value="hd" data-icon="💨">Максимизировать содержание водорода (%)</option>
-                                        <option value="tign" data-icon="🌡️">Максимизировать температуру зажигания (°С)</option>
-                                        <option value="tb" data-icon="💥">Максимизировать температуру выгорания (°С)</option>
-                                        <option value="tau_b" data-icon="⏱️">Максимизировать время горения (с)</option>
-                                        <option value="ad" data-icon="🌫️">Минимизировать содержание золы (%)</option>
-                                        <option value="h" data-icon="💧">Минимизировать гигроскопичность (%)</option>
-                                        <option value="mass_loss" data-icon="⚡">Минимизировать потерю массы (%)</option>
-                                        <option value="war" data-icon="💧">Минимизировать влажность (%)</option>
-                                        <option value="nd" data-icon="🌬️">Минимизировать содержание азота (%)</option>
-                                        <option value="sd" data-icon="🔥">Минимизировать содержание серы (%)</option>
-                                        <option value="od" data-icon="🌬️">Минимизировать содержание кислорода (%)</option>
-                                        <option value="co2" data-icon="🌬️">Минимизировать концентрацию CO₂ (%)</option>
-                                        <option value="co" data-icon="🌬️">Минимизировать концентрацию CO (%)</option>
-                                        <option value="so2" data-icon="🌫️">Минимизировать концентрацию SO₂ (ppm)</option>
-                                        <option value="nox" data-icon="🌫️">Минимизировать концентрацию NOx (ppm)</option>
-                                        <option value="tau_d1" data-icon="⏱️">Минимизировать задержку газофазного зажигания (с)</option>
-                                        <option value="tau_d2" data-icon="⏱️">Минимизировать задержку гетерогенного зажигания (с)</option>
-                                    </select>
-                                </div>
-
-                                <div class="col-12">
-                                    <label class="form-label fw-semibold">📈 Направление оптимизации</label>
-                                    <select name="maximize" class="form-select form-select-lg border-0 bg-light">
-                                        <option value="true">📈 Максимизировать</option>
-                                        <option value="false">📉 Минимизировать</option>
-                                    </select>
-                                </div>
-
-                                <div class="col-12">
-                                    <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" id="advancedConstraints" name="advanced_constraints">
-                                        <label class="form-check-label" for="advancedConstraints">
-                                            <i class="fas fa-cog me-1"></i>Ограничения на компоненты
-                                        </label>
-                                    </div>
-                                </div>
-
-                                <div id="constraintsSection" class="col-12" style="display: none;">
-                                    <label class="form-label fw-semibold">🔧 Ограничения компонентов (%)</label>
-                                    <div class="row g-2">
-                                        <!-- Динамически добавляем компоненты через JS -->
-                                    </div>
-                                </div>
-
-                                <div class="col-12 mt-2">
-                                    <button type="submit" class="btn btn-success btn-lg w-100 py-3 fw-semibold border-0">
-                                        <i class="fas fa-bolt me-2"></i>
-                                        <span class="btn-text">Найти оптимальный состав</span>
-                                        <div class="spinner-border spinner-border-sm ms-2 d-none" role="status"></div>
-                                    </button>
-                                </div>
-                            </div>
-                        </form>
-
-                        <!-- Результаты оптимизации -->
-                        <div id="optimizationResults" class="mt-4" style="display: none;"></div>
-                    </div>
-                </div>
-            </div>
-
-    <!-- Статус моделей -->
-    <div class="row mt-4">
-        <div class="col-12">
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0 text-gradient1 text-info">
-                        <i class="fas fa-chart-line me-2"></i>Статус ML моделей
-                    </h5>
-                    <button class="btn btn-sm btn-outline-primary" id="refreshModels">
-                        <i class="fas fa-sync-alt me-1"></i>Обновить
-                    </button>
-                </div>
-                <div class="card-body">
-                    <div id="mlSystemStatus" class="text-center py-4">
-                        <div class="spinner-border text-primary" role="status">
-                            <span class="visually-hidden">Загрузка...</span>
-                        </div>
-                        <p class="mt-2 text-muted">Загрузка статуса моделей...</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+<div class="step-indicator">
+    <div class="step-dot active" onclick="scrollToSection('ml-step-1')" title="Статус Системы"></div>
+    <div class="step-dot" onclick="scrollToSection('ml-step-2')" title="Обучение Моделей"></div>
+    <div class="step-dot" onclick="scrollToSection('ml-step-3')" title="Оптимизация"></div>
+    <div class="step-dot" onclick="scrollToSection('ml-step-4')" title="Результаты"></div>
 </div>
 
-<!-- Стили -->
-<style>
-.custom-checkbox .form-check-input {
-    position: absolute;
-    opacity: 0;
-    width: 0;
-    height: 0;
-}
-.custom-checkbox .form-check-label {
-    position: relative;
-    padding-left: 25px; /* Пространство для квадратика и галочки */
-    cursor: pointer;
-}
-.custom-checkbox .form-check-label::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 16px;
-    height: 16px;
-    border: 2px solid #ced4da; /* Рамка квадратика */
-    background-color: #fff;
-    transition: background-color 0.2s ease, border-color 0.2s ease;
-}
-.custom-checkbox .form-check-input:checked ~ .form-check-label::before {
-    background-color: #28a745; /* Заполнение при выборе */
-    border-color: #28a745;
-}
-.custom-checkbox .form-check-label::after {
-    content: '✓'; /* Галочка */
-    position: absolute;
-    left: 2px;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 1rem;
-    color: #fff;
-    opacity: 0;
-    transition: opacity 0.2s ease;
-}
-.custom-checkbox .form-check-input:checked ~ .form-check-label::after {
-    opacity: 1;
-}
-.alert-info, .alert-warning {
-    background-color: #ffffff !important;
-    border: 1px solid #e9ecef;
-    border-radius: 12px;
-    color: #333;
-}
-.alert-info i {
-    color: #667eea;
-}
-.alert-warning i {
-    color: #fa709a;
-}
-.badge {
-    font-size: 0.7rem;
-    padding: 0.5em 0.8em;
-}
-.btn-close-white {
-    filter: invert(100%);
-}
+<div class="scrolly-container" id="scrollyContainer">
 
-/* Остальные стили остаются без изменений */
-.hover-lift {
-    transition: all 0.3s ease;
-}
-.hover-lift:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
-}
+    <!-- SECTION 1: Dashboard Status -->
+    <section class="scrolly-section" id="ml-step-1">
+        <i class="fas fa-microchip floating-icon"></i>
+        <div class="text-center mb-5 animate-on-scroll stagger-1">
+            <h1 class="display-4 font-weight-bolder text-primary">ML Анализ Пеллет</h1>
+            <p class="lead text-muted">Интеллектуальное прогнозирование и оптимизация свойств</p>
+        </div>
 
-.text-gradient1 {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-}
+        <div class="row w-100 mx-auto max-w-1000">
+            <div class="col-xl-3 col-md-6 mb-4 animate-on-scroll stagger-1">
+                <div class="bank-card h-100 text-center">
+                    <div class="icon icon-shape icon-lg shadow text-center border-radius-lg mb-3 mx-auto"
+                        style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%) !important;">
+                        <i class="fas fa-database text-white fa-lg"></i>
+                    </div>
+                    <h6 class="text-muted mb-1">Записей</h6>
+                    <h3 class="mb-0 fw-bolder text-dark" id="dataCount">0</h3>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6 mb-4 animate-on-scroll stagger-2">
+                <div class="bank-card h-100 text-center">
+                    <div class="icon icon-shape icon-lg shadow text-center border-radius-lg mb-3 mx-auto"
+                        style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%) !important;">
+                        <i class="fas fa-cogs text-white fa-lg"></i>
+                    </div>
+                    <h6 class="text-muted mb-1">Активных Моделей</h6>
+                    <h3 class="mb-0 fw-bolder text-dark" id="activeModels">0</h3>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6 mb-4 animate-on-scroll stagger-3">
+                <div class="bank-card h-100 text-center">
+                    <div class="icon icon-shape icon-lg shadow text-center border-radius-lg mb-3 mx-auto"
+                        style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%) !important;">
+                        <i class="fas fa-bolt text-white fa-lg"></i>
+                    </div>
+                    <h6 class="text-muted mb-1">Точность R²</h6>
+                    <h3 class="mb-0 fw-bolder text-dark" id="avgAccuracy">0%</h3>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6 mb-4 animate-on-scroll stagger-4">
+                <div class="bank-card h-100 text-center">
+                    <div class="icon icon-shape icon-lg shadow text-center border-radius-lg mb-3 mx-auto"
+                        style="background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%) !important;">
+                        <i class="fas fa-rocket text-white fa-lg"></i>
+                    </div>
+                    <h6 class="text-muted mb-1">Оптимизаций</h6>
+                    <h3 class="mb-0 fw-bolder text-dark" id="optimizations">0</h3>
+                </div>
+            </div>
 
-.bg-gradient-primary1 {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-}
+            <div class="col-12 text-center mt-5 animate-on-scroll stagger-4">
+                <button class="btn btn-premium btn-lg me-3" onclick="scrollToSection('ml-step-2')">
+                    Обучить <i class="fas fa-arrow-down ms-2"></i>
+                </button>
+                <button class="btn btn-outline-premium btn-lg" onclick="scrollToSection('ml-step-3')">
+                    Оптимизировать <i class="fas fa-arrow-down ms-2"></i>
+                </button>
+            </div>
+        </div>
+    </section>
 
-.bg-gradient-info1 {
-    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%) !important;
-}
+    <!-- SECTION 2: Training -->
+    <section class="scrolly-section" id="ml-step-2">
+        <i class="fas fa-graduation-cap floating-icon text-primary"></i>
+        <div class="text-center mb-5 animate-on-scroll">
+            <h2 class="font-weight-bolder">Обучение Нейросети</h2>
+            <p class="text-muted">Выберите свойства для предсказания и алгоритм</p>
+        </div>
 
-.bg-gradient-success1 {
-    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%) !important;
-}
+        <div class="row w-100 mx-auto max-w-1000">
+            <div class="col-12 animate-on-scroll stagger-1">
+                <div class="bank-card pb-5">
+                    <form id="ml-training-form" class="needs-validation" novalidate>
+                        <div class="row g-4">
+                            <div class="col-md-5 border-end border-light pe-4">
+                                <label class="form-label fw-semibold">🎯 Выбранные свойства:</label>
+                                <div id="selectedProperties" class="mb-4 d-flex flex-wrap gap-2 min-vh-25">
+                                    <div class="alert alert-info py-2" id="noPropertiesSelected"><i
+                                            class="fas fa-info-circle me-2"></i>Свойства не выбраны</div>
+                                </div>
 
-.bg-gradient-warning1 {
-    background: linear-gradient(135deg, #fa709a 0%, #fee140 100%) !important;
-}
+                                <label class="form-label fw-semibold mb-2">Алгоритм:</label>
+                                <select class="form-select mb-4" name="algorithm" id="algorithmSelect">
+                                    <option value="random_forest">Random Forest (Лес деревьев)</option>
+                                    <option value="gradient_boosting">Gradient Boosting (Градиентный бустинг)</option>
+                                </select>
 
-.bg-gradient-danger1 {
-    background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%) !important;
-}
+                                <button type="submit" class="btn btn-premium w-100 py-3" disabled id="trainButton">
+                                    <i class="fas fa-play me-2"></i>
+                                    <span class="btn-text">Запустить Обучение</span>
+                                    <div class="spinner-border spinner-border-sm ms-2 d-none" role="status"></div>
+                                </button>
+                            </div>
 
-.card {
-    border-radius: 16px !important;
-}
+                            <div class="col-md-7 ps-4">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <label class="form-label fw-semibold m-0">Список доступных свойств</label>
+                                    <div>
+                                        <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2 me-1"
+                                            id="selectAllProperties">Все</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2"
+                                            id="clearProperties">Очистить</button>
+                                    </div>
+                                </div>
+                                <div class="row g-2" style="max-height: 250px; overflow-y: auto; padding-right: 10px;">
+                                    <div class="col-12">
+                                        <div class="form-check custom-checkbox"><input
+                                                class="form-check-input property-checkbox" type="checkbox"
+                                                name="target_properties[]" value="ad" id="prop_ad"><label
+                                                class="form-check-label" for="prop_ad">🌫️ Содержание золы (%)</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-12">
+                                        <div class="form-check custom-checkbox"><input
+                                                class="form-check-input property-checkbox" type="checkbox"
+                                                name="target_properties[]" value="q" id="prop_q"><label
+                                                class="form-check-label" for="prop_q">🔥 Теплота сгорания
+                                                (МДж/кг)</label></div>
+                                    </div>
+                                    <div class="col-12">
+                                        <div class="form-check custom-checkbox"><input
+                                                class="form-check-input property-checkbox" type="checkbox"
+                                                name="target_properties[]" value="density" id="prop_density"><label
+                                                class="form-check-label" for="prop_density">⚖️ Плотность (кг/м³)</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-12">
+                                        <div class="form-check custom-checkbox"><input
+                                                class="form-check-input property-checkbox" type="checkbox"
+                                                name="target_properties[]" value="kf" id="prop_kf"><label
+                                                class="form-check-label" for="prop_kf">📐 Ударопрочность (%)</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-12">
+                                        <div class="form-check custom-checkbox"><input
+                                                class="form-check-input property-checkbox" type="checkbox"
+                                                name="target_properties[]" value="kt" id="prop_kt"><label
+                                                class="form-check-label" for="prop_kt">📏 Устойчивость к вибрациям
+                                                (%)</label></div>
+                                    </div>
+                                    <div class="col-12">
+                                        <div class="form-check custom-checkbox"><input
+                                                class="form-check-input property-checkbox" type="checkbox"
+                                                name="target_properties[]" value="h" id="prop_h"><label
+                                                class="form-check-label" for="prop_h">💧 Гигроскопичность (%)</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-12">
+                                        <div class="form-check custom-checkbox"><input
+                                                class="form-check-input property-checkbox" type="checkbox"
+                                                name="target_properties[]" value="mass_loss" id="prop_mass_loss"><label
+                                                class="form-check-label" for="prop_mass_loss">⚡ Потеря массы (%)</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-12">
+                                        <div class="form-check custom-checkbox"><input
+                                                class="form-check-input property-checkbox" type="checkbox"
+                                                name="target_properties[]" value="tign" id="prop_tign"><label
+                                                class="form-check-label" for="prop_tign">🌡️ Температура зажигания
+                                                (°С)</label></div>
+                                    </div>
+                                    <div class="col-12">
+                                        <div class="form-check custom-checkbox"><input
+                                                class="form-check-input property-checkbox" type="checkbox"
+                                                name="target_properties[]" value="tb" id="prop_tb"><label
+                                                class="form-check-label" for="prop_tb">💥 Температура выгорания
+                                                (°С)</label></div>
+                                    </div>
+                                    <!-- Simplified list for cleaner UI, remaining stats mapped in backend still logic works -->
+                                    <div class="col-12">
+                                        <div class="form-check custom-checkbox"><input
+                                                class="form-check-input property-checkbox" type="checkbox"
+                                                name="target_properties[]" value="tau_b" id="prop_tau_b"><label
+                                                class="form-check-label" for="prop_tau_b">⏱️ Время горения (с)</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-12">
+                                        <div class="form-check custom-checkbox"><input
+                                                class="form-check-input property-checkbox" type="checkbox"
+                                                name="target_properties[]" value="co2" id="prop_co2"><label
+                                                class="form-check-label" for="prop_co2">🌬️ Выбросы CO₂ (%)</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
 
-.form-select, .form-control {
-    border-radius: 12px !important;
-    border: 1px solid #e9ecef;
-    transition: all 0.3s ease;
-}
+            <div class="col-12 text-center mt-3 animate-on-scroll stagger-2">
+                <button class="btn btn-outline-secondary" onclick="scrollToSection('ml-step-3')">Пропустить обучение <i
+                        class="fas fa-arrow-down ms-1"></i></button>
+            </div>
+        </div>
+    </section>
 
-.form-select:focus, .form-control:focus {
-    border-color: #667eea;
-    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
-}
+    <!-- SECTION 3: Optimization -->
+    <section class="scrolly-section" id="ml-step-3">
+        <i class="fas fa-magic floating-icon text-success"></i>
+        <div class="text-center mb-5 animate-on-scroll">
+            <h2 class="font-weight-bolder">Умная Оптимизация</h2>
+            <p class="text-muted">Дайте ИИ задачу подобрать лучший состав по параметрам</p>
+        </div>
 
-.btn {
-    border-radius: 12px !important;
-    font-weight: 600;
-    transition: all 0.3s ease;
-}
+        <div class="row w-100 mx-auto max-w-1000">
+            <div class="col-12 animate-on-scroll stagger-1">
+                <div class="bank-card">
+                    <form id="optimization-form" class="needs-validation" novalidate>
+                        <div class="row g-4">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">🎯 Цель оптимизации:</label>
+                                <select name="target_property" class="form-select form-select-lg border-light" required>
+                                    <option value="">Выберите свойство...</option>
+                                    <option value="q" data-icon="🔥">Теплота сгорания (МДж/кг)</option>
+                                    <option value="density" data-icon="⚖️">Плотность (кг/м³)</option>
+                                    <option value="kf" data-icon="📐">Ударопрочность (%)</option>
+                                    <option value="ad" data-icon="🌫️">Содержание золы (%)</option>
+                                    <option value="co2" data-icon="🌬️">Мин. Выбросы CO₂ (%)</option>
+                                </select>
+                            </div>
 
-.btn:hover {
-    transform: translateY(-2px);
-}
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">📈 Стратегия:</label>
+                                <select name="maximize" class="form-select form-select-lg border-light">
+                                    <option value="true">📈 Максимизировать значение</option>
+                                    <option value="false">📉 Минимизировать значение</option>
+                                </select>
+                            </div>
 
-.model-card {
-    border-left: 4px solid #667eea;
-    transition: all 0.3s ease;
-}
+                            <div class="col-12">
+                                <div class="form-check form-switch p-0">
+                                    <input class="form-check-input ms-0 me-2" type="checkbox" id="advancedConstraints"
+                                        name="advanced_constraints" style="float: left;">
+                                    <label class="form-check-label pt-1 text-dark fw-bold" for="advancedConstraints">
+                                        Включить аппаратные ограничения (Min/Max для компонентов)
+                                    </label>
+                                </div>
+                            </div>
 
-.model-card:hover {
-    background-color: #f8f9fe;
-}
+                            <div id="constraintsSection" class="col-12" style="display: none;">
+                                <div class="p-3 bg-gray-50 border-radius-lg border">
+                                    <label class="form-label fw-semibold text-primary"><i
+                                            class="fas fa-sliders-h me-2"></i>Пределы массовых долей (%)</label>
+                                    <div class="row g-3 mt-1" id="constraintsContainer">
+                                        <!-- Load via JS -->
+                                    </div>
+                                </div>
+                            </div>
 
-.progress {
-    border-radius: 10px;
-    height: 8px;
-}
+                            <div class="col-12 text-center mt-4">
+                                <button type="submit" class="btn btn-premium btn-lg w-100 px-5"
+                                    style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%) !important; border: none !important; color: #000 !important;">
+                                    <i class="fas fa-bolt me-2 text-dark"></i>
+                                    <span class="btn-text font-weight-bold">Начать Оптимизацию</span>
+                                    <div class="spinner-border spinner-border-sm ms-2 d-none text-dark" role="status">
+                                    </div>
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
 
-.progress-bar {
-    border-radius: 10px;
-}
-</style>
+            <div class="col-12 text-center mt-3 animate-on-scroll stagger-2">
+                <button class="btn btn-outline-secondary" onclick="scrollToSection('ml-step-4')">Посмотреть результаты
+                    <i class="fas fa-arrow-down ms-1"></i></button>
+            </div>
+        </div>
+    </section>
+
+    <!-- SECTION 4: Training & Opt Results -->
+    <section class="scrolly-section" id="ml-step-4">
+        <i class="fas fa-poll floating-icon text-warning"></i>
+        <div class="text-center mb-5 animate-on-scroll">
+            <h2 class="font-weight-bolder">Логи и Результаты</h2>
+            <p class="text-muted">Отслеживайте процесс и результаты анализов</p>
+        </div>
+
+        <div class="row w-100 mx-auto max-w-1000 h-100">
+            <div class="col-12 animate-on-scroll stagger-1 h-100">
+                <div class="bank-card h-100 d-flex flex-column">
+                    <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+                        <h6 class="m-0 font-weight-bolder text-dark"><i class="fas fa-terminal me-2"></i>Консоль вывода
+                        </h6>
+                        <button class="btn btn-sm btn-outline-primary m-0" id="refreshModels">
+                            <i class="fas fa-sync-alt me-1"></i>Обновить
+                        </button>
+                    </div>
+
+                    <div class="flex-grow-1 overflow-auto pe-3 mb-4" id="mainResultsContainer">
+                        <div id="mlSystemStatus" class="mb-3">
+                            <div class="alert alert-light border text-center text-muted">Ожидание обновления статуса...
+                            </div>
+                        </div>
+                        <div id="trainingResults" class="mb-3" style="display: none;"></div>
+                        <div id="optimizationResults" style="display: none;"></div>
+                    </div>
+
+                    <div class="text-center">
+                        <button class="btn btn-white text-primary" onclick="scrollToSection('ml-step-1')">В начало <i
+                                class="fas fa-arrow-up ms-1"></i></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+
+{% endblock content %}
+
+{% block extra_js %}
+<!-- Подключаем Bootstrap Notify plugin если нужно -->
+<script src="{{ url_for('static', filename='assets/js/plugins/bootstrap-notify.js') }}"></script>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Инициализация
-    loadMLStatus();
-    updateSystemStats();
-    
-    // Обработчики событий
-    document.getElementById('ml-training-form').addEventListener('submit', handleMLTraining);
-    document.getElementById('optimization-form').addEventListener('submit', handleOptimization);
-    document.getElementById('refreshModels').addEventListener('click', loadMLStatus);
-    
-    // Анимация выбора свойств
-    initSelectEnhancements();
-    initConstraintsSection();
-    initTrainingForm();
-});
+    // Intersection Observer for Animations and Scroll Snapping tracking
+    const container = document.getElementById('scrollyContainer');
+    const sections = document.querySelectorAll('.scrolly-section');
+    const dots = document.querySelectorAll('.step-dot');
 
-function initSelectEnhancements() {
-    // Добавляем иконки только к select для оптимизации
-    const select = document.querySelector('select[name="target_property"]');
-    if (select) {
-        select.addEventListener('change', function() {
-            const selectedOption = this.options[this.selectedIndex];
-            const icon = selectedOption.getAttribute('data-icon');
-            if (icon) {
-                this.style.backgroundImage = `url('data:image/svg+xml;utf8,<svg>${encodeURIComponent(icon)}</svg>')`;
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.querySelectorAll('.animate-on-scroll').forEach(el => {
+                    el.style.opacity = '1';
+                    el.style.transform = 'translateY(0)';
+                });
+
+                const index = Array.from(sections).indexOf(entry.target);
+                dots.forEach((dot, i) => {
+                    dot.classList.toggle('active', i === index);
+                });
+            }
+        });
+    }, { threshold: 0.5 });
+
+    sections.forEach(section => {
+        observer.observe(section);
+        section.querySelectorAll('.animate-on-scroll').forEach(el => {
+            el.style.opacity = '0';
+            el.style.transform = 'translateY(30px)';
+            el.style.transition = 'opacity 0.6s ease-out, transform 0.6s ease-out';
+            if (el.classList.contains('stagger-1')) el.style.transitionDelay = '100ms';
+            if (el.classList.contains('stagger-2')) el.style.transitionDelay = '200ms';
+            if (el.classList.contains('stagger-3')) el.style.transitionDelay = '300ms';
+            if (el.classList.contains('stagger-4')) el.style.transitionDelay = '400ms';
+        });
+    });
+
+    function scrollToSection(id) {
+        document.getElementById(id).scrollIntoView({ behavior: 'smooth' });
+    }
+
+    /* Core ML Logics mapped directly from prev architecture */
+    document.addEventListener('DOMContentLoaded', function () {
+        console.log("🛡️ Pellets ML Dashboard: Initializing...");
+
+        // Global Error Catcher for easier debugging
+        window.addEventListener('error', function (e) {
+            console.error("❌ JS Runtime Error:", e.message, "at", e.filename, ":", e.lineno);
+        });
+
+        const requiredIds = ['ml-training-form', 'optimization-form', 'trainButton', 'selectedProperties'];
+        requiredIds.forEach(id => {
+            if (!document.getElementById(id)) console.warn(`⚠️ Element with ID "${id}" not found in DOM!`);
+        });
+
+        loadMLStatus();
+        updateSystemStats();
+
+        const trainForm = document.getElementById('ml-training-form');
+        if (trainForm) trainForm.addEventListener('submit', handleMLTraining);
+
+        const optForm = document.getElementById('optimization-form');
+        if (optForm) optForm.addEventListener('submit', handleOptimization);
+
+        const refreshBtn = document.getElementById('refreshModels');
+        if (refreshBtn) refreshBtn.addEventListener('click', loadMLStatus);
+
+        initTrainingForm();
+        initConstraintsSection();
+    });
+
+    function initConstraintsSection() {
+        const advancedConstraints = document.getElementById('advancedConstraints');
+        const constraintsSection = document.getElementById('constraintsSection');
+
+        advancedConstraints.addEventListener('change', function () {
+            constraintsSection.style.display = this.checked ? 'block' : 'none';
+            if (this.checked) {
+                fetch('/ml_system_status')
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success && data.system_status.available_components.length > 0) {
+                            const cContainer = document.getElementById('constraintsContainer');
+                            cContainer.innerHTML = '';
+                            data.system_status.available_components.forEach(comp => {
+                                cContainer.innerHTML += `
+                                <div class="col-md-6 mb-2">
+                                    <div class="card bg-white shadow-sm border-0 p-3 h-100">
+                                        <label class="form-label mb-2 text-dark font-weight-bold text-truncate" title="${comp}">${comp}</label>
+                                        <div class="input-group input-group-sm">
+                                            <span class="input-group-text bg-light border-end-0">Min %</span>
+                                            <input type="number" name="min_${comp}" class="form-control border-start-0 ps-0" min="0" max="100" step="0.1" value="0" required>
+                                            <span class="input-group-text bg-light border-end-0 border-start-0 ms-1">Max %</span>
+                                            <input type="number" name="max_${comp}" class="form-control border-start-0 ps-0" min="0" max="100" step="0.1" value="100" required>
+                                        </div>
+                                    </div>
+                                </div>`;
+                            });
+                        }
+                    });
             }
         });
     }
-}
 
-function initConstraintsSection() {
-    const advancedConstraints = document.getElementById('advancedConstraints');
-    const constraintsSection = document.getElementById('constraintsSection');
-    
-    advancedConstraints.addEventListener('change', function() {
-        constraintsSection.style.display = this.checked ? 'block' : 'none';
-        if (this.checked) {
-            fetch('/ml_system_status')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success && data.system_status.available_components.length > 0) {
-                        const constraintsContainer = constraintsSection.querySelector('.row');
-                        constraintsContainer.innerHTML = '';
-                        data.system_status.available_components.forEach(comp => {
-                            constraintsContainer.innerHTML += `
-                                <div class="col-12">
-                                    <div class="card bg-light border-0 p-2">
-                                        <label class="form-label mb-1">${comp}</label>
-                                        <div class="row g-2">
-                                            <div class="col-6">
-                                                <input type="number" name="min_${comp}" class="form-control" placeholder="Мин. %" min="0" max="100" step="0.1" value="0" required>
-                                            </div>
-                                            <div class="col-6">
-                                                <input type="number" name="max_${comp}" class="form-control" placeholder="Макс. %" min="0" max="100" step="0.1" value="100" required>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            `;
-                        });
-                    }
+    function initTrainingForm() {
+        const selectedPropertiesContainer = document.getElementById('selectedProperties');
+        const trainButton = document.getElementById('trainButton');
+        const checkboxes = document.querySelectorAll('.property-checkbox');
+
+        function updateSelectedProperties() {
+            selectedPropertiesContainer.innerHTML = '';
+            const checked = document.querySelectorAll('.property-checkbox:checked');
+            if (checked.length === 0) {
+                selectedPropertiesContainer.innerHTML = '<div class="alert alert-info py-2 w-100 m-0"><i class="fas fa-info-circle me-2"></i>Свойства не выбраны</div>';
+                trainButton.disabled = true;
+            } else {
+                trainButton.disabled = false;
+                checked.forEach(checkbox => {
+                    const value = checkbox.value;
+                    let fullLabel = checkbox.nextElementSibling.textContent.trim();
+                    // extract emoji off if we want tighter UI
+                    const badge = document.createElement('span');
+                    badge.className = 'badge bg-primary me-1 mb-1 p-2 text-sm d-flex align-items-center';
+                    badge.innerHTML = `${fullLabel} <i class="fas fa-times ms-2 cursor-pointer btn-close-custom" data-value="${value}"></i>`;
+                    selectedPropertiesContainer.appendChild(badge);
                 });
-        }
-    });
-}
 
-function initTrainingForm() {
-    const selectedPropertiesContainer = document.getElementById('selectedProperties');
-    const noPropertiesSelected = document.getElementById('noPropertiesSelected');
-    const trainButton = document.getElementById('trainButton');
-    const selectAllButton = document.getElementById('selectAllProperties');
-    const clearButton = document.getElementById('clearProperties');
-    const checkboxes = document.querySelectorAll('.property-checkbox');
-
-    function updateSelectedProperties() {
-        selectedPropertiesContainer.innerHTML = '';
-        const checked = document.querySelectorAll('.property-checkbox:checked');
-        
-        if (checked.length === 0) {
-            noPropertiesSelected.classList.remove('d-none');
-            trainButton.disabled = true;
-        } else {
-            noPropertiesSelected.classList.add('d-none');
-            trainButton.disabled = false;
-            checked.forEach(checkbox => {
-                const value = checkbox.value;
-                const label = checkbox.nextElementSibling.textContent;
-                const badge = document.createElement('span');
-                badge.className = 'badge bg-primary me-1 mb-1';
-                badge.innerHTML = `
-                    ${label}
-                    <button type="button" class="btn-close btn-close-white ms-1" aria-label="Remove" data-value="${value}"></button>
-                `;
-                selectedPropertiesContainer.appendChild(badge);
-            });
+                document.querySelectorAll('.btn-close-custom').forEach(btn => {
+                    btn.addEventListener('click', function () {
+                        const val = this.getAttribute('data-value');
+                        document.querySelector(`.property-checkbox[value="${val}"]`).checked = false;
+                        updateSelectedProperties();
+                    });
+                });
+            }
         }
 
-        // Обработчик для удаления свойства по клику на крестик
-        document.querySelectorAll('.btn-close').forEach(button => {
-            button.addEventListener('click', function() {
-                const value = this.getAttribute('data-value');
-                const checkbox = document.querySelector(`.property-checkbox[value="${value}"]`);
-                checkbox.checked = false;
-                updateSelectedProperties();
-            });
-        });
+        checkboxes.forEach(cb => cb.addEventListener('change', updateSelectedProperties));
+        document.getElementById('selectAllProperties').addEventListener('click', () => { checkboxes.forEach(c => c.checked = true); updateSelectedProperties(); });
+        document.getElementById('clearProperties').addEventListener('click', () => { checkboxes.forEach(c => c.checked = false); updateSelectedProperties(); });
+        updateSelectedProperties();
     }
 
-    // Обновляем список при изменении чекбоксов
-    checkboxes.forEach(checkbox => {
-        checkbox.addEventListener('change', updateSelectedProperties);
-    });
+    function updateSystemStats() {
+        fetch('/ml_system_status')
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('dataCount').textContent = data.system_status.training_data_size;
+                    document.getElementById('activeModels').textContent = data.system_status.trained_models.length;
+                    document.getElementById('optimizations').textContent = data.system_status.ml_optimizations_count;
 
-    // Обработчик для "Выбрать все"
-    selectAllButton.addEventListener('click', function() {
-        checkboxes.forEach(checkbox => {
-            checkbox.checked = true;
-        });
-        updateSelectedProperties();
-    });
-
-    // Обработчик для "Очистить"
-    clearButton.addEventListener('click', function() {
-        checkboxes.forEach(checkbox => {
-            checkbox.checked = false;
-        });
-        updateSelectedProperties();
-    });
-
-    // Инициализация
-    updateSelectedProperties();
-}
-
-function updateSystemStats() {
-    fetch('/ml_system_status')
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                document.getElementById('modelsCount').textContent = data.system_status.trained_models.length;
-                document.getElementById('activeModels').textContent = data.system_status.trained_models.length;
-                document.getElementById('dataCount').textContent = data.system_status.training_data_size;
-                
-                let totalR2 = 0;
-                let count = 0;
-                Object.values(data.system_status.model_metrics).forEach(model => {
-                    if (model.training_metrics.r2_score) {
-                        totalR2 += model.training_metrics.r2_score;
-                        count++;
-                    }
-                });
-                const avgAccuracy = count > 0 ? (totalR2 / count * 100).toFixed(1) : 0;
-                document.getElementById('avgAccuracy').textContent = avgAccuracy + '%';
-                document.getElementById('optimizations').textContent = data.system_status.ml_optimizations_count;
-            }
-        });
-}
-
-function loadMLStatus() {
-    const statusContainer = document.getElementById('mlSystemStatus');
-    statusContainer.innerHTML = `
-        <div class="text-center py-3">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Загрузка...</span>
-            </div>
-            <p class="mt-2 text-muted">Загрузка статуса моделей...</p>
-        </div>
-    `;
-    
-    fetch('/ml_system_status')
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                let html = '';
-                
-                if (data.system_status.trained_models.length > 0) {
-                    html = '<div class="row g-3">';
-                    for (const prop of data.system_status.trained_models) {
-                        const metrics = data.system_status.model_metrics[prop].training_metrics;
-                        const r2Percent = (metrics.r2_score * 100).toFixed(1);
-                        const maeValue = metrics.mae?.toFixed(3) || 'N/A';
-                        const displayName = data.system_status.model_metrics[prop].display_name;
-                        
-                        html += `
-                            <div class="col-xl-4 col-md-6">
-                                <div class="card model-card border-0 shadow-sm h-100">
-                                    <div class="card-body">
-                                        <div class="d-flex justify-content-between align-items-start mb-3">
-                                            <h6 class="fw-bold text-primary mb-0">${displayName}</h6>
-                                            <span class="badge bg-success">Активна</span>
-                                        </div>
-                                        
-                                        <div class="mb-3">
-                                            <div class="d-flex justify-content-between mb-1">
-                                                <small class="text-muted">Точность (R²)</small>
-                                                <small class="fw-bold">${r2Percent}%</small>
-                                            </div>
-                                            <div class="progress" style="height: 6px;">
-                                                <div class="progress-bar bg-success" style="width: ${r2Percent}%"></div>
-                                            </div>
-                                        </div>
-                                        
-                                        <div class="row text-center">
-                                            <div class="col-6">
-                                                <small class="text-muted d-block">MAE</small>
-                                                <strong class="text-dark">${maeValue}</strong>
-                                            </div>
-                                            <div class="col-6">
-                                                <small class="text-muted d-block">Обучена</small>
-                                                <strong class="text-dark">✓</strong>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        `;
-                    }
-                    html += '</div>';
-                } else {
-                    html = `
-                        <div class="text-center py-5">
-                            <i class="fas fa-robot fa-3x text-muted mb-3"></i>
-                            <h5 class="text-muted">Модели не обучены</h5>
-                            <p class="text-muted mb-3">Обучите первую модель для начала работы</p>
-                            <div class="alert alert-info border-0 bg-white">
-                                <i class="fas fa-lightbulb me-2"></i>
-                                <small>Для обучения нужны данные в базе и корректные составы</small>
-                            </div>
-                        </div>
-                    `;
+                    let totalR2 = 0; let count = 0;
+                    Object.values(data.system_status.model_metrics).forEach(model => {
+                        if (model.training_metrics && model.training_metrics.r2_score) {
+                            totalR2 += model.training_metrics.r2_score; count++;
+                        }
+                    });
+                    const act = count > 0 ? (totalR2 / count * 100).toFixed(1) : 0;
+                    document.getElementById('avgAccuracy').textContent = act + '%';
                 }
-                
-                statusContainer.innerHTML = html;
+            });
+    }
+
+    function loadMLStatus() {
+        const c = document.getElementById('mlSystemStatus');
+        c.innerHTML = '<div class="text-center py-3"><div class="spinner-border text-primary" role="status"></div></div>';
+        fetch('/ml_system_status')
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    if (data.system_status.trained_models.length > 0) {
+                        let html = '<div class="row g-2">';
+                        for (const [model, metrics] of Object.entries(data.system_status.model_metrics)) {
+                            const r2 = metrics.training_metrics ? (metrics.training_metrics.r2_score * 100).toFixed(1) : 'N/A';
+                            const badgeColor = r2 > 85 ? 'success' : (r2 > 60 ? 'warning' : 'danger');
+                            const displayName = metrics.display_name || model;
+                            html += `
+                            <div class="col-md-6 mb-2">
+                                <div class="card shadow-none border p-3 text-start h-100 animate__animated animate__fadeIn">
+                                    <h6 class="text-dark font-weight-bold mb-1"><i class="fas fa-cube text-primary me-2"></i>Модель: ${displayName}</h6>
+                                    <p class="text-muted text-xs mb-2">Статус: Готова к прогнозу</p>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                       <span class="text-sm">Точность R²:</span>
+                                       <span class="badge bg-${badgeColor}">${r2}%</span>
+                                    </div>
+                                    <div class="progress mt-2" style="height: 5px;">
+                                       <div class="progress-bar bg-${badgeColor}" role="progressbar" style="width: ${r2}%;"></div>
+                                    </div>
+                                </div>
+                            </div>`;
+                        }
+                        html += '</div>';
+                        c.innerHTML = html;
+                    } else {
+                        c.innerHTML = '<div class="alert alert-light border text-center text-muted mb-0"><i class="fas fa-info-circle me-2"></i>Нет обученных моделей</div>';
+                    }
+                } else {
+                    c.innerHTML = '<div class="alert alert-danger text-white border-0">Ошибка загрузки статуса</div>';
+                }
+            })
+            .catch(() => c.innerHTML = '<div class="text-danger"><i class="fas fa-exclamation-triangle"></i> Ошибка соединения</div>');
+    }
+
+    async function handleMLTraining(e) {
+        e.preventDefault();
+        const btn = document.getElementById('trainButton');
+        const spinner = btn.querySelector('.spinner-border');
+        const txt = btn.querySelector('.btn-text');
+
+        btn.disabled = true; spinner.classList.remove('d-none'); txt.textContent = 'Обучение...';
+
+        // Auto scroll to results
+        scrollToSection('ml-step-4');
+        const resDiv = document.getElementById('trainingResults');
+        resDiv.style.display = 'block';
+        resDiv.innerHTML = '<div class="alert alert-info border-0"><i class="fas fa-spinner fa-spin me-2"></i>Идёт тренировка и валидация моделей...</div>';
+
+        console.log("🚀 Starting ML training request...");
+        try {
+            const formData = new FormData(this);
+            console.log("Form data target_properties:", formData.getAll('target_properties[]'));
+            console.log("Form data algorithm:", formData.get('algorithm'));
+
+            // We use method POST with FormData as expected by /ml_system_train in main.py
+            const r = await fetch('/ml_system_train', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await r.json();
+            console.log("Backend response:", data);
+
+            if (data.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Успех!',
+                    text: data.message,
+                    timer: 3000,
+                    showConfirmButton: false
+                });
+                resDiv.innerHTML = `<div class="alert alert-success border-0 text-white animate__animated animate__fadeIn"><i class="fas fa-check-circle me-2"></i>${data.message}</div>`;
+                updateSystemStats(); loadMLStatus();
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Ошибка',
+                    text: data.error || data.message
+                });
+                resDiv.innerHTML = `<div class="alert alert-danger border-0 text-white animate__animated animate__shakeX"><i class="fas fa-exclamation-triangle me-2"></i>Ошибка: ${data.error || data.message}</div>`;
+            }
+        } catch (error) {
+            console.error(error);
+            resDiv.innerHTML = `<div class="alert alert-danger border-0 text-white"><i class="fas fa-bug"></i> Ошибка запроса на сервер</div>`;
+        } finally {
+            btn.disabled = false; spinner.classList.add('d-none'); txt.textContent = 'Запустить Обучение';
+        }
+    }
+
+    async function handleOptimization(e) {
+        e.preventDefault();
+        const btn = e.target.querySelector('button[type="submit"]');
+        const spinner = btn.querySelector('.spinner-border');
+        const txt = btn.querySelector('.btn-text');
+
+        btn.disabled = true; spinner.classList.remove('d-none'); txt.textContent = 'Поиск...';
+
+        scrollToSection('ml-step-4');
+        const resDiv = document.getElementById('optimizationResults');
+        resDiv.style.display = 'block';
+        resDiv.innerHTML = '<div class="alert alert-info border-0"><i class="fas fa-spinner fa-spin me-2"></i>Запущен генетический алгоритм оптимизации...</div>';
+
+        console.log("🎯 Starting optimization request...");
+        try {
+            const formData = new FormData(this);
+            console.log("Optimization target:", formData.get('target_property'));
+
+            // We use method POST with FormData as expected by /ml_optimize in main.py
+            const r = await fetch('/ml_optimize', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await r.json();
+            console.log("Optimization response:", data);
+
+            if (data.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Оптимизация завершена',
+                    text: 'Результаты отображены в консоли вывода',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+                let html = `
+                <div class="card shadow-sm border border-success mb-3 p-3 animate__animated animate__fadeInUp">
+                    <h5 class="text-success fw-bold"><i class="fas fa-trophy me-2"></i>Оптимальный Состав Найден</h5>
+                    <p class="mb-3 text-sm">${data.message || 'Оптимизация завершена успешно'}</p>
+                    <div class="row align-items-center">
+                        <div class="col-md-6 text-center border-end">
+                            <h6 class="text-muted">Предсказанное значение:</h6>
+                            <h2 class="text-dark fw-bolder">${Number(data.predicted_value || data.optimal_value || 0).toFixed(2)}</h2>
+                            <p class="text-xs text-muted">Для свойства: ${data.optimization_target || data.target_property || 'N/A'}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-muted mb-2 ps-3">Компоненты:</h6>
+                            <ul class="list-group list-group-flush" style="font-size:0.9rem;">
+                `;
+                if (data.optimal_composition) {
+                    for (const [comp, pct] of Object.entries(data.optimal_composition)) {
+                        html += `<li class="list-group-item bg-transparent py-1 border-0 d-flex justify-content-between"><span>${comp}</span> <strong>${Number(pct).toFixed(1)}%</strong></li>`;
+                    }
+                }
+                html += `</ul></div></div></div>`;
+                resDiv.innerHTML = html;
                 updateSystemStats();
             } else {
-                statusContainer.innerHTML = `
-                    <div class="alert alert-warning border-0 bg-white">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        Ошибка загрузки статуса: ${data.error}
-                    </div>
-                `;
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Ошибка оптимизации',
+                    text: data.error || data.message
+                });
+                resDiv.innerHTML = `<div class="alert alert-danger border-0 text-white"><i class="fas fa-exclamation-triangle me-2"></i>Ошибка оптимизации: ${data.error || data.message}</div>`;
             }
-        })
-        .catch(error => {
-            statusContainer.innerHTML = `
-                <div class="alert alert-warning border-0 bg-white">
-                    <i class="fas fa-wifi me-2"></i>
-                    Ошибка соединения с сервером
-                </div>
-            `;
-        });
-}
-
-function handleMLTraining(e) {
-    e.preventDefault();
-    
-    const form = e.target;
-    const submitBtn = form.querySelector('button[type="submit"]');
-    const btnText = submitBtn.querySelector('.btn-text');
-    const spinner = submitBtn.querySelector('.spinner-border');
-    
-    // Показываем загрузку
-    btnText.textContent = 'Обучение...';
-    spinner.classList.remove('d-none');
-    submitBtn.disabled = true;
-    
-    const formData = new FormData(form);
-    const algorithm = document.getElementById('algorithmSelect').value;
-    formData.append('algorithm', algorithm);  // Добавляем алгоритм в FormData
-    
-    fetch('/ml_system_train', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        const resultsContainer = document.getElementById('trainingResults');
-        resultsContainer.style.display = 'block';
-        
-        if (data.success) {
-            resultsContainer.innerHTML = `
-                <div class="alert alert-info border-0 bg-white">
-                    <div class="d-flex align-items-center">
-                        <i class="fas fa-check-circle fa-2x text-primary me-3"></i>
-                        <div>
-                            <h5 class="alert-heading mb-1">✅ Модель обучена!</h5>
-                            <p class="mb-1">${data.message}</p>
-                            <div class="row mt-2">
-                                <div class="col-6">
-                                    <strong>R² Score:</strong> ${(data.metrics[data.status.trained_models[0]]?.r2_score || 0).toFixed(3)}
-                                </div>
-                                <div class="col-6">
-                                    <strong>MAE:</strong> ${(data.metrics[data.status.trained_models[0]]?.mae || 'N/A')}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-            loadMLStatus();
-        } else {
-            resultsContainer.innerHTML = `
-                <div class="alert alert-warning border-0 bg-white">
-                    <div class="d-flex align-items-center">
-                        <i class="fas fa-exclamation-triangle fa-2x text-warning me-3"></i>
-                        <div>
-                            <h5 class="alert-heading mb-1">❌ Ошибка обучения</h5>
-                            <p class="mb-0">${data.error}</p>
-                        </div>
-                    </div>
-                </div>
-            `;
+        } catch (error) {
+            console.error(error);
+            resDiv.innerHTML = `<div class="alert alert-danger border-0 text-white"><i class="fas fa-bug"></i> Ошибка сети при запросе оптимизации</div>`;
+        } finally {
+            btn.disabled = false; spinner.classList.add('d-none'); txt.textContent = 'Начать Оптимизацию';
         }
-    })
-    .catch(error => {
-        document.getElementById('trainingResults').innerHTML = `
-            <div class="alert alert-warning border-0 bg-white">
-                <div class="d-flex align-items-center">
-                    <i class="fas fa-wifi fa-2x text-warning me-3"></i>
-                    <div>
-                        <h5 class="alert-heading mb-1">❌ Ошибка сети</h5>
-                        <p class="mb-0">${error.message}</p>
-                    </div>
-                </div>
-            </div>
-        `;
-    })
-    .finally(() => {
-        btnText.textContent = 'Обучить модель';
-        spinner.classList.add('d-none');
-        submitBtn.disabled = false;
-    });
-}
-
-function handleOptimization(e) {
-    e.preventDefault();
-    
-    const form = e.target;
-    const submitBtn = form.querySelector('button[type="submit"]');
-    const btnText = submitBtn.querySelector('.btn-text');
-    const spinner = submitBtn.querySelector('.spinner-border');
-    
-    // Показываем загрузку
-    btnText.textContent = 'Оптимизация...';
-    spinner.classList.remove('d-none');
-    submitBtn.disabled = true;
-    
-    const formData = new FormData(form);
-    
-    fetch('/ml_optimize', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        const resultsContainer = document.getElementById('optimizationResults');
-        resultsContainer.style.display = 'block';
-        
-        if (data.success) {
-            let compositionHtml = '<div class="mt-3"><h6>🧩 Оптимальный состав:</h6><div class="row g-2">';
-            for (const [comp, percent] of Object.entries(data.optimal_composition)) {
-                if (percent > 0.1) {
-                    compositionHtml += `
-                        <div class="col-6">
-                            <div class="card bg-light border-0">
-                                <div class="card-body py-2">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <span class="fw-semibold">${comp}</span>
-                                        <span class="badge bg-primary">${percent.toFixed(1)}%</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                }
-            }
-            compositionHtml += '</div></div>';
-            
-            resultsContainer.innerHTML = `
-                <div class="alert alert-info border-0 bg-white">
-                    <div class="d-flex align-items-center">
-                        <i class="fas fa-bolt fa-2x text-warning me-3"></i>
-                        <div class="flex-grow-1">
-                            <h5 class="alert-heading mb-1">⚡ Оптимизация завершена!</h5>
-                            <p class="mb-2"><strong>🎯 Целевое значение:</strong> ${data.optimal_value?.toFixed(3)}</p>
-                            ${compositionHtml}
-                            <p class="mt-2"><strong>Улучшение:</strong> ${data.improvement?.toFixed(2) || 'N/A'}</p>
-                            <p><strong>Добавлено/изменено:</strong> ${data.added_components?.join(', ') || 'Нет изменений'}</p>
-                        </div>
-                    </div>
-                </div>
-            `;
-        } else {
-            resultsContainer.innerHTML = `
-                <div class="alert alert-warning border-0 bg-white">
-                    <div class="d-flex align-items-center">
-                        <i class="fas fa-exclamation-triangle fa-2x text-warning me-3"></i>
-                        <div>
-                            <h5 class="alert-heading mb-1">❌ Ошибка оптимизации</h5>
-                            <p class="mb-0">${data.error}</p>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-    })
-    .catch(error => {
-        document.getElementById('optimizationResults').innerHTML = `
-            <div class="alert alert-warning border-0 bg-white">
-                <div class="d-flex align-items-center">
-                    <i class="fas fa-wifi fa-2x text-warning me-3"></i>
-                    <div>
-                        <h5 class="alert-heading mb-1">❌ Ошибка сети</h5>
-                        <p class="mb-0">${error.message}</p>
-                    </div>
-                </div>
-            </div>
-        `;
-    })
-    .finally(() => {
-        // Восстанавливаем кнопку
-        btnText.textContent = 'Найти оптимальный состав';
-        spinner.classList.add('d-none');
-        submitBtn.disabled = false;
-    });
-}
-
-function getPropertyDisplayName(prop) {
-    const names = {
-        'ad': '🌫️ Содержание золы на сухую массу (%)',
-        'q': '🔥 Теплота сгорания (МДж/кг)',
-        'density': '⚖️ Плотность (кг/м³)',
-        'kf': '📐 Ударопрочность (%)',
-        'kt': '📏 Устойчивость к колебательным нагрузкам (%)',
-        'h': '💧 Гигроскопичность (%)',
-        'mass_loss': '⚡ Потеря массы (%)',
-        'tign': '🌡️ Температура зажигания (°С)',
-        'tb': '💥 Температура выгорания (°С)',
-        'tau_d1': '⏱️ Задержка газофазного зажигания (с)',
-        'tau_d2': '⏱️ Задержка гетерогенного зажигания (с)',
-        'tau_b': '⏱️ Время горения (с)',
-        'co2': '🌬️ Концентрация диоксида углерода (%)',
-        'co': '🌬️ Концентрация монооксида углерода (%)',
-        'so2': '🌫️ Концентрация оксидов серы (ppm)',
-        'nox': '🌫️ Концентрация оксидов азота (ppm)',
-        'war': '💧 Влажность на аналитическую массу (%)',
-        'vd': '🌬️ Содержание летучих на сухую массу (%)',
-        'cd': '⚫ Содержание углерода на сухую массу (%)',
-        'hd': '💨 Содержание водорода на сухую массу (%)',
-        'nd': '🌬️ Содержание азота на сухую массу (%)',
-        'sd': '🔥 Содержание серы на сухую массу (%)',
-        'od': '🌬️ Содержание кислорода на сухую массу (%)'
-    };
-    return names[prop] || prop;
-}
+    }
 </script>
 {% endblock %}

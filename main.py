@@ -27,52 +27,58 @@ init_db(db_path)  # Инициализация базы данных
 def index():
     uploaded_files = os.listdir(app.config['UPLOAD_FOLDER']) if os.path.exists(app.config['UPLOAD_FOLDER']) else []
     show_data = session.get('show_data', False)
-    page = int(request.args.get('page', 1))
-    per_page = int(request.args.get('per_page', 10))
     
-    tables = []
-    total_rows = []
-    
-    # ВСЕГДА загружаем данные из базы для отображения
-    measured_data = query_db(db_path, "measured_parameters")
-    components_data = query_db(db_path, "components")
-    
-    if not measured_data.empty:
-        total_measured = len(measured_data)
-        total_rows.append(total_measured)
-        start_idx = (page - 1) * per_page
-        end_idx = start_idx + per_page
-        df_pag = measured_data.iloc[start_idx:end_idx] if total_measured > 0 else pd.DataFrame()
-        tables.append({
-            'name': 'Измеренные параметры',
-            'data': df_pag.to_html(classes='table table-striped table-sm', index=False) if not df_pag.empty else 'Таблица пуста.'
-        })
+    # Статистика и данные для графиков (BankDash)
+    total_measured_count = 0
+    total_components_count = 0
+    chart_labels = []
+    chart_data = []
 
-    if not components_data.empty:
-        total_components = len(components_data)
-        total_rows.append(total_components)
-        start_idx = (page - 1) * per_page
-        end_idx = start_idx + per_page
-        df_pag = components_data.iloc[start_idx:end_idx] if total_components > 0 else pd.DataFrame()
-        tables.append({
-            'name': 'Компоненты',
-            'data': df_pag.to_html(classes='table table-striped table-sm', index=False) if not df_pag.empty else 'Таблица пуста.'
-        })
-    
-    # Если есть данные в базе, показываем их
-    if not measured_data.empty or not components_data.empty:
-        show_data = True
-        session['show_data'] = True
+    try:
+        measured_data = query_db(db_path, "measured_parameters")
+        components_data = query_db(db_path, "components")
+        
+        if not measured_data.empty:
+            total_measured_count = len(measured_data)
+        
+        if not components_data.empty:
+            total_components_count = len(components_data)
+            
+            # Подготовка данных для графика: Топ-6 компонентов по частоте
+            if 'composition' in components_data.columns:
+                # Извлекаем названия компонентов (убираем проценты и лишние пробелы для простоты графиков)
+                # В реальной базе лучше использовать парсер, здесь берем первые слова как базу
+                raw_compositions = components_data['composition'].astype(str).tolist()
+                parsed_components = []
+                for comp in raw_compositions:
+                    # Простая эвристика: берем первое слово (например "Сосна" из "Сосна 80%") 
+                    # или оставляем как есть, если это одно слово
+                    base_comp = comp.split(' ')[0].split('_')[0].strip(',.-')
+                    if base_comp:
+                        parsed_components.append(base_comp)
+                
+                from collections import Counter
+                comp_counts = Counter(parsed_components)
+                # Берем топ-7 самых частых
+                top_comps = comp_counts.most_common(7)
+                chart_labels = [item[0] for item in top_comps]
+                chart_data = [item[1] for item in top_comps]
+                
+        if total_measured_count > 0 or total_components_count > 0:
+            show_data = True
+            session['show_data'] = True
+    except Exception as e:
+        print(f"Ошибка при получении статистики для дашборда: {e}")
 
     return render_template(
         'index.html',
         segment='Главная',
         uploaded_files=uploaded_files,
-        tables=tables,
         show_data=show_data,
-        page=page,
-        per_page=per_page,
-        total_rows=total_rows
+        total_measured_count=total_measured_count,
+        total_components_count=total_components_count,
+        chart_labels=chart_labels,
+        chart_data=chart_data
     )
 
 @app.route('/', methods=['POST'])
@@ -210,12 +216,17 @@ def search():
         search_columns = request.form.getlist('search_column')
         search_operators = request.form.getlist('search_operator')
         search_values = request.form.getlist('search_value')
+        search_values_max = request.form.getlist('search_value_max')
         
         # Get first non-empty values (for backward compatibility, also check single values)
         search_column = request.form.get('search_column') or (search_columns[0] if search_columns and search_columns[0] else None)
         search_operator = request.form.get('search_operator') or (search_operators[0] if search_operators and search_operators[0] else '=')
+        
         search_value_raw = request.form.get('search_value') or (search_values[0] if search_values and search_values[0] else '')
         search_value = search_value_raw.strip() if search_value_raw else ''
+        
+        search_value_max_raw = request.form.get('search_value_max') or (search_values_max[0] if search_values_max and search_values_max[0] else '')
+        search_value_max = search_value_max_raw.strip() if search_value_max_raw else ''
         
         # Базовая проверка
         if not search_column or not search_value:
@@ -223,6 +234,16 @@ def search():
                 'success': False,
                 'message': 'Заполните все поля поиска.'
             })
+            
+        if search_operator == 'BETWEEN' and not search_value_max:
+            return jsonify({
+                'success': False,
+                'message': 'Для поиска по диапазону укажите второе значение (До).'
+            })
+
+        # Формируем значение для простого фильтра
+        filter_value = (search_value, search_value_max) if search_operator == 'BETWEEN' else search_value
+
         
         # Получаем все данные
         all_measured_data = query_db(db_path, "measured_parameters")
@@ -234,7 +255,7 @@ def search():
             })
         
         # Простая и надежная фильтрация
-        filtered_data = simple_filter(all_measured_data, search_column, search_operator, search_value)
+        filtered_data = simple_filter(all_measured_data, search_column, search_operator, filter_value)
         
         if filtered_data.empty:
             return jsonify({
@@ -260,6 +281,34 @@ def search():
             'success': False,
             'message': f'Ошибка при поиске: {str(e)}'
         })
+
+@app.route('/global_search', methods=['GET'])
+def global_search():
+    query = request.args.get('q', '').strip()
+    if not query or len(query) < 2:
+        return jsonify({'success': False, 'results': []})
+        
+    try:
+        measured_data = query_db(db_path, "measured_parameters")
+        if measured_data.empty or 'composition' not in measured_data.columns:
+            return jsonify({'success': True, 'results': []})
+            
+        # Поиск по вхождению (регистронезависимый)
+        mask = measured_data['composition'].astype(str).str.contains(query, case=False, na=False)
+        results_df = measured_data[mask].head(5)
+        
+        results = []
+        for _, row in results_df.iterrows():
+            results.append({
+                'composition': row['composition'],
+                'q': round(row['q'], 2) if pd.notna(row.get('q')) else None,
+                'ad': round(row['ad'], 2) if pd.notna(row.get('ad')) else None
+            })
+            
+        return jsonify({'success': True, 'results': results})
+    except Exception as e:
+        print(f"Global search error: {e}")
+        return jsonify({'success': False, 'message': str(e)})
 
 @app.route('/add_data', methods=['POST'])
 def add_data():
@@ -318,6 +367,21 @@ def tables():
     per_page = int(request.args.get('per_page', 10))
     
     search_performed = session.get('search_performed', False)
+    quick_search = request.args.get('search', '').strip()
+    
+    # Обработка перехода из глобального поиска
+    if quick_search:
+        try:
+            measured_data = query_db(db_path, "measured_parameters")
+            if not measured_data.empty and 'composition' in measured_data.columns:
+                mask = measured_data['composition'].astype(str) == quick_search
+                filtered_data = measured_data[mask]
+                session['search_results'] = filtered_data.to_json(orient='records', force_ascii=False)
+                session['search_performed'] = True
+                search_performed = True
+        except Exception as e:
+            print(f"Ошибка быстрого поиска: {e}")
+
     tables = []
     total_rows = []
     
@@ -639,6 +703,12 @@ def perform_ai_ml_analysis():
             'message': f'Ошибка анализа: {str(e)}'
         })
 
+@app.route('/economics')
+def economics():
+    """Страница экономической оценки"""
+    uploaded_files = os.listdir(app.config['UPLOAD_FOLDER']) if os.path.exists(app.config['UPLOAD_FOLDER']) else []
+    return render_template('economics.html', segment='Экономическая часть', uploaded_files=uploaded_files)
+
 @app.route('/create_graph', methods=['GET', 'POST'])
 def create_graph():
     uploaded_files = os.listdir(app.config['UPLOAD_FOLDER']) if os.path.exists(app.config['UPLOAD_FOLDER']) else []
@@ -767,6 +837,11 @@ def create_graph():
         components_sheet_name=session.get('components_sheet_name', 'Таблица компонентов'),
         stats=stats
     )
+
+@app.route('/profile')
+def profile():
+    """Страница профиля и настроек пользователя"""
+    return render_template('profile.html', segment='Профиль')
 
 @app.route('/<path:path>.map')
 def ignore_map_files(path):
@@ -1066,4 +1141,4 @@ def ai_ml_history():
 
 
 if __name__ == '__main__':
-    app.run(debug=False)
+    app.run(host='0.0.0.0', debug=False)
