@@ -5,11 +5,11 @@
     <div class="row">
         <div class="col-12">
             <!-- Заголовок и навигация -->
-            <div class="bank-card animate-on-scroll mb-4">
-                <div class="card-header pb-3 bg-transparent border-bottom-0">
+            <div class="glass-card animate-on-scroll p-4 mb-4">
+                <div class="border-bottom-0">
                     <div class="row align-items-center">
                         <div class="col-md-8">
-                            <h4 class="mb-1 gradient-text-blue">Сравнительный анализ составов пеллет</h4>
+                            <h4 class="mb-1 text-dark font-weight-bolder">Сравнительный анализ составов пеллет</h4>
                             <p class="text-sm text-muted mb-0">Детальное сравнение характеристик и свойств различных
                                 составов</p>
                         </div>
@@ -26,9 +26,9 @@
 
             <!-- Основная форма сравнения -->
             {% if uploaded_files and compositions %}
-            <div class="bank-card animate-on-scroll stagger-1 mb-4">
-                <div class="card-header bg-transparent border-bottom">
-                    <h5 class="mb-0 text-primary fw-bolder">Выбор составов для сравнения</h5>
+            <div class="glass-card p-4 animate-on-scroll stagger-1 mb-4">
+                <div class="border-bottom mb-3 pb-2">
+                    <h5 class="mb-0 text-dark fw-bolder">Выбор составов для сравнения</h5>
                 </div>
                 <div class="card-body">
                     <form id="compare-form">
@@ -63,7 +63,7 @@
                                     </div>
                                 </div>
                                 <div class="mt-2">
-                                    <button type="button" class="btn btn-sm btn-outline-premium border-radius-lg"
+                                    <button type="button" class="btn btn-sm btn-outline-dark border-radius-lg"
                                         id="addComposition">
                                         <i class="fas fa-plus me-1"></i>Добавить состав для множественного сравнения
                                     </button>
@@ -71,10 +71,10 @@
                                 </div>
                             </div>
                             <!-- Панель выбора критериев -->
-                            <div class="card border-0 bg-gray-50 border-radius-lg shadow-sm mb-4">
-                                <div class="card-header bg-gradient-primary text-white border-radius-lg-top">
-                                    <h5 class="mb-0">
-                                        <i class="fas fa-sliders-h me-2"></i>Выбор критериев для сравнения
+                            <div class="card border-0 bg-white border-radius-lg shadow-sm mb-4">
+                                <div class="card-header bg-gray-100 py-3 border-radius-lg-top">
+                                    <h5 class="mb-0 text-dark font-weight-bolder">
+                                        <i class="fas fa-sliders-h me-2 text-primary"></i>Выбор критериев для сравнения
                                     </h5>
                                 </div>
                                 <div class="card-body">
@@ -83,19 +83,20 @@
                                     </div>
                                     <div class="row mt-3">
                                         <div class="col-md-12">
-                                            <button type="button" class="btn btn-sm btn-outline-premium me-2"
+                                            <button type="button" class="btn btn-sm btn-outline-primary me-2"
                                                 id="selectAllCriteria">
                                                 <i class="fas fa-check-double me-1"></i>Выбрать все
                                             </button>
-                                            <button type="button" class="btn btn-sm btn-outline-premium me-2"
+                                            <button type="button" class="btn btn-sm btn-outline-secondary me-2"
                                                 id="deselectAllCriteria">
                                                 <i class="fas fa-times-circle me-1"></i>Снять все
                                             </button>
-                                            <button type="button" class="btn btn-sm btn-outline-premium"
+                                            <button type="button" class="btn btn-sm bg-gradient-info text-white"
                                                 id="selectOptimalCriteria">
                                                 <i class="fas fa-magic me-1"></i>Оптимальный набор
                                             </button>
-                                            <span class="text-muted ms-2" id="selectedCount">Выбрано: 0 критериев</span>
+                                            <span class="text-muted ms-2 text-sm" id="selectedCount">Выбрано: 0
+                                                критериев</span>
                                         </div>
                                     </div>
                                 </div>
@@ -156,7 +157,7 @@
                                 </div>
                             </div>
                             <div class="col-md-6 text-end">
-                                <button type="submit" class="btn btn-premium border-radius-lg px-4">
+                                <button type="submit" class="btn bg-gradient-primary border-radius-lg px-4 shadow">
                                     <i class="fas fa-chart-bar me-2"></i>Выполнить сравнение
                                 </button>
                             </div>
@@ -173,12 +174,13 @@
                 </div>
             </div>
             {% else %}
-            <div class="card border-radius-lg shadow-sm mb-4">
+            <div class="glass-card shadow-sm mb-4">
                 <div class="card-body text-center py-5">
                     <i class="fas fa-file-upload fa-3x text-muted mb-3 opacity-5"></i>
-                    <h5 class="text-muted">Данные не загружены</h5>
-                    <p class="text-muted">Загрузите файл на главной странице, чтобы выбрать составы для сравнения.</p>
-                    <a href="{{ url_for('index') }}" class="btn btn-premium mt-3">
+                    <h5 class="text-muted fw-bolder">Данные не загружены</h5>
+                    <p class="text-muted text-sm">Загрузите файл на главной странице, чтобы выбрать составы для
+                        сравнения.</p>
+                    <a href="{{ url_for('index') }}" class="btn bg-gradient-dark mt-3">
                         <i class="fas fa-upload me-2"></i>Перейти к загрузке
                     </a>
                 </div>
@@ -188,33 +190,33 @@
             <!-- Результаты сравнения -->
             <div id="comparisonResults" style="display: none;" class="animate-on-scroll stagger-2">
                 <!-- Визуальное сравнение -->
-                <div class="bank-card mb-4">
-                    <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0 gradient-text-blue">Визуальное сравнение</h5>
+                <div class="glass-card p-4 mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0 text-dark fw-bolder">Визуальное сравнение</h5>
                         <div class="btn-group">
-                            <button class="btn btn-sm btn-light" id="toggleCharts">
+                            <button class="btn btn-sm btn-outline-secondary mb-0" id="toggleCharts">
                                 <i class="fas fa-chart-bar me-1"></i>Переключить вид
                             </button>
                         </div>
                     </div>
-                    <div class="card-body">
+                    <div>
                         <div class="row" id="visualComparison">
                             <div class="col-md-6">
-                                <div class="bank-card h-100">
-                                    <div class="card-header bg-light">
-                                        <h6 class="mb-0">Сравнительная диаграмма</h6>
+                                <div class="glass-card h-100 p-3 bg-gray-50 border">
+                                    <div class="mb-3 border-bottom pb-2">
+                                        <h6 class="mb-0 text-dark">Сравнительная диаграмма</h6>
                                     </div>
-                                    <div class="card-body">
+                                    <div>
                                         <canvas id="comparisonChart" width="400" height="250"></canvas>
                                     </div>
                                 </div>
                             </div>
                             <div class="col-md-6">
-                                <div class="bank-card h-100">
-                                    <div class="card-header bg-light">
-                                        <h6 class="mb-0">Различия в процентах</h6>
+                                <div class="glass-card h-100 p-3 bg-gray-50 border">
+                                    <div class="mb-3 border-bottom pb-2">
+                                        <h6 class="mb-0 text-dark">Различия в процентах</h6>
                                     </div>
-                                    <div class="card-body">
+                                    <div>
                                         <canvas id="differenceChart" width="400" height="250"></canvas>
                                     </div>
                                 </div>
@@ -224,11 +226,11 @@
                 </div>
 
                 <!-- Рейтинговая система -->
-                <div class="bank-card mb-4">
-                    <div class="card-header bg-gradient-primary text-white">
-                        <h5 class="mb-0">Рейтинг составов по категориям</h5>
+                <div class="glass-card p-0 mb-4 overflow-hidden">
+                    <div class="bg-gradient-info text-white p-3">
+                        <h5 class="mb-0 text-white">Рейтинг составов по категориям</h5>
                     </div>
-                    <div class="card-body">
+                    <div class="p-4">
                         <div class="row" id="compositionScores">
                             <!-- Баллы по категориям будут добавляться динамически -->
                         </div>
@@ -236,20 +238,19 @@
                 </div>
 
                 <!-- Детальная таблица сравнения -->
-                <div class="bank-card mb-4">
-                    <div
-                        class="card-header bg-gradient-primary text-white d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0">Детальное сравнение параметров</h5>
+                <div class="glass-card p-0 mb-4 overflow-hidden">
+                    <div class="bg-gradient-primary text-white p-3 d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0 text-white">Детальное сравнение параметров</h5>
                         <div class="btn-group">
-                            <button class="btn btn-sm btn-light" id="exportTable">
-                                <i class="fas fa-file-excel me-1"></i>Excel
+                            <button class="btn btn-sm btn-white mb-0 text-dark" id="exportTable">
+                                <i class="fas fa-file-excel me-1 text-success"></i>Excel
                             </button>
-                            <button class="btn btn-sm btn-light" id="exportCharts">
-                                <i class="fas fa-image me-1"></i>Графики
+                            <button class="btn btn-sm btn-white mb-0 text-dark" id="exportCharts">
+                                <i class="fas fa-image me-1 text-info"></i>Графики
                             </button>
                         </div>
                     </div>
-                    <div class="card-body">
+                    <div class="p-4">
                         <div class="table-responsive">
                             <div id="comparisonTableContainer">
                                 <!-- Таблица будет загружаться сюда -->
@@ -259,11 +260,11 @@
                 </div>
 
                 <!-- Рекомендательная система -->
-                <div class="bank-card mb-4">
-                    <div class="card-header bg-gradient-primary text-white">
-                        <h5 class="mb-0">Рекомендации по выбору</h5>
+                <div class="glass-card p-0 mb-4 overflow-hidden border border-success border-2">
+                    <div class="bg-gradient-success text-white p-3">
+                        <h5 class="mb-0 text-white"><i class="fas fa-star me-2"></i>Рекомендации по выбору</h5>
                     </div>
-                    <div class="card-body">
+                    <div class="p-4">
                         <div id="recommendations">
                             <!-- Рекомендации будут добавляться динамически -->
                         </div>
@@ -271,11 +272,11 @@
                 </div>
 
                 <!-- Панель экспорта -->
-                <div class="card">
-                    <div class="card-header bg-gradient-primary text-white">
-                        <h5 class="mb-0">Экспорт результатов</h5>
+                <div class="glass-card p-0 overflow-hidden">
+                    <div class="bg-gradient-dark text-white p-3">
+                        <h5 class="mb-0 text-white"><i class="fas fa-download me-2"></i>Экспорт результатов</h5>
                     </div>
-                    <div class="card-body">
+                    <div class="p-4">
                         <div class="d-flex gap-2 flex-wrap">
                             <button class="btn btn-success" id="exportFullReport">
                                 <i class="fas fa-file-pdf me-2"></i>Полный отчет (PDF)
@@ -292,17 +293,16 @@
             </div>
 
             <!-- История сравнений -->
-            <div class="bank-card mt-4" id="historySection">
-                <div
-                    class="card-header bg-gradient-primary text-white d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">История сравнений</h5>
-                    <button class="btn btn-sm btn-light" id="clearHistory">
+            <div class="glass-card p-0 mt-4 overflow-hidden" id="historySection">
+                <div class="bg-gray-200 text-dark p-3 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 text-dark fw-bolder">История сравнений</h5>
+                    <button class="btn btn-sm btn-outline-danger mb-0" id="clearHistory">
                         <i class="fas fa-trash me-1"></i>Очистить историю
                     </button>
                 </div>
-                <div class="card-body">
+                <div class="p-4">
                     <div id="comparisonHistory">
-                        <p class="text-muted text-center">Здесь будет отображаться история ваших сравнений</p>
+                        <p class="text-muted text-center mb-0">Здесь будет отображаться история ваших сравнений</p>
                     </div>
                 </div>
             </div>
@@ -354,6 +354,16 @@
 </div>
 
 <style>
+    /* =========================================
+       ПРЕМИУМ CSS СТИЛИ (SOFT UI)
+       ========================================= */
+    .glass-card {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 1rem;
+        box-shadow: 0 8px 24px rgba(149, 157, 165, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.8);
+    }
+
     /* Стили для скругленных углов */
     .border-radius-lg {
         border-radius: 12px !important;
@@ -404,7 +414,7 @@
     }
 
     .form-check-input:checked+.custom-checkbox-label .checkbox-icon {
-        background-color: #11c611;
+        background-color: #82d616;
         border-color: #dee2e6;
     }
 
@@ -413,7 +423,7 @@
     }
 
     .form-check-input:checked+.custom-checkbox-label {
-        color: #007bff;
+        color: #cb0c9f;
         font-weight: 500;
     }
 
@@ -459,8 +469,8 @@
     }
 
     .form-select:focus {
-        border-color: #007bff;
-        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        border-color: #cb0c9f;
+        box-shadow: 0 0 0 0.2rem rgba(203, 12, 159, 0.25);
     }
 
     /* Стили для сортировки таблиц */
@@ -478,7 +488,7 @@
 
     th.sorted-asc,
     th.sorted-desc {
-        background-color: #e3f2fd !important;
+        background-color: rgba(203, 12, 159, 0.1) !important;
         position: relative;
     }
 
@@ -555,7 +565,7 @@
     /* Стили для улучшенных рейтинговых карточек */
     .composition-score-card {
         background: white;
-        border: 1px solid #e3f2fd;
+        border: 1px solid rgba(203, 12, 159, 0.1);
         border-radius: 12px;
         padding: 20px;
         height: 100%;
@@ -564,9 +574,9 @@
     }
 
     .composition-score-card.best-composition {
-        border: 2px solid #ffd700;
-        background: linear-gradient(135deg, #fff9e6 0%, #ffffff 100%);
-        box-shadow: 0 4px 15px rgba(255, 215, 0, 0.2);
+        border: 2px solid #82d616;
+        background: linear-gradient(135deg, rgba(130, 214, 22, 0.05) 0%, #ffffff 100%);
+        box-shadow: 0 4px 15px rgba(130, 214, 22, 0.2);
     }
 
     .score-header {
@@ -583,7 +593,7 @@
     }
 
     .rank-badge {
-        background: #007bff;
+        background: #cb0c9f;
         color: white;
         padding: 4px 8px;
         border-radius: 20px;
@@ -592,8 +602,8 @@
     }
 
     .best-badge {
-        background: #ffd700;
-        color: #856404;
+        background: #82d616;
+        color: #ffffff;
         padding: 4px 8px;
         border-radius: 20px;
         font-size: 11px;
@@ -619,7 +629,7 @@
         position: relative;
         width: 80px;
         height: 80px;
-        background: conic-gradient(#4CAF50 0% 75%, #e0e0e0 75% 100%);
+        background: conic-gradient(#82d616 0% 75%, #e0e0e0 75% 100%);
         border-radius: 50%;
         display: flex;
         align-items: center;
@@ -669,7 +679,7 @@
     }
 
     .category-progress .progress-bar {
-        background: linear-gradient(90deg, #3498db, #2ecc71);
+        background: linear-gradient(310deg, #cb0c9f, #ff4b8b);
     }
 
     .score-strengths {
@@ -736,7 +746,7 @@
     }
 
     .composition-value {
-        background: #3498db;
+        background: #cb0c9f;
         border-radius: 4px;
         transition: all 0.3s ease;
         position: relative;
@@ -747,8 +757,8 @@
     }
 
     .composition-value.best-value {
-        background: #2ecc71;
-        box-shadow: 0 2px 4px rgba(46, 204, 113, 0.3);
+        background: #82d616;
+        box-shadow: 0 2px 4px rgba(130, 214, 22, 0.3);
     }
 
     .value-text {
@@ -820,8 +830,8 @@
         const icon = label.querySelector('.custom-checkbox-icon');
         if (icon) {
             if (checkbox.checked) {
-                icon.style.backgroundColor = '#50C878';
-                icon.style.borderColor = '#50C878';
+                icon.style.backgroundColor = '#82d616';
+                icon.style.borderColor = '#82d616';
                 icon.innerHTML = '✓';
                 icon.style.color = 'white';
                 icon.style.fontWeight = 'bold';
@@ -2002,9 +2012,9 @@
 
     function getScoreColor(score) {
         const numScore = parseFloat(score);
-        if (numScore >= 8) return '#27ae60';
-        if (numScore >= 7) return '#f39c12';
-        return '#e74c3c';
+        if (numScore >= 8) return '#82d616';
+        if (numScore >= 7) return '#fb8c00'; // Оранжевый для warning
+        return '#ea0606'; // Красный для danger
     }
 
     function getChartImages() {
@@ -2156,22 +2166,22 @@
                         label: 'Состав 1',
                         data: [85, 95, 80, 75, 90, 85],
                         fill: true,
-                        backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                        borderColor: 'rgb(54, 162, 235)',
-                        pointBackgroundColor: 'rgb(54, 162, 235)',
+                        backgroundColor: 'rgba(203, 12, 159, 0.2)',
+                        borderColor: '#cb0c9f',
+                        pointBackgroundColor: '#cb0c9f',
                         pointBorderColor: '#fff',
                         pointHoverBackgroundColor: '#fff',
-                        pointHoverBorderColor: 'rgb(54, 162, 235)'
+                        pointHoverBorderColor: '#cb0c9f'
                     }, {
                         label: 'Состав 2',
                         data: [75, 85, 90, 80, 70, 75],
                         fill: true,
-                        backgroundColor: 'rgba(255, 99, 132, 0.2)',
-                        borderColor: 'rgb(255, 99, 132)',
-                        pointBackgroundColor: 'rgb(255, 99, 132)',
+                        backgroundColor: 'rgba(130, 214, 22, 0.2)',
+                        borderColor: '#82d616',
+                        pointBackgroundColor: '#82d616',
                         pointBorderColor: '#fff',
                         pointHoverBackgroundColor: '#fff',
-                        pointHoverBorderColor: 'rgb(255, 99, 132)'
+                        pointHoverBorderColor: '#82d616'
                     }]
                 },
                 options: {
@@ -2527,7 +2537,7 @@
         };
 
         // Цвета для составов
-        const colors = ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b'];
+        const colors = ['#cb0c9f', '#82d616', '#17c1e8', '#fb8c00', '#ea0606'];
 
         // Собираем данные по каждому составу
         rows.forEach((row, rowIndex) => {
@@ -2570,9 +2580,9 @@
 
             // Цвета в зависимости от величины различий
             differenceData.datasets[0].backgroundColor = differenceData.datasets[0].data.map(diff => {
-                if (diff > 20) return '#e74a3b'; // Большие различия - красный
-                if (diff > 10) return '#f6c23e'; // Средние различия - желтый
-                return '#1cc88a'; // Малые различия - зеленый
+                if (diff > 20) return '#ea0606'; // Большие различия - красный
+                if (diff > 10) return '#fb8c00'; // Средние различия - оранжевый
+                return '#82d616'; // Малые различия - зеленый
             });
         }
 
