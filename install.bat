@@ -2,60 +2,73 @@
 chcp 65001 > nul
 setlocal enabledelayedexpansion
 
-echo ==============================================
-echo  Pellets Analyzer - Setup and Launch Script
-echo ==============================================
+:: Устанавливаем зеленый цвет текста для индикации успешной работы
+color 0A
 
-:: Check if venv exists and is valid
+echo ===========================================================
+echo            Pellets Analyzer - Установка и Запуск           
+echo ===========================================================
+echo.
+
+:: Шаг 1
+echo [^|^|^|       ] 30%% ШАГ 1: Проверка системы и окружения...
 if exist "venv\Scripts\activate.bat" (
-    echo [1/3] Checking existing environment...
     call venv\Scripts\activate.bat
     
-    :: Fast check if main libraries are already installed
+    :: Быстрая проверка наличия основных библиотек
     python -c "import flask, flask_session, matplotlib, numpy, pandas, plotly, requests, seaborn, openpyxl, scipy, sklearn" >nul 2>&1
     if !errorlevel! equ 0 (
-        echo [INFO] All dependencies are already installed. Skipping installation...
+        echo    -- Окружение уже настроено и готово к работе.
         goto launch
     ) else (
-        echo [INFO] Some dependencies are missing. Proceeding with installation...
+        echo    -- Найдены не все библиотеки. Потребуется доустановка.
     )
 ) else (
-    echo.
-    echo [1/3] Creating virtual environment (venv)...
+    echo    -- Создание виртуального окружения ^(пожалуйста, подождите^) ...
     python -m venv venv
     if !errorlevel! neq 0 (
-        echo [ERROR] Failed to create virtual environment. Make sure Python is installed.
+        echo.
+        color 0C
+        echo [ОШИБКА] Не удалось создать окружение. Убедитесь, что установлен Python!
         pause
         exit /b !errorlevel!
     )
-    echo Virtual environment created successfully.
     call venv\Scripts\activate.bat
 )
 
+:: Шаг 2
 echo.
-echo [2/3] Installing/Updating dependencies...
+echo [^|^|^|^|^|^|    ] 60%% ШАГ 2: Установка необходимых библиотек...
+echo    -- Процесс может занять несколько минут. Идет скачивание...
 if exist "requirements.txt" (
     pip install -r requirements.txt
     if !errorlevel! neq 0 (
-        echo [ERROR] Failed to install dependencies.
+        echo.
+        color 0C
+        echo [ОШИБКА] Проблема при установке библиотек. Проверьте подключение к интернету.
         pause
         exit /b !errorlevel!
     )
 ) else (
-    echo [WARNING] requirements.txt not found.
+    echo [ВНИМАНИЕ] Файл requirements.txt не найден!
 )
 
 :launch
+:: Шаг 3
 echo.
-echo [3/3] Launching the application...
-echo The application will run locally. Please do not close this window.
+echo [^|^|^|^|^|^|^|^|^|^|] 100%% ГОТОВО! Программа запускается...
+echo ===========================================================
+echo Пожалуйста, не закрывайте это окно, пока работаете в программе!
+echo ===========================================================
+:: Возвращаем стандартный цвет перед запуском программы
+color 0F
 python main.py
 
 if !errorlevel! neq 0 (
     echo.
-    echo [ERROR] Application crashed or finished with error.
+    color 0C
+    echo [ОШИБКА] Программа завершила работу с ошибкой.
     pause
 )
 
 pause
-
