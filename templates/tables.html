@@ -17,7 +17,7 @@
                         <div class="row search-criterion">
                             <div class="col-md-3">
                                 <label class="form-label">Столбец для поиска</label>
-                                <select class="form-select" id="search_column" name="search_column">
+                                <select class="form-select" name="search_column">
                                     <option value="">Выберите столбец</option>
                                     <option value="composition">Составы</option>
                                     <option value="density">Плотность, кг/м3</option>
@@ -46,8 +46,8 @@
                                 </select>
                             </div>
                             <div class="col-md-3 ">
-                                <label for="search_operator" class="form-label">Условие</label>
-                                <select class="form-select" id="search_operator" name="search_operator"
+                                <label class="form-label">Условие</label>
+                                <select class="form-select" name="search_operator"
                                     onchange="toggleSearchInputs(this.closest('.search-criterion'))">
                                     <option value="=">Равно</option>
                                     <option value="BETWEEN">Диапазон (ОТ и ДО)</option>
@@ -60,12 +60,12 @@
                                 </select>
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label search-value-label" id="search_value_label">Значение</label>
+                                <label class="form-label search-value-label">Значение</label>
                                 <div class="d-flex gap-2">
-                                    <input type="text" class="form-control" id="search_value" name="search_value"
+                                    <input type="text" class="form-control" name="search_value"
                                         placeholder="Введите значение">
-                                    <input type="text" class="form-control d-none" id="search_value_max"
-                                        name="search_value_max" placeholder="До (макс.)">
+                                    <input type="text" class="form-control d-none" name="search_value_max"
+                                        placeholder="До (макс.)">
                                 </div>
                             </div>
                         </div>
@@ -432,25 +432,29 @@
     document.getElementById('searchForm')?.addEventListener('submit', async function (e) {
         e.preventDefault();
 
-        // Валидация перед отправкой
-        const operator = document.getElementById('search_operator').value;
-        const value = document.getElementById('search_value').value;
-        const valueMax = document.getElementById('search_value_max').value;
+        const rows = document.querySelectorAll('.search-criterion');
+        let hasValue = false;
 
-        if (!value && operator !== 'BETWEEN') {
+        rows.forEach(row => {
+            const col = row.querySelector('select[name="search_column"]')?.value;
+            const op = row.querySelector('select[name="search_operator"]')?.value;
+            const val = row.querySelector('input[name="search_value"]')?.value;
+            const valMax = row.querySelector('input[name="search_value_max"]')?.value;
+
+            if (col) {
+                if (op === 'BETWEEN') {
+                    if (val && valMax) hasValue = true;
+                } else if (val && val.trim() !== '') {
+                    hasValue = true;
+                }
+            }
+        });
+
+        if (!hasValue) {
             Swal.fire({
                 icon: 'warning',
                 title: 'Внимание',
-                text: 'Введите значение для поиска'
-            });
-            return;
-        }
-
-        if (operator === 'BETWEEN' && (!value || !valueMax)) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Внимание',
-                text: 'Для поиска по диапазону заполните оба поля (От и До)'
+                text: 'Укажите хотя бы один корректный критерий поиска.'
             });
             return;
         }
@@ -493,6 +497,7 @@
                 criteriaRow.className = 'row search-criterion mt-2';
                 criteriaRow.innerHTML = `
                         <div class="col-md-3 d-flex flex-column">
+                            <label class="form-label d-none d-md-block">Столбец для поиска</label>
                             <select class="form-select" name="search_column">
                                 <option value="">Выберите столбец</option>
                                 <option value="composition">Составы</option>
@@ -522,8 +527,10 @@
                             </select>
                         </div>
                         <div class="col-md-3 d-flex flex-column">
+                            <label class="form-label d-none d-md-block">Условие</label>
                             <select class="form-select" name="search_operator">
                                 <option value="=">Равно</option>
+                                <option value="BETWEEN">Диапазон (ОТ и ДО)</option>
                                 <option value=">">Больше</option>
                                 <option value=">=">Больше или равно</option>
                                 <option value="<">Меньше</option>
@@ -533,11 +540,16 @@
                             </select>
                         </div>
                         <div class="col-md-4 d-flex flex-column">
-                            <input type="text" class="form-control" name="search_value" placeholder="Введите значение для поиска">
+                            <label class="form-label search-value-label">Значение</label>
+                            <div class="d-flex gap-2">
+                                <input type="text" class="form-control" name="search_value" placeholder="Введите значение">
+                                <input type="text" class="form-control d-none" name="search_value_max" placeholder="До (макс.)">
+                            </div>
                         </div>
-                       <div class="col-md-2 d-flex flex-column">
-                        <button type="button" class="btn btn-danger remove-criterion w-100 mb-1">
-                            <i class="fas fa-times"></i> Удалить
+                        <div class="col-md-2 d-flex flex-column">
+                        <label class="form-label d-none d-md-block">&nbsp;</label>
+                        <button type="button" class="btn btn-danger remove-criterion w-100 mb-1" title="Удалить">
+                            <i class="fas fa-times me-1"></i> <span class="d-md-none d-lg-inline">Удалить</span>
                         </button>
                     </div>
                     `;
@@ -546,6 +558,12 @@
                 const container = document.getElementById('criteriaContainer');
                 if (container) {
                     container.appendChild(criteriaRow);
+                }
+
+                // Инициализируем слушатель событий для BETWEEN оператора
+                const operatorSelect = criteriaRow.querySelector('[name="search_operator"]');
+                if (operatorSelect) {
+                    operatorSelect.addEventListener('change', () => toggleSearchInputs(criteriaRow));
                 }
 
                 // Добавляем обработчик для кнопки удаления
@@ -621,25 +639,34 @@
     }
 
     function resetSearch() {
-        const searchColumnEl = document.getElementById('search_column');
-        const searchValueEl = document.getElementById('search_value');
-        const searchMaxEl = document.getElementById('search_value_max');
-        const searchOperatorEl = document.getElementById('search_operator');
+        const form = document.getElementById('searchForm');
+        if (form) {
+            form.reset();
+            // Очищаем динамические строки
+            const container = document.getElementById('criteriaContainer');
+            if (container) container.innerHTML = '';
 
-        if (searchColumnEl) searchColumnEl.value = '';
-        if (searchOperatorEl) searchOperatorEl.value = '=';
-        if (searchValueEl) searchValueEl.value = '';
-        if (searchMaxEl) {
-            searchMaxEl.value = '';
-            searchMaxEl.classList.add('d-none');
+            // Сбрасываем операторы и подсказки в первой строке
+            const firstCriterion = form.querySelector('.search-criterion');
+            if (firstCriterion) {
+                const operatorSelect = firstCriterion.querySelector('[name="search_operator"]');
+                const valueInput = firstCriterion.querySelector('[name="search_value"]');
+                const valueMaxInput = firstCriterion.querySelector('[name="search_value_max"]');
+                const valueLabel = firstCriterion.querySelector('.search-value-label');
+
+                if (operatorSelect) operatorSelect.value = '=';
+                if (valueInput) {
+                    valueInput.value = '';
+                    valueInput.placeholder = "Введите значение";
+                }
+                if (valueMaxInput) {
+                    valueMaxInput.value = '';
+                    valueMaxInput.classList.add('d-none');
+                }
+                if (valueLabel) valueLabel.textContent = "Значение";
+            }
         }
-
-        // Reset placeholder
-        if (searchValueEl) searchValueEl.placeholder = "Введите значение";
-        const label = document.getElementById('search_value_label');
-        if (label) label.textContent = "Значение";
-
-        window.location.href = '/tables';
+        clearSearch();
     }
 </script>
 {% endblock extra_js %}

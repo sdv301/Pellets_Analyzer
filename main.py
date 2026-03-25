@@ -9,12 +9,46 @@ from database import query_db, insert_data, init_db
 from ai_ml_integration import AIMLAnalyzer
 from gui import *
 import json
+import logging
+import traceback
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'Uploads'
 app.config['SESSION_TYPE'] = 'filesystem'
 app.config['SESSION_FILE_DIR'] = os.path.join(os.path.dirname(__file__), 'sessions')
 app.config['SECRET_KEY'] = 'your-secret-key'
+
+# --- ОТКЛЮЧЕНИЕ КЭШИРОВАНИЯ (Чтобы страницы всегда обновлялись) ---
+app.config['TEMPLATES_AUTO_RELOAD'] = True
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+logging.basicConfig(
+    level=logging.INFO, 
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler("app_errors.log", encoding='utf-8'),
+        logging.StreamHandler()
+    ]
+)
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    error_info = traceback.format_exc()
+    app.logger.error(f"КРИТИЧЕСКАЯ ОШИБКА:\n{error_info}")
+    return f"""
+        <h2 style='color:red;'>Сервер упал (Ошибка 500)</h2>
+        <p>Но теперь мы поймали ошибку! Она только что была записана в файл.</p>
+        <p><b>Что делать:</b> Зайдите в папку с проектом, найдите файл <code>app_errors.log</code>, откройте его через Блокнот и скопируйте текст оттуда.</p>
+    """, 500
+# -----------------------------
+
+@app.after_request
+def add_header(response):
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '-1'
+    return response
+# -------------------------------------------------------------------
+
 Session(app)
 ai_ml_analyzer = AIMLAnalyzer()
 db_path = 'pellets_data.db'
@@ -212,75 +246,115 @@ def load_file():
 @app.route('/search', methods=['POST'])
 def search():
     try:
-        # Handle both single and multiple criteria (use first non-empty)
+        # Получаем данные из формы
         search_columns = request.form.getlist('search_column')
         search_operators = request.form.getlist('search_operator')
         search_values = request.form.getlist('search_value')
         search_values_max = request.form.getlist('search_value_max')
         
-        # Get first non-empty values (for backward compatibility, also check single values)
-        search_column = request.form.get('search_column') or (search_columns[0] if search_columns and search_columns[0] else None)
-        search_operator = request.form.get('search_operator') or (search_operators[0] if search_operators and search_operators[0] else '=')
-        
-        search_value_raw = request.form.get('search_value') or (search_values[0] if search_values and search_values[0] else '')
-        search_value = search_value_raw.strip() if search_value_raw else ''
-        
-        search_value_max_raw = request.form.get('search_value_max') or (search_values_max[0] if search_values_max and search_values_max[0] else '')
-        search_value_max = search_value_max_raw.strip() if search_value_max_raw else ''
-        
-        # Базовая проверка
-        if not search_column or not search_value:
-            return jsonify({
-                'success': False,
-                'message': 'Заполните все поля поиска.'
-            })
-            
-        if search_operator == 'BETWEEN' and not search_value_max:
-            return jsonify({
-                'success': False,
-                'message': 'Для поиска по диапазону укажите второе значение (До).'
-            })
-
-        # Формируем значение для простого фильтра
-        filter_value = (search_value, search_value_max) if search_operator == 'BETWEEN' else search_value
-
-        
-        # Получаем все данные
         all_measured_data = query_db(db_path, "measured_parameters")
-        
         if all_measured_data.empty:
-            return jsonify({
-                'success': False,
-                'message': 'Нет данных для поиска. Сначала загрузите файл.'
-            })
+            return jsonify({'success': False, 'message': 'База данных пуста.'})
+            
+        # Список для хранения индексов найденных строк для каждого критерия
+        # Используем OR логику (объединение результатов)
+        all_match_indices = []
         
-        # Простая и надежная фильтрация
-        filtered_data = simple_filter(all_measured_data, search_column, search_operator, filter_value)
-        
+        applied_filters = 0
+        for i in range(len(search_columns)):
+            col = search_columns[i]
+            if not col or col not in all_measured_data.columns:
+                continue
+                
+            op = search_operators[i] if i < len(search_operators) else '='
+            val = search_values[i].strip() if i < len(search_values) else ''
+            val_max = search_values_max[i].strip() if i < len(search_values_max) else ''
+            
+            if not val and op != 'BETWEEN':
+                continue
+            
+            applied_filters += 1
+            
+            try:
+                criterion_df = all_measured_data.copy()
+                # Специальная обработка для состава (строковый поиск)
+                if col == 'composition':
+                    if op == 'LIKE' or op == '=':
+                        match = criterion_df[criterion_df[col].astype(str).str.contains(val, case=False, na=False)]
+                    elif op == '!=':
+                        match = criterion_df[~criterion_df[col].astype(str).str.contains(val, case=False, na=False)]
+                    else:
+                        match = pd.DataFrame()
+                    all_match_indices.extend(match.index.tolist())
+                    continue
+
+                # Числовой поиск - безопасная конвертация
+                try:
+                    f_val = float(val) if val else None
+                    f_val_max = float(val_max) if val_max else None
+                except (ValueError, TypeError):
+                    print(f"Skipping invalid numeric search: {val} to {val_max}")
+                    continue
+
+                if op == 'BETWEEN':
+                    if f_val is not None and f_val_max is not None:
+                        match = criterion_df[(criterion_df[col] >= f_val) & (criterion_df[col] <= f_val_max)]
+                    elif f_val is not None:
+                        match = criterion_df[criterion_df[col] >= f_val]
+                    elif f_val_max is not None:
+                        match = criterion_df[criterion_df[col] <= f_val_max]
+                    else:
+                        match = pd.DataFrame()
+                else:
+                    if f_val is None: # Если не BETWEEN и значение пустое - пропускаем
+                        continue
+                        
+                    if op == '=':
+                        match = criterion_df[criterion_df[col] == f_val]
+                    elif op == '!=':
+                        match = criterion_df[criterion_df[col] != f_val]
+                    elif op == '>':
+                        match = criterion_df[criterion_df[col] > f_val]
+                    elif op == '>=':
+                        match = criterion_df[criterion_df[col] >= f_val]
+                    elif op == '<':
+                        match = criterion_df[criterion_df[col] < f_val]
+                    elif op == '<=':
+                        match = criterion_df[criterion_df[col] <= f_val]
+                    elif op == 'LIKE':
+                        match = criterion_df[criterion_df[col].astype(str).str.contains(str(val), na=False)]
+                    else:
+                        match = pd.DataFrame()
+                
+                all_match_indices.extend(match.index.tolist())
+
+            except Exception as e:
+                print(f"Search criterion error for col {col}: {e}")
+                continue
+                
+        if applied_filters == 0:
+            return jsonify({'success': False, 'message': 'Критерии поиска не заданы.'})
+
+        # Оставляем только уникальные индексы (логика ИЛИ)
+        unique_indices = sorted(list(set(all_match_indices)))
+        filtered_data = all_measured_data.loc[unique_indices]
+
         if filtered_data.empty:
-            return jsonify({
-                'success': True,
-                'message': 'По вашему запросу ничего не найдено',
-                'measured_data': '<div class="alert alert-info">По вашему запросу ничего не найдено</div>',
-                'total_measured': 0
-            })
-        
-        # Сохраняем ТОЛЬКО результаты поиска
+            return jsonify({'success': True, 'message': 'Ничего не найдено', 'count': 0, 'refresh_page': True})
+            
         session['search_results'] = filtered_data.to_json(orient='records', force_ascii=False)
         session['search_performed'] = True
-        session['show_data'] = True
-        
         return jsonify({
-            'success': True,
-            'message': f'Найдено {len(filtered_data)} записей',
-            'refresh_page': True  # Перезагружаем страницу чтобы показать результаты
+            'success': True, 
+            'message': f'Найдено записей: {len(filtered_data)}',
+            'count': len(filtered_data),
+            'refresh_page': True
         })
         
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'message': f'Ошибка при поиске: {str(e)}'
-        })
+        import traceback
+        print(f"Search API Error: {traceback.format_exc()}")
+        return jsonify({'success': False, 'message': f'Ошибка поиска: {str(e)}'})
 
 @app.route('/global_search', methods=['GET'])
 def global_search():
@@ -330,7 +404,14 @@ def add_data():
             'so2': float(request.form.get('so2', '')) if request.form.get('so2', '') else None,
             'nox': float(request.form.get('nox', '')) if request.form.get('nox', '') else None,
             'q': float(request.form.get('q', '')) if request.form.get('q', '') else None,
-            'ad': float(request.form.get('ad', '')) if request.form.get('ad', '') else None
+            'ad': float(request.form.get('ad', '')) if request.form.get('ad', '') else None,
+            'war': float(request.form.get('war', '')) if request.form.get('war', '') else None,
+            'vd': float(request.form.get('vd', '')) if request.form.get('vd', '') else None,
+            'cd': float(request.form.get('cd', '')) if request.form.get('cd', '') else None,
+            'hd': float(request.form.get('hd', '')) if request.form.get('hd', '') else None,
+            'nd': float(request.form.get('nd', '')) if request.form.get('nd', '') else None,
+            'sd': float(request.form.get('sd', '')) if request.form.get('sd', '') else None,
+            'od': float(request.form.get('od', '')) if request.form.get('od', '') else None
         }
         df = pd.DataFrame([data])
         insert_data(db_path, "measured_parameters", df)
@@ -849,32 +930,43 @@ def ignore_map_files(path):
 
 @app.route('/ml_dashboard')
 def ml_dashboard():
-    """Страница ML анализа и оптимизации"""
-    uploaded_files = os.listdir(app.config['UPLOAD_FOLDER']) if os.path.exists(app.config['UPLOAD_FOLDER']) else []
-    measured_data = query_db(db_path, "measured_parameters")
-    
-    from ml_optimizer import get_ml_system
-    ml_system = get_ml_system()  # Получаем глобальный экземпляр
-    ml_system.reload_data()      # Принудительно перезагружаем данные
-    
-    status = ml_system.get_ml_system_status()
-    
-    # Дополнительно получаем историю для "Зала Славы"
-    from database import get_ml_optimizations
-    optimizations_history = get_ml_optimizations(db_path, limit=10)
-    # Преобразуем Row объекты в список словарей для JSON совместимости в шаблоне
-    history_list = []
-    if not optimizations_history.empty:
-        history_list = optimizations_history.to_dict('records')
+    try:
+        uploaded_files = os.listdir(app.config['UPLOAD_FOLDER']) if os.path.exists(app.config['UPLOAD_FOLDER']) else []
+        measured_data = query_db(db_path, "measured_parameters")
+        
+        from ml_optimizer import get_ml_system
+        ml_system = get_ml_system()
+        ml_system.reload_data()
+        
+        status = ml_system.get_ml_system_status()
+        
+        history_list = []
+        try:
+            from database import get_ml_optimizations
+            optimizations_history = get_ml_optimizations(db_path, limit=10)
+            if hasattr(optimizations_history, 'empty') and not optimizations_history.empty:
+                history_list = optimizations_history.to_dict('records')
+                for item in history_list:
+                    if 'optimal_composition' in item and isinstance(item['optimal_composition'], dict):
+                        item['optimal_composition_text'] = ", ".join([f"{v}% {k}" for k, v in item['optimal_composition'].items()])
+                    else:
+                        item['optimal_composition_text'] = "Нет данных"
+        except Exception as db_err:
+            print(f"Ошибка БД (история): {db_err}")
 
-    return render_template(
-        'ml_dashboard.html', 
-        segment='ML Анализ',
-        uploaded_files=uploaded_files,
-        compositions = measured_data['composition'].tolist() if not measured_data.empty and 'composition' in measured_data.columns else [],
-        ml_status=status,
-        history_list=history_list
-    )
+        return render_template(
+            'ml_dashboard.html', 
+            segment='ML Анализ',
+            uploaded_files=uploaded_files,
+            compositions = measured_data['composition'].tolist() if not measured_data.empty and 'composition' in measured_data.columns else [],
+            ml_status=status,
+            optimization_history=history_list # Исправлено имя переменной под ваш HTML
+        )
+    except Exception as e:
+        import traceback
+        err = traceback.format_exc()
+        # ХИТРОСТЬ: Возвращаем 200 ОК, чтобы браузер точно напечатал ошибку на экране!
+        return f"<h2 style='color:red;'>Внимание, найдена ошибка в коде Python:</h2><pre style='background:#f4f4f4; padding:20px; font-size:16px; border-left: 5px solid red;'>{err}</pre>", 200
 
 @app.route('/ml_system_train', methods=['POST'])
 def ml_system_train():
@@ -1207,21 +1299,22 @@ def ai_ml_history():
             'error': str(e)
         })
 
-# Встроенные данные по компонентам из Excel
+# Эталонные данные из нового листа "Исходники"
+# Плотность (Ro) скрыта в коде для расчетов экономики
 COMPONENTS_DATA = {
-    "Опилки": {"Ro": 1118, "Qai": 18.18, "Cc": 1, "Cu": 0.2, "Cg": 1.2},
-    "Солома": {"Ro": 977, "Qai": 15.26, "Cc": 1.4, "Cu": 0.9, "Cg": 2.8},
-    "Картон": {"Ro": 1040, "Qai": 15.28, "Cc": 2, "Cu": 1.1, "Cg": 2.4},
-    "Подсолнечный жмых": {"Ro": 969, "Qai": 19.17, "Cc": 15, "Cu": 0.6, "Cg": 2},
-    "Рисовая шелуха": {"Ro": 1105, "Qai": 14.81, "Cc": 2.3, "Cu": 1.2, "Cg": 3.3},
-    "Угольный шлам": {"Ro": 1000, "Qai": 7.79, "Cc": 3, "Cu": 0.9, "Cg": 2.5},
-    "Торф": {"Ro": 1051, "Qai": 11.09, "Cc": 4.5, "Cu": 1.5, "Cg": 3.5},
-    "Бурый уголь": {"Ro": 1123, "Qai": 21.6, "Cc": 6, "Cu": 1.2, "Cg": 2.9},
-    "CMC": {"Ro": 1064, "Qai": 7, "Cc": 120, "Cu": 1.5, "Cg": 2},
-    "Пластик": {"Ro": 1008, "Qai": 19.83, "Cc": 23, "Cu": 2.2, "Cg": 5},
-    "Листья": {"Ro": 1099, "Qai": 15.58, "Cc": 0.1, "Cu": 1.5, "Cg": 4},
-    "Отработанное моторное масло": {"Ro": 1016, "Qai": 23.33, "Cc": 10, "Cu": 1.2, "Cg": 1.8},
-    "Рапсовое масло": {"Ro": 1012, "Qai": 20.15, "Cc": 80, "Cu": 1.2, "Cg": 1.8},
+    "Опилки": {"War": 10.8, "Ad": 0.18, "Qas": 19.79, "Hd": 6.82, "Qai": 18.18, "Cc": 1.0, "Cu": 0.2, "Cg": 1.2, "Ro": 1048.0},
+    "Солома": {"War": 9.83, "Ad": 4.33, "Qas": 16.75, "Hd": 6.54, "Qai": 15.26, "Cc": 1.4, "Cu": 0.9, "Cg": 2.8, "Ro": 977.0},
+    "Картон": {"War": 5.02, "Ad": 3.16, "Qas": 16.73, "Hd": 6.50, "Qai": 15.28, "Cc": 2.0, "Cu": 1.1, "Cg": 2.4, "Ro": 1040.0},
+    "Подсолнечный жмых": {"War": 6.16, "Ad": 4.09, "Qas": 20.79, "Hd": 7.36, "Qai": 19.17, "Cc": 15.0, "Cu": 0.6, "Cg": 2.0, "Ro": 969.0},
+    "Рисовая шелуха": {"War": 6.34, "Ad": 10.85, "Qas": 15.95, "Hd": 5.30, "Qai": 14.81, "Cc": 2.3, "Cu": 1.2, "Cg": 3.3, "Ro": 1105.0},
+    "Угольный шлам": {"War": 2.20, "Ad": 62.58, "Qas": 8.00, "Hd": 1.87, "Qai": 7.79, "Cc": 3.0, "Cu": 0.9, "Cg": 2.5, "Ro": 1000.0},
+    "Торф": {"War": 9.90, "Ad": 20.70, "Qas": 11.80, "Hd": 2.93, "Qai": 11.09, "Cc": 4.5, "Cu": 1.5, "Cg": 3.5, "Ro": 1051.0},
+    "Бурый уголь": {"War": 10.76, "Ad": 4.50, "Qas": 22.91, "Hd": 5.54, "Qai": 21.60, "Cc": 6.0, "Cu": 1.2, "Cg": 2.9, "Ro": 1123.0},
+    "СМС": {"War": 13.71, "Ad": 24.87, "Qas": 10.14, "Hd": 4.29, "Qai": 9.19, "Cc": 115.0, "Cu": 3.8, "Cg": 5.5, "Ro": 1000.0},
+    "Пластик": {"War": 2.00, "Ad": 0.20, "Qas": 22.80, "Hd": 13.50, "Qai": 19.83, "Cc": 22.5, "Cu": 2.3, "Cg": 5.0, "Ro": 1008.0},
+    "Листья": {"War": 7.48, "Ad": 13.14, "Qas": 17.05, "Hd": 6.92, "Qai": 15.63, "Cc": 0.0, "Cu": 1.7, "Cg": 4.0, "Ro": 1099.0},
+    "Отработанное моторное масло": {"War": 0.0, "Ad": 1.68, "Qas": 45.24, "Hd": 13.20, "Qai": 42.37, "Cc": 11.5, "Cu": 0.0, "Cg": 0.0, "Ro": 1000.0},
+    "Рапсовое масло": {"War": 0.0, "Ad": 0.0, "Qas": 40.89, "Hd": 10.20, "Qai": 38.63, "Cc": 90.0, "Cu": 0.0, "Cg": 0.0, "Ro": 1000.0}
 }
 
 @app.route('/api/get_components_economics')
@@ -1242,31 +1335,32 @@ def get_components_economics():
                 })
             return jsonify({'success': True, 'components': fallback})
         
-        # Заменяем NaN/None на значения из COMPONENTS_DATA если они там есть
         result = []
         for _, row in df.iterrows():
-            name = row['component']
-            ro = row.get('ro')
-            c_raw = row.get('cost_raw')
-            c_crush = row.get('cost_crush')
-            c_gran = row.get('cost_granule')
+            name = str(row['component'])
+            name_clean = name.strip() # Очищаем от случайных пробелов из Excel!
             
-            if pd.isna(ro) or pd.isna(c_raw) or pd.isna(c_crush) or pd.isna(c_gran):
-                if name in COMPONENTS_DATA:
-                    d = COMPONENTS_DATA[name]
-                    ro = ro if not pd.isna(ro) else d['Ro']
-                    c_raw = c_raw if not pd.isna(c_raw) else d['Cc']
-                    c_crush = c_crush if not pd.isna(c_crush) else d['Cu']
-                    c_gran = c_gran if not pd.isna(c_gran) else d['Cg']
-                else:
-                    # Совсем нет данных - ставим 0 или дефолты
-                    ro = ro if not pd.isna(ro) else 1000
-                    c_raw = c_raw if not pd.isna(c_raw) else 0
-                    c_crush = c_crush if not pd.isna(c_crush) else 0
-                    c_gran = c_gran if not pd.isna(c_gran) else 0
+            if name_clean in COMPONENTS_DATA:
+                # Если компонент базовый, ЖЕСТКО берем правильные экономические цифры
+                d = COMPONENTS_DATA[name_clean]
+                ro = d['Ro']
+                c_raw = d['Cc']
+                c_crush = d['Cu']
+                c_gran = d['Cg']
+            else:
+                # Если это новый/кастомный компонент, берем из БД
+                ro = row.get('ro')
+                c_raw = row.get('cost_raw')
+                c_crush = row.get('cost_crush')
+                c_gran = row.get('cost_granule')
+                
+                ro = float(ro) if not pd.isna(ro) else 1000.0
+                c_raw = float(c_raw) if not pd.isna(c_raw) else 0.0
+                c_crush = float(c_crush) if not pd.isna(c_crush) else 0.0
+                c_gran = float(c_gran) if not pd.isna(c_gran) else 0.0
 
             result.append({
-                'component': name,
+                'component': name, # Оставляем оригинальное имя для связи с интерфейсом
                 'ro': float(ro),
                 'cost_raw': float(c_raw),
                 'cost_crush': float(c_crush),
@@ -1277,43 +1371,150 @@ def get_components_economics():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
+from flask import send_file
+import io
+
+@app.route('/api/download_economics', methods=['GET'])
+def download_economics():
+    """Генерирует Excel-файл с новым стандартом колонок"""
+    try:
+        excel_data = []
+        
+        # Берем только эталонные данные для шаблона
+        for name, d in COMPONENTS_DATA.items():
+            excel_data.append({
+                'Компоненты': name,
+                'War, %': d['War'],
+                'Ad, %': d['Ad'],
+                'Qas,V, МДж/кг': d['Qas'],
+                'Hd, %': d['Hd'],
+                'Qai,V, МДж/кг': d['Qai'],
+                'Cc, руб/кг': d['Cc'],
+                'Cи, руб/кг': d['Cu'],
+                'Cг, руб/кг': d['Cg']
+            })
+        
+        out_df = pd.DataFrame(excel_data)
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            out_df.to_excel(writer, index=False, sheet_name='Цены и Характеристики')
+            worksheet = writer.sheets['Цены и Характеристики']
+            for i, col in enumerate(out_df.columns):
+                worksheet.column_dimensions[chr(65 + i)].width = 18
+                
+        output.seek(0)
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name='Шаблон_Цен_Экономика.xlsx'
+        )
+    except Exception as e:
+        import traceback
+        return jsonify({'success': False, 'error': f'Ошибка при формировании файла: {str(e)}'})
+
+@app.route('/api/upload_economics', methods=['POST'])
+def upload_economics():
+    """Загружает новый формат Excel и обновляет базу данных"""
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'error': 'Файл не найден'})
+        
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'success': False, 'error': 'Файл не выбран'})
+
+    try:
+        df = pd.read_excel(file)
+        
+        # Проверяем новые колонки
+        required_cols = ['Компоненты', 'Qai,V, МДж/кг', 'Cc, руб/кг', 'Cи, руб/кг', 'Cг, руб/кг']
+        for col in required_cols:
+            if col not in df.columns:
+                return jsonify({'success': False, 'error': f'Неверный формат. Не найдена колонка: {col}'})
+
+        import sqlite3
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM components")
+        
+        for _, row in df.iterrows():
+            name = str(row['Компоненты']).strip()
+            
+            # Если компонент базовый, берем его скрытую плотность, иначе 1000
+            ro = COMPONENTS_DATA.get(name, {}).get('Ro', 1000.0)
+            
+            cursor.execute("""
+                INSERT INTO components (component, ro, q, cost_raw, cost_crush, cost_granule) 
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (
+                name,
+                float(ro), # Скрытая плотность
+                float(row['Qai,V, МДж/кг']),
+                float(row['Cc, руб/кг']),
+                float(row['Cи, руб/кг']),
+                float(row['Cг, руб/кг'])
+            ))
+            
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True, 'message': 'Цены успешно обновлены!'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'Ошибка при чтении файла: {str(e)}'})
+
 @app.route('/api/calculate_economics', methods=['POST'])
 def calculate_economics():
     """Рассчитывает экономические показатели по формулам из Excel"""
     try:
         data = request.json
-        q_boiler = float(data.get('q_boiler', 80)) # Q котла, кВт
-        t_hours = float(data.get('t_hours', 720)) # Т,ч
-        distance = float(data.get('distance', 258)) # S, км
-        capacity_factor = float(data.get('capacity_factor', 0.8)) # a
-        efficiency = float(data.get('efficiency', 0.9)) # b
+        
+        # 1. Входные параметры от пользователя (из формы интерфейса)
+        q_boiler = float(data.get('q_boiler', 80)) # Мощность котла, кВт
+        t_hours = float(data.get('t_hours', 720))  # Время работы, ч
+        distance = float(data.get('distance', 258)) # Расстояние, км
+        capacity_factor = float(data.get('capacity_factor', 0.8)) # Коэфф. использования
+        efficiency = float(data.get('efficiency', 0.9)) # КПД котла
         components = data.get('components', {}) # {"Опилки": 67.5, "Солома": 27.5, ...}
         
+        # --- Скрытые константы из Excel ---
+        RENT_COST_PER_M2 = 380.0       # Аренда склада, руб/м2
+        STORAGE_LOAD_KG_PER_M2 = 1100.0 # Удельная нагрузка на склад, кг/м2
+        TRUCK_BASE_RATE = 6000.0       # Базовая ставка за машину, руб
+        TRUCK_COST_PER_KM = 85.0       # Стоимость 1 км пути, руб/км
+        TRUCK_CAPACITY_KG = 20000.0    # Грузоподъемность одной фуры, кг
+        # ----------------------------------
+
         # Загружаем актуальные данные из БД
         db_components = query_db(db_path, "components")
-        db_map = {row['component']: row for _, row in db_components.iterrows()} if not db_components.empty else {}
+        db_map = {str(row['component']): row for _, row in db_components.iterrows()} if not db_components.empty else {}
 
-        # 1. Расчет характеристик смеси
-        mix_ro = 0
-        mix_qai = 0
-        mix_cc = 0
-        mix_cu = 0
-        mix_cg = 0
+        # 2. Расчет средневзвешенных характеристик смеси
+        mix_ro = 0.0  # Плотность (Ро)
+        mix_qai = 0.0 # Теплота сгорания (Qai)
+        mix_cc = 0.0  # Стоимость сырья (Cc)
+        mix_cu = 0.0  # Стоимость измельчения (Cи)
+        mix_cg = 0.0  # Стоимость гранулирования (Cг)
         
         for comp_name, percentage in components.items():
             fraction = float(percentage) / 100.0
+            comp_name_clean = str(comp_name).strip() # Защита от пробелов
             
-            # Приоритет: БД -> COMPONENTS_DATA
-            db_row = db_map.get(comp_name, {})
-            c_fallback = COMPONENTS_DATA.get(comp_name, {})
-            
-            # Получаем значения с учетом фоллбека
-            ro = db_row.get('ro') if not pd.isna(db_row.get('ro')) else c_fallback.get('Ro', 1000)
-            qai = db_row.get('q') if not pd.isna(db_row.get('q')) else c_fallback.get('Qai', 0)
-            cc = db_row.get('cost_raw') if not pd.isna(db_row.get('cost_raw')) else c_fallback.get('Cc', 0)
-            cu = db_row.get('cost_crush') if not pd.isna(db_row.get('cost_crush')) else c_fallback.get('Cu', 0)
-            cg = db_row.get('cost_granule') if not pd.isna(db_row.get('cost_granule')) else c_fallback.get('Cg', 0)
+            # ПРИОРИТЕТ: Встроенные точные данные -> База данных
+            if comp_name_clean in COMPONENTS_DATA:
+                c_data = COMPONENTS_DATA[comp_name_clean]
+                ro = c_data['Ro']
+                qai = c_data['Qai'] # Берем именно низшую теплоту (18.18)!
+                cc = c_data['Cc']
+                cu = c_data['Cu']
+                cg = c_data['Cg']
+            else:
+                db_row = db_map.get(comp_name, {})
+                ro = db_row.get('ro') if not pd.isna(db_row.get('ro')) else 1000.0
+                qai = db_row.get('q') if not pd.isna(db_row.get('q')) else 0.0
+                cc = db_row.get('cost_raw') if not pd.isna(db_row.get('cost_raw')) else 0.0
+                cu = db_row.get('cost_crush') if not pd.isna(db_row.get('cost_crush')) else 0.0
+                cg = db_row.get('cost_granule') if not pd.isna(db_row.get('cost_granule')) else 0.0
 
+            # Добавляем долю компонента в общую копилку смеси
             mix_ro += fraction * float(ro)
             mix_qai += fraction * float(qai)
             mix_cc += fraction * float(cc)
@@ -1323,27 +1524,34 @@ def calculate_economics():
         if mix_ro == 0 or mix_qai == 0:
             return jsonify({'success': False, 'error': 'Некорректный состав или отсутствуют данные в базе'})
 
-        # 2. Хранение
-        # Vхран=(Qкотла*Т*а*3.6)/(Qai,V смеси*b*Ро)
-        v_hran_m3 = (q_boiler * t_hours * capacity_factor * 3.6) / (mix_qai * efficiency * mix_ro)
-        mass_kg = round(v_hran_m3 * mix_ro, 0)
-        
+        # 3. Расчет потребности в топливе (Объем и Масса)
         import math
-        area_m2 = math.ceil(mass_kg / 1100) # Площадь хранилища
-        storage_cost = area_m2 * 380 # Саренда = 380 руб/м2
         
-        # 3. Производство
-        production_cost = (mix_cc + mix_cu + mix_cg) * mass_kg
+        # Общая требуемая энергия в МДж = Мощность * Время * Коэфф * 3.6
+        total_energy_mj = q_boiler * t_hours * capacity_factor * 3.6
         
-        # 4. Транспортировка
-        base_rate = 6000 # БС
-        cost_per_km = 85 # Скм
-        trip_cost = base_rate + (cost_per_km * distance * 2) # Cрейса
-        truck_capacity = 20000 # mг
-        trucks_needed = math.ceil(mass_kg / truck_capacity) # К
-        transport_cost = trip_cost * trucks_needed # ТС
+        # Масса (кг) = Энергия / (Теплота_сгорания_смеси * КПД_котла)
+        mass_kg = total_energy_mj / (mix_qai * efficiency)
         
-        # 5. Итого
+        # Объем (м3) = Масса / Плотность_смеси
+        v_hran_m3 = mass_kg / mix_ro
+        
+        mass_kg = round(mass_kg, 0) # Округляем
+
+        # 4. Затраты на хранение
+        area_m2 = math.ceil(mass_kg / STORAGE_LOAD_KG_PER_M2)
+        storage_cost = area_m2 * RENT_COST_PER_M2
+        
+        # 5. Затраты на производство
+        production_cost_per_kg = mix_cc + mix_cu + mix_cg
+        production_cost = production_cost_per_kg * mass_kg
+        
+        # 6. Затраты на транспортировку
+        trip_cost = TRUCK_BASE_RATE + (TRUCK_COST_PER_KM * distance * 2) 
+        trucks_needed = math.ceil(mass_kg / TRUCK_CAPACITY_KG)
+        transport_cost = trip_cost * trucks_needed
+        
+        # 7. Итоговая калькуляция
         total_cost = storage_cost + production_cost + transport_cost
         
         return jsonify({
@@ -1373,8 +1581,9 @@ def calculate_economics():
         })
         
     except Exception as e:
-        print(f"Error calculating economics: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)})
+        import traceback
+        print(f"Error calculating economics: {traceback.format_exc()}")
+        return jsonify({'success': False, 'error': f'Ошибка расчета: {str(e)}'})
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', debug=False)
+    app.run(host='0.0.0.0', debug=True)

@@ -33,6 +33,17 @@
                     <h5 class="mb-0 font-weight-bolder premium-text">
                         <i class="fas fa-sliders-h me-2 text-warning"></i>Параметры Заказчика
                     </h5>
+
+                    <!-- Кнопки импорта/экспорта цен -->
+                    <div class="d-flex justify-content-between mt-3">
+                        <button type="button" class="btn btn-sm btn-outline-info w-45" id="download-prices-btn">
+                            <i class="fas fa-download me-1"></i>Скачать цены
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-success w-45" id="upload-prices-btn">
+                            <i class="fas fa-upload me-1"></i>Загрузить цены
+                        </button>
+                        <input type="file" id="prices-file-input" accept=".xlsx" style="display: none;">
+                    </div>
                 </div>
                 <div class="card-body pt-0">
                     <form id="economics-form">
@@ -68,7 +79,7 @@
                             <!-- Динамические компоненты добавляются сюда -->
                             <div class="row align-items-center mb-2 component-row">
                                 <div class="col-6">
-                                    <select class="form-select premium-input component-select text-white">
+                                    <select class="form-select premium-input component-select text-dark">
                                         <option value="Опилки" selected>Опилки</option>
                                         <option value="Солома">Солома</option>
                                         <option value="Картон">Картон</option>
@@ -149,7 +160,7 @@
                             <div class="p-3 bg-dark rounded-3 border border-secondary border-opacity-25 h-100">
                                 <h6 class="text-uppercase text-muted text-xs font-weight-bolder mb-2">Итоговые Затраты
                                 </h6>
-                                <h3 class="mb-0 text-white font-weight-bolder" id="res-total-cost">0 <span
+                                <h3 class="mb-0 text-info font-weight-bolder" id="res-total-cost">0 <span
                                         class="text-sm font-weight-normal text-muted">руб</span></h3>
                                 <p class="text-xs text-success mb-0 mt-1"><i class="fas fa-check-circle me-1"></i>На
                                     указанный период работы</p>
@@ -179,7 +190,7 @@
                                     style="background: rgba(23, 162, 184, 0.2);"><i
                                         class="fas fa-warehouse text-info"></i></span>
                                 <div>
-                                    <h6 class="mb-0 text-sm text-white">Хранение</h6>
+                                    <h6 class="mb-0 text-sm text-dark">Хранение</h6>
                                     <span class="text-xs text-muted" id="res-storage-cost">0 руб</span>
                                 </div>
                             </div>
@@ -188,7 +199,7 @@
                                     style="background: rgba(255, 193, 7, 0.2);"><i
                                         class="fas fa-cogs text-warning"></i></span>
                                 <div>
-                                    <h6 class="mb-0 text-sm text-white">Производство</h6>
+                                    <h6 class="mb-0 text-sm text-dark">Производство</h6>
                                     <span class="text-xs text-muted" id="res-prod-cost">0 руб</span>
                                 </div>
                             </div>
@@ -197,7 +208,7 @@
                                     style="background: rgba(40, 167, 69, 0.2);"><i
                                         class="fas fa-truck text-success"></i></span>
                                 <div>
-                                    <h6 class="mb-0 text-sm text-white">Транспортировка</h6>
+                                    <h6 class="mb-0 text-sm text-dark">Транспортировка</h6>
                                     <span class="text-xs text-muted" id="res-trans-cost">0 руб</span>
                                 </div>
                             </div>
@@ -207,27 +218,38 @@
                     <h6 class="text-uppercase text-body text-xs font-weight-bolder mb-3 mt-4">Характеристики полученной
                         смеси</h6>
                     <div class="table-responsive">
-                        <table class="table align-items-center mb-0 text-sm text-white">
+                        <table class="table align-items-center mb-0 text-sm text-dark">
                             <tbody>
                                 <tr>
                                     <td><span class="text-muted"><i class="fas fa-weight-hanging me-2"></i>Плотность
-                                            расч. (\(\rho\))</span></td>
+                                            расч.</span></td>
                                     <td class="text-end fw-bold" id="res-mix-density">-</td>
                                 </tr>
                                 <tr>
-                                    <td><span class="text-muted"><i class="fas fa-fire me-2"></i>Теплоемкость
-                                            (\(Q^r_i\))</span></td>
+                                    <td><span class="text-muted"><i class="fas fa-fire me-2"></i>Теплота сгорания
+                                        </span></td>
                                     <td class="text-end fw-bold" id="res-mix-qai">-</td>
                                 </tr>
                                 <tr>
-                                    <td><span class="text-muted"><i class="fas fa-money-bill-wave me-2"></i>Затраты на
-                                            сырье (руб/кг)</span></td>
+                                    <td><span class="text-muted"><i class="fas fa-seedling me-2"></i>Затраты на
+                                            сырье</span></td>
                                     <td class="text-end fw-bold" id="res-mix-raw">-</td>
                                 </tr>
                                 <tr>
-                                    <td><span class="text-muted"><i class="fas fa-industry me-2"></i>Суммарно
-                                            производство (руб/кг)</span></td>
-                                    <td class="text-end fw-bold" id="res-mix-total-prod">-</td>
+                                    <td><span class="text-muted"><i class="fas fa-hammer me-2"></i>Затраты на
+                                            измельчение</span></td>
+                                    <td class="text-end fw-bold" id="res-mix-crush">-</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="text-muted"><i class="fas fa-compress-arrows-alt me-2"></i>Затраты
+                                            на гранулирование</span></td>
+                                    <td class="text-end fw-bold" id="res-mix-granule">-</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="text-dark fw-bold"><i
+                                                class="fas fa-industry me-2"></i>Себестоимость пеллет (Итого)</span>
+                                    </td>
+                                    <td class="text-end fw-bold text-success" id="res-mix-total-prod">-</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -298,7 +320,7 @@
             row.className = 'row align-items-center mb-2 component-row animate__animated animate__fadeIn';
             row.innerHTML = `
             <div class="col-6">
-                <select class="form-select premium-input component-select text-white">
+                <select class="form-select premium-input component-select  ">
                     ${availableComponents.map(c => `<option value="${c.component}">${c.component}</option>`).join('')}
                 </select>
             </div>
@@ -338,6 +360,74 @@
                 }
             });
         }
+
+        // ----- Download / Upload Prices Logic -----
+        const downloadPricesBtn = document.getElementById('download-prices-btn');
+        const uploadPricesBtn = document.getElementById('upload-prices-btn');
+        const pricesFileInput = document.getElementById('prices-file-input');
+
+        downloadPricesBtn.addEventListener('click', function () {
+            window.location.href = '/api/download_economics';
+        });
+
+        uploadPricesBtn.addEventListener('click', function () {
+            pricesFileInput.click();
+        });
+
+        pricesFileInput.addEventListener('change', function (e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            // Show loading state
+            uploadPricesBtn.disabled = true;
+            uploadPricesBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Загрузка...';
+
+            fetch('/api/upload_economics', {
+                method: 'POST',
+                body: formData
+            })
+                .then(response => response.json())
+                .then(data => {
+                    uploadPricesBtn.disabled = false;
+                    uploadPricesBtn.innerHTML = '<i class="fas fa-upload me-1"></i>Загрузить цены';
+                    pricesFileInput.value = ''; // Reset input
+
+                    if (data.success) {
+                        Swal.fire({
+                            title: 'Успех!',
+                            text: data.message,
+                            icon: 'success',
+                            background: '#1e1e2d',
+                            color: '#fff'
+                        });
+                        // Refresh component list to get updated data if needed
+                        loadAvailableComponents();
+                    } else {
+                        Swal.fire({
+                            title: 'Ошибка',
+                            text: data.error || 'Ошибка при загрузке цен',
+                            icon: 'error',
+                            background: '#1e1e2d',
+                            color: '#fff'
+                        });
+                    }
+                })
+                .catch(error => {
+                    uploadPricesBtn.disabled = false;
+                    uploadPricesBtn.innerHTML = '<i class="fas fa-upload me-1"></i>Загрузить цены';
+                    pricesFileInput.value = ''; // Reset input
+                    Swal.fire({
+                        title: 'Ошибка',
+                        text: 'Сервер недоступен: ' + error,
+                        icon: 'error',
+                        background: '#1e1e2d',
+                        color: '#fff'
+                    });
+                });
+        });
 
         loadAvailableComponents();
 
@@ -499,7 +589,10 @@
                         // Metrics
                         document.getElementById('res-mix-density').innerText = `${data.mix_metrics.density} кг/м3`;
                         document.getElementById('res-mix-qai').innerText = `${data.mix_metrics.heat_capacity} МДж/кг`;
-                        document.getElementById('res-mix-raw').innerText = `${data.mix_metrics.cost_raw} руб/кг`;
+                        document.getElementById('res-mix-raw').innerText = `${fmt.format(data.mix_metrics.cost_raw)} руб/кг`;
+                        document.getElementById('res-mix-crush').innerText = `${fmt.format(data.mix_metrics.cost_crush)} руб/кг`;
+                        document.getElementById('res-mix-granule').innerText = `${fmt.format(data.mix_metrics.cost_granule)} руб/кг`;
+
                         const totalProdCostKg = data.mix_metrics.cost_raw + data.mix_metrics.cost_crush + data.mix_metrics.cost_granule;
                         document.getElementById('res-mix-total-prod').innerText = `${fmt.format(totalProdCostKg)} руб/кг`;
 
