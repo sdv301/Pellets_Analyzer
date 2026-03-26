@@ -16,7 +16,7 @@ if exist "venv\Scripts\activate.bat" (
     call venv\Scripts\activate.bat
     
     :: Быстрая проверка наличия основных библиотек
-    python -c "import flask, flask_session, matplotlib, numpy, pandas, plotly, requests, seaborn, openpyxl, scipy, sklearn" >nul 2>&1
+    python -c "import flask; import flask_session; import matplotlib; import numpy; import pandas; import plotly; import requests; import seaborn; import openpyxl; import scipy; import sklearn" >nul 2>&1
     if !errorlevel! equ 0 (
         echo    -- Окружение уже настроено и готово к работе.
         goto launch
