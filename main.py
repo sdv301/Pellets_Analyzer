@@ -294,7 +294,7 @@ def search():
                     filtered_data = filtered_data[mask]
                     continue
 
-                # Числовой поиск - безопасная конвертация
+                                # Числовой поиск - безопасная конвертация
                 try:
                     f_val = float(val) if val else None
                     f_val_max = float(val_max) if val_max else None
@@ -311,14 +311,28 @@ def search():
                         mask = filtered_data[col] <= f_val_max
                     else:
                         mask = pd.Series([False] * len(filtered_data))
+                elif op == 'APPROX':
+                    # Приблизительное совпадение с допуском ±5%
+                    if f_val is not None:
+                        tolerance = f_val * 0.05  # 5% допуск
+                        mask = (filtered_data[col] >= f_val - tolerance) & (filtered_data[col] <= f_val + tolerance)
+                    else:
+                        mask = pd.Series([False] * len(filtered_data))
+                elif op == 'CONTAINS':
+                    # Поиск по вхождению числа (например, 20 найдет 20.12, 120, 205 и т.д.)
+                    if f_val is not None:
+                        mask = filtered_data[col].astype(str).str.contains(str(f_val), na=False, regex=False)
+                    else:
+                        mask = pd.Series([False] * len(filtered_data))
                 else:
                     if f_val is None: # Если не BETWEEN и значение пустое - пропускаем
                         continue
                         
                     if op == '=':
-                        mask = filtered_data[col] == f_val
+                        # Для точного совпадения используем округление до 2 знаков
+                        mask = filtered_data[col].round(2) == round(f_val, 2)
                     elif op == '!=':
-                        mask = filtered_data[col] != f_val
+                        mask = filtered_data[col].round(2) != round(f_val, 2)
                     elif op == '>':
                         mask = filtered_data[col] > f_val
                     elif op == '>=':

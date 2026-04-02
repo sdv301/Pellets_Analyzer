@@ -45,11 +45,13 @@
                                     <option value="od">Содержание кислорода на сухую массу, %</option>
                                 </select>
                             </div>
-                            <div class="col-md-3 ">
+                                                        <div class="col-md-3 ">
                                 <label class="form-label">Условие</label>
                                 <select class="form-select" name="search_operator"
                                     onchange="toggleSearchInputs(this.closest('.search-criterion'))">
-                                    <option value="=">Равно</option>
+                                    <option value="=">Равно (точно)</option>
+                                    <option value="APPROX">Приблизительно (±5%)</option>
+                                    <option value="CONTAINS">Содержит число</option>
                                     <option value="BETWEEN">Диапазон (ОТ и ДО)</option>
                                     <option value=">">Больше</option>
                                     <option value=">=">Больше или равно</option>
@@ -499,8 +501,8 @@
                     validCriteriaCount++;
                     row.classList.remove('has-error');
                 }
-            } else if (op === 'LIKE') {
-                // Для LIKE требуется непустое значение
+                        } else if (op === 'LIKE' || op === 'APPROX' || op === 'CONTAINS') {
+                // Для LIKE, APPROX, CONTAINS требуется непустое значение
                 if (!val || val.trim() === '') {
                     hasError = true;
                     row.classList.add('has-error');
@@ -605,10 +607,12 @@
                                 <option value="od">Содержание кислорода на сухую массу, %</option>
                             </select>
                         </div>
-                        <div class="col-md-3 d-flex flex-column">
+                                                <div class="col-md-3 d-flex flex-column">
                             <label class="form-label d-none d-md-block">Условие</label>
                             <select class="form-select" name="search_operator">
-                                <option value="=">Равно</option>
+                                <option value="=">Равно (точно)</option>
+                                <option value="APPROX">Приблизительно (±5%)</option>
+                                <option value="CONTAINS">Содержит число</option>
                                 <option value="BETWEEN">Диапазон (ОТ и ДО)</option>
                                 <option value=">">Больше</option>
                                 <option value=">=">Больше или равно</option>

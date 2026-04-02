@@ -414,3 +414,443 @@ div {
     background: transparent !important;
     box-shadow: none !important;
 }
+
+/* ==========================================================================
+   THEME TOGGLE SWITCH STYLES
+   ========================================================================== */
+
+.theme-switch-wrapper {
+    position: relative;
+    padding: 8px 12px;
+    border-radius: 20px;
+    background: rgba(100, 100, 120, 0.08);
+    transition: all 0.3s ease;
+}
+
+[data-theme="dark"] .theme-switch-wrapper {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.theme-switch-wrapper:hover {
+    background: rgba(100, 100, 120, 0.15);
+}
+
+[data-theme="dark"] .theme-switch-wrapper:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.theme-icon {
+    font-size: 18px;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#sunIcon {
+    color: #f59e0b;
+}
+
+#moonIcon {
+    color: #3b82f6;
+}
+
+[data-theme="dark"] #sunIcon {
+    opacity: 0.4;
+}
+
+[data-theme="dark"] #moonIcon {
+    opacity: 1;
+}
+
+/* Form switch styling */
+.form-check-input[type="checkbox"] {
+    border-radius: 50px;
+    width: 48px;
+    height: 26px;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.form-check-input[type="checkbox"]:checked {
+    background-color: #2D60FF;
+    border-color: #2D60FF;
+}
+
+[data-theme="dark"] .form-check-input[type="checkbox"]:checked {
+    background-color: #5c7cfa;
+    border-color: #5c7cfa;
+}
+
+/* Custom toggle knob */
+.form-check-input[type="checkbox"]::before {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background-color: white;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.form-check-input[type="checkbox"]:checked::before {
+    transform: translateX(22px);
+}
+
+/* Dark mode indicator on toggle */
+.theme-switch-wrapper::after {
+    content: attr(data-theme-label);
+    position: absolute;
+    right: -5px;
+    top: -20px;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--bank-text-muted);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.theme-switch-wrapper:hover::after {
+    opacity: 1;
+}
+
+/* Animation when switching */
+@keyframes themePulse {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+.theme-switch-wrapper.theme-changing {
+    animation: themePulse 0.3s ease;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .theme-switch-wrapper {
+        padding: 6px 10px;
+    }
+    
+    .theme-icon {
+        font-size: 16px;
+    }
+    
+    .form-check-input[type="checkbox"] {
+        width: 42px;
+        height: 22px;
+    }
+    
+    .form-check-input[type="checkbox"]::before {
+        width: 18px;
+        height: 18px;
+    }
+    
+    .form-check-input[type="checkbox"]:checked::before {
+        transform: translateX(20px);
+    }
+}
+
+/* ==========================================================================
+   ENHANCED DARK MODE FIXES
+   ========================================================================== */
+
+/* Fix for gradient buttons in dark mode */
+[data-theme="dark"] .btn.bg-gradient-primary {
+    background: linear-gradient(310deg, #5c7cfa 0%, #4263eb 100%) !important;
+}
+
+[data-theme="dark"] .btn.bg-gradient-success {
+    background: linear-gradient(310deg, #40c057 0%, #2f9e44 100%) !important;
+}
+
+[data-theme="dark"] .btn.bg-gradient-info {
+    background: linear-gradient(310deg, #38b9e8 0%, #26a4d6 100%) !important;
+}
+
+[data-theme="dark"] .btn.bg-gradient-warning {
+    background: linear-gradient(310deg, #fcc419 0%, #e0a800 100%) !important;
+}
+
+[data-theme="dark"] .btn.bg-gradient-danger {
+    background: linear-gradient(310deg, #ff6b6b 0%, #e04343 100%) !important;
+}
+
+[data-theme="dark"] .btn.bg-gradient-dark {
+    background: linear-gradient(310deg, #3a3a5a 0%, #2a2a4a 100%) !important;
+    color: #e8e8e8 !important;
+}
+
+/* Fix for navbar in dark mode */
+[data-theme="dark"] .navbar-main {
+    background: rgba(30, 30, 63, 0.95) !important;
+    backdrop-filter: blur(10px);
+}
+
+/* Fix for breadcrumb links */
+[data-theme="dark"] .breadcrumb-item a {
+    color: #b0b0b0 !important;
+    transition: color 0.2s ease;
+}
+
+[data-theme="dark"] .breadcrumb-item a:hover {
+    color: #5c7cfa !important;
+}
+
+/* Fix for input group in dark mode */
+[data-theme="dark"] .input-group:focus-within {
+    box-shadow: 0 0 0 3px rgba(92, 124, 250, 0.15) !important;
+}
+
+/* Fix for dropdown headers */
+[data-theme="dark"] .dropdown-header {
+    color: #808080 !important;
+}
+
+/* Fix for nav pills in dark mode */
+[data-theme="dark"] .nav-pills .nav-link:not(.active) {
+    background-color: transparent !important;
+}
+
+[data-theme="dark"] .nav-pills .nav-link:not(.active):hover {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Fix for card tabs */
+[data-theme="dark"] .nav-tabs .nav-link {
+    border-color: transparent !important;
+}
+
+[data-theme="dark"] .nav-tabs .nav-link:hover {
+    border-color: #3a3a5a !important;
+    background-color: rgba(255, 255, 255, 0.02) !important;
+}
+
+/* Fix for progress bars */
+[data-theme="dark"] .progress {
+    background-color: #2a2a4a !important;
+}
+
+/* Fix for tooltips */
+[data-theme="dark"] .tooltip .tooltip-inner {
+    background-color: #2a2a4a !important;
+    color: #e8e8e8 !important;
+}
+
+[data-theme="dark"] .tooltip .tooltip-arrow::before {
+    border-top-color: #2a2a4a !important;
+}
+
+/* Fix for popover */
+[data-theme="dark"] .popover {
+    background-color: #1e1e3f !important;
+    border: 1px solid #2a2a4a !important;
+}
+
+[data-theme="dark"] .popover-header {
+    background-color: #252550 !important;
+    border-bottom-color: #2a2a4a !important;
+    color: #e8e8e8 !important;
+}
+
+[data-theme="dark"] .popover-body {
+    color: #e8e8e8 !important;
+}
+
+/* Fix for carousel */
+[data-theme="dark"] .carousel-indicators [data-bs-target] {
+    background-color: #5c7cfa !important;
+}
+
+/* Fix for pagination */
+[data-theme="dark"] .pagination .page-link {
+    background-color: #1e1e3f !important;
+    border-color: #2a2a4a !important;
+    color: #e8e8e8 !important;
+}
+
+[data-theme="dark"] .pagination .page-item.active .page-link {
+    background-color: #5c7cfa !important;
+    border-color: #5c7cfa !important;
+}
+
+[data-theme="dark"] .pagination .page-item.disabled .page-link {
+    background-color: #16213e !important;
+    color: #808080 !important;
+}
+
+/* Fix for list group with action */
+[data-theme="dark"] .list-group-item-action:hover,
+[data-theme="dark"] .list-group-item-action:focus {
+    background-color: #252550 !important;
+    color: #e8e8e8 !important;
+}
+
+/* Fix for accordion */
+[data-theme="dark"] .accordion-button.collapsed {
+    background-color: #1e1e3f !important;
+    color: #e8e8e8 !important;
+}
+
+[data-theme="dark"] .accordion-button:not(.collapsed) {
+    background-color: #252550 !important;
+    color: #5c7cfa !important;
+}
+
+[data-theme="dark"] .accordion-item {
+    background-color: #1e1e3f !important;
+    border-color: #2a2a4a !important;
+}
+
+/* Fix for BSG */
+[data-theme="dark"] .bg-success-subtle {
+    background-color: rgba(64, 192, 87, 0.1) !important;
+}
+
+[data-theme="dark"] .bg-warning-subtle {
+    background-color: rgba(252, 196, 25, 0.1) !important;
+}
+
+[data-theme="dark"] .bg-danger-subtle {
+    background-color: rgba(255, 107, 107, 0.1) !important;
+}
+
+[data-theme="dark"] .bg-info-subtle {
+    background-color: rgba(56, 185, 232, 0.1) !important;
+}
+
+[data-theme="dark"] .bg-primary-subtle {
+    background-color: rgba(92, 124, 250, 0.1) !important;
+}
+
+/* Fix for text selections */
+[data-theme="dark"] ::selection {
+    background-color: rgba(92, 124, 250, 0.3) !important;
+    color: #e8e8e8 !important;
+}
+
+/* Fix for code blocks */
+[data-theme="dark"] pre code {
+    background-color: #16213e !important;
+    color: #e8e8e8 !important;
+}
+
+/* Fix for blockquote */
+[data-theme="dark"] blockquote {
+    border-left-color: #5c7cfa !important;
+    color: #b0b0b0 !important;
+}
+
+/* Fix for horizontal rules */
+[data-theme="dark"] hr {
+    border-color: #2a2a4a !important;
+    opacity: 0.25;
+}
+
+/* Fix for close button */
+[data-theme="dark"] .btn-close {
+    filter: invert(1) grayscale(100%) brightness(200%) !important;
+}
+
+/* Fix for offcanvas */
+[data-theme="dark"] .offcanvas {
+    background-color: #1e1e3f !important;
+    border-color: #2a2a4a !important;
+}
+
+[data-theme="dark"] .offcanvas-header {
+    border-bottom-color: #2a2a4a !important;
+}
+
+[data-theme="dark"] .offcanvas-footer {
+    border-top-color: #2a2a4a !important;
+}
+
+/* Fix for toast notifications */
+[data-theme="dark"] .toast {
+    background-color: #1e1e3f !important;
+    border: 1px solid #2a2a4a !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5) !important;
+}
+
+[data-theme="dark"] .toast-header {
+    background-color: #252550 !important;
+    border-bottom-color: #2a2a4a !important;
+    color: #e8e8e8 !important;
+}
+
+[data-theme="dark"] .toast-body {
+    color: #e8e8e8 !important;
+}
+
+/* Fix for spinner buttons */
+[data-theme="dark"] .btn .spinner-border {
+    border-right-color: transparent !important;
+}
+
+/* Fix for avatar initials */
+[data-theme="dark"] .avatar-initials {
+    background-color: #2a2a4a !important;
+    color: #e8e8e8 !important;
+}
+
+/* Fix for timeline */
+[data-theme="dark"] .timeline-block::before {
+    background-color: #5c7cfa !important;
+}
+
+[data-theme="dark"] .timeline-step {
+    background-color: #1e1e3f !important;
+    border-color: #2a2a4a !important;
+}
+
+/* Fix for multiselect */
+[data-theme="dark"] .ms-dropdown {
+    background-color: #1e1e3f !important;
+    border-color: #2a2a4a !important;
+}
+
+[data-theme="dark"] .ms-option:hover {
+    background-color: #252550 !important;
+}
+
+/* Fix for any remaining inline styles */
+[data-theme="dark"] [style*="background: rgb(255, 255, 255)"],
+[data-theme="dark"] [style*="background: #ffffff"],
+[data-theme="dark"] [style*="background:#ffffff"] {
+    background-color: #1e1e3f !important;
+}
+
+[data-theme="dark"] [style*="color: rgb(0, 0, 0)"],
+[data-theme="dark"] [style*="color: #000000"],
+[data-theme="dark"] [style*="color:#000000"] {
+    color: #e8e8e8 !important;
+}
+
+/* Smooth theme transition */
+body,
+body * {
+    transition: background-color 0.3s ease, color 0.2s ease, border-color 0.3s ease !important;
+}
+
+/* Disable transitions during initial load */
+body.theme-loading,
+body.theme-loading * {
+    transition: none !important;
+}
+
+/* Remove theme-loading class after load */
+<script>
+window.addEventListener('load', function() {
+    document.body.classList.remove('theme-loading');
+});
+</script>

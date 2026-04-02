@@ -537,6 +537,46 @@ class PelletMLSystem:
         models_loaded = self.predictor.load_models()
         self.components = self.load_components()
         self.training_data = self.load_training_data()
+        
+        # АВТОМАТИЧЕСКАЯ ИНИЦИАЛИЗАЦИЯ МОДЕЛЕЙ ПРИ ПЕРВОМ ЗАПУСКЕ
+        if not models_loaded or not self.predictor.is_trained:
+            self._initialize_default_models()
+
+    def _initialize_default_models(self):
+        """
+        Автоматически создает начальные ML модели на основе данных из БД.
+        Использует готовые составы из measured_parameters для обучения.
+        """
+        logger.info("🔄 Попытка автоматической инициализации ML моделей...")
+        
+        # Проверяем есть ли данные для обучения
+        if self.training_data.empty or len(self.training_data) < 3:
+            logger.warning("⚠️ Недостаточно данных для автоматической инициализации моделей")
+            return
+        
+        # Проверяем сколько записей имеют составы
+        compositions_with_data = 0
+        for _, row in self.training_data.iterrows():
+            if 'composition' in row and not pd.isna(row['composition']):
+                comp_dict = self.predictor.parser.parse_composition(row['composition'])
+                if comp_dict:
+                    compositions_with_data += 1
+        
+        if compositions_with_data < 3:
+            logger.warning(f"⚠️ Найдено только {compositions_with_data} составов для обучения")
+            return
+        
+        # Обучаем модели автоматически на всех доступных данных
+        logger.info(f"✅ Найдено {compositions_with_data} составов. Запускаю обучение...")
+        
+        # Обучаем на основных свойствах
+        target_props = ['q', 'density', 'kf', 'ad']
+        result = self.train_models(target_properties=target_props, algorithm='auto')
+        
+        if result.get('success'):
+            logger.info(f"✅ ML модели успешно инициализированы! Обучено: {result.get('trained_count', 0)} моделей")
+        else:
+            logger.warning(f"⚠️ Не удалось инициализировать модели: {result.get('error')}")
 
     def reload_data(self):
         try:
@@ -714,7 +754,50 @@ class PelletMLSystem:
         return result
     
     def _optimize_from_components(self, target_property: str, maximize: bool = True, constraints: Dict[str, Tuple[float, float]] = None, available_components: List[str] = None) -> Dict:
-        return {'success': False, 'error': 'Не удалось оптимизировать состав по данным компонентов'}
+        """
+        Оптимизация на основе линейных свойств компонентов из БД.
+        Используется как fallback когда ML модель не обучена.
+        """
+        if self.components.empty:
+            return {'success': False, 'error': 'Нет данных о компонентах для оптимизации'}
+        
+        if target_property not in self.components.columns:
+            return {'success': False, 'error': f'Свойство {target_property} отсутствует в данных компонентов'}
+        
+        # Получаем доступные компоненты и их значения целевого свойства
+        comp_values = []
+        for _, row in self.components.iterrows():
+            comp_name = row['component']
+            if available_components and comp_name not in available_components:
+                continue
+            if pd.notna(row.get(target_property)):
+                comp_values.append((comp_name, float(row[target_property])))
+        
+        if not comp_values:
+            return {'success': False, 'error': f'Нет данных о свойстве {target_property} для доступных компонентов'}
+        
+        # Для максимизации выбираем компонент с наибольшим значением
+        # Для минимизации - с наименьшим
+        if maximize:
+            best_comp = max(comp_values, key=lambda x: x[1])
+        else:
+            best_comp = min(comp_values, key=lambda x: x[1])
+        
+        optimal_composition = {best_comp[0]: 100.0}
+        optimal_value = best_comp[1]
+        
+        display_name = self.predictor.target_properties_mapping.get(target_property, target_property)
+        direction = "максимизации" if maximize else "минимизации"
+        
+        message = f"Оптимальный состав для {direction} {display_name}: 100% {best_comp[0]}. Ожидаемое значение: {optimal_value:.2f}."
+        
+        return {
+            'success': True,
+            'optimal_composition': optimal_composition,
+            'optimal_value': optimal_value,
+            'message': message,
+            'is_linear': True
+        }
 
     def augment_database(self, variations_count: int = 3, confidence_interval: float = 5.0) -> Dict:
         try:

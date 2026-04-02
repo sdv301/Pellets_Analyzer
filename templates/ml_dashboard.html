@@ -32,7 +32,23 @@
         border-color: #e9ecef;
     }
 
-    .step-icon {
+    /* Dark mode nav pills */
+    [data-theme="dark"] .nav-pills .nav-link {
+        color: #b0b0b0;
+    }
+
+    [data-theme="dark"] .nav-pills .nav-link:hover:not(.active) {
+        background-color: rgba(255, 255, 255, 0.05);
+        color: #e8e8e8;
+        border-color: #3a3a5a;
+    }
+
+    [data-theme="dark"] .nav-pills.nav-fill {
+        background-color: #1e1e3f !important;
+        border-color: #2a2a4a !important;
+    }
+
+        .step-icon {
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -49,14 +65,25 @@
         color: #cb0c9f;
     }
 
-    .glass-card {
+    [data-theme="dark"] .nav-link:not(.active) .step-icon {
+        background: #2a2a4a;
+        color: #ff4b8b;
+    }
+
+        .glass-card {
         background: rgba(255, 255, 255, 0.95);
         border-radius: 1rem;
         box-shadow: 0 8px 24px rgba(149, 157, 165, 0.1);
         border: 1px solid rgba(255, 255, 255, 0.8);
     }
 
-    /* Кастомные чекбоксы-тэги для компонентов из БД */
+    [data-theme="dark"] .glass-card {
+        background: rgba(30, 30, 63, 0.95);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    }
+
+        /* Кастомные чекбоксы-тэги для компонентов из БД */
     .btn-check-custom+label {
         border: 1px solid #dee2e6;
         border-radius: 20px;
@@ -81,7 +108,19 @@
         display: none;
     }
 
-    /* Красивые ползунки для Песочницы */
+    /* Dark mode custom checkboxes */
+    [data-theme="dark"] .btn-check-custom+label {
+        border-color: #3a3a5a;
+        background: #252550;
+        color: #b0b0b0;
+    }
+
+    [data-theme="dark"] .btn-check-custom:checked+label {
+        background: linear-gradient(310deg, #40c057 0%, #2f9e44 100%);
+        box-shadow: 0 4px 10px rgba(64, 192, 87, 0.4);
+    }
+
+        /* Красивые ползунки для Песочницы */
     .custom-range {
         -webkit-appearance: none;
         width: 100%;
@@ -109,7 +148,18 @@
         border: 2px solid white;
     }
 
-    /* Индикатор 100% в песочнице */
+    /* Dark mode custom range */
+    [data-theme="dark"] .custom-range {
+        background: #2a2a4a;
+    }
+
+    [data-theme="dark"] .custom-range::-webkit-slider-thumb {
+        background: #ff4b8b;
+        border-color: #1e1e3f;
+        box-shadow: 0 2px 6px rgba(255, 75, 139, 0.4);
+    }
+
+        /* Индикатор 100% в песочнице */
     .total-bar-container {
         height: 8px;
         background: #e9ecef;
@@ -123,6 +173,10 @@
         background: linear-gradient(310deg, #17ad37 0%, #98ec2d 100%);
         width: 100%;
         transition: width 0.3s;
+    }
+
+    [data-theme="dark"] .total-bar-container {
+        background: #2a2a4a;
     }
 </style>
 {% endblock extrastyle %}
@@ -344,7 +398,7 @@
                                 class="fas fa-arrow-right ms-2"></i></button></div>
                 </div>
 
-                <div class="tab-pane fade" id="step4-sandbox" role="tabpanel">
+                                <div class="tab-pane fade" id="step4-sandbox" role="tabpanel">
                     <div class="alert alert-light border shadow-sm mb-4 d-flex align-items-center">
                         <i class="fas fa-info-circle fa-2x text-info me-3"></i>
                         <div>
@@ -352,6 +406,24 @@
                             <span class="text-sm text-muted">Двигайте ползунки сырья слева. Программа автоматически
                                 сохраняет сумму равной 100%. Справа нейросеть мгновенно показывает, какие физические
                                 свойства получатся у такой смеси.</span>
+                        </div>
+                    </div>
+
+                    <div id="sandboxNotReadyAlert" class="alert alert-warning border shadow-sm mb-4 d-none">
+                        <div class="d-flex align-items-start">
+                            <i class="fas fa-exclamation-triangle fa-2x text-warning me-3"></i>
+                            <div class="flex-grow-1">
+                                <h6 class="text-dark fw-bold mb-2">ИИ требует обучения!</h6>
+                                <p class="text-sm mb-3">Для работы песочницы необходимо сначала обучить модель машинного обучения.</p>
+                                <div class="d-flex gap-2">
+                                    <button class="btn bg-gradient-primary btn-sm" onclick="quickTrainSandbox()">
+                                        <i class="fas fa-bolt me-2"></i>Обучить ИИ автоматически
+                                    </button>
+                                    <button class="btn bg-gradient-info btn-sm" onclick="goToTab('step2-train')">
+                                        <i class="fas fa-cogs me-2"></i>Настроить обучение вручную
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -384,9 +456,11 @@
                                         class="fas fa-tachometer-alt text-primary me-2"></i>Результат смешивания
                                     (Прогноз ИИ)</h6>
 
-                                <div class="row g-3" id="sandboxPredictionBadges">
-                                    <div class="col-12 text-center py-5 text-muted">Обучите ИИ на Шаге 2, чтобы увидеть
-                                        прогнозы...</div>
+                                                                <div class="row g-3" id="sandboxPredictionBadges">
+                                    <div class="col-12 text-center py-5 text-muted">
+                                        <i class="fas fa-spinner fa-spin fa-2x mb-3"></i>
+                                        <p>Загрузка прогнозов...</p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -403,7 +477,7 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
-        // Умный скролл к навигации по вкладкам с отступом
+                // Умный скролл к навигации по вкладкам с отступом
     function smartScroll() {
         const tabsElement = document.getElementById('ml-tabs');
         if (tabsElement) {
@@ -411,25 +485,27 @@
             setTimeout(() => {
                 const headerOffset = 100; // Отступ под шапку сайта
                 const elementPosition = tabsElement.getBoundingClientRect().top;
-                const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+                const offsetPosition = elementPosition + window.scrollY - headerOffset;
                 window.scrollTo({ 
                     top: offsetPosition, 
                     behavior: 'smooth' 
                 });
-            }, 150);
+            }, 100);
         }
     }
 
     function goToTab(tabId) {
         const triggerEl = document.querySelector(`button[data-bs-target="#${tabId}"]`);
         if (triggerEl) {
-            const tab = new bootstrap.Tab(triggerEl);
+            // Используем правильный способ переключения вкладок Bootstrap 5
+            const tab = bootstrap.Tab.getOrCreateInstance(triggerEl);
             tab.show();
-            // smartScroll вызывается автоматически через событие shown.bs.tab
+            // Вызываем smartScroll вручную после переключения
+            setTimeout(() => smartScroll(), 50);
         }
     }
 
-        document.addEventListener('DOMContentLoaded', function () {
+                document.addEventListener('DOMContentLoaded', function () {
         console.log('🚀 ML Dashboard инициализация...');
         
         // Инициализируем все компоненты
@@ -438,6 +514,9 @@
         loadComponentFeatures();
         initConstraintsSection();
         initSandbox();
+
+        // Проверяем статус системы при загрузке
+        checkMLReadyStatus();
 
         // Навешиваем обработчики на вкладки
         document.querySelectorAll('button[data-bs-toggle="tab"]').forEach(btn => {
@@ -471,8 +550,21 @@
             augmentationForm.addEventListener('submit', handleAugmentation);
         }
         
-        console.log('✅ ML Dashboard готов к работе');
+                console.log('✅ ML Dashboard готов к работе');
     });
+
+    // --- ПРОВЕРКА ГОТОВНОСТИ ML СИСТЕМЫ ---
+    function checkMLReadyStatus() {
+        fetch('/ml_system_status').then(r => r.json()).then(data => {
+            if (data.success && data.system_status.is_trained) {
+                // ML система готова
+                console.log('✅ ML система готова');
+            } else {
+                // ML система не готова - показываем подсказку
+                console.log('⚠️ ML система требует обучения');
+            }
+        });
+    }
 
     // --- СТАТУС СИСТЕМЫ ---
     function updateSystemStats() {
@@ -807,7 +899,7 @@
         document.getElementById('sandboxTotalText').textContent = actualSum.toFixed(1) + '%';
     }
 
-    function updateSandbox() {
+        function updateSandbox() {
         const comp = {};
         document.querySelectorAll('.sandbox-slider').forEach(s => comp[s.getAttribute('data-comp')] = parseFloat(s.value));
 
@@ -819,28 +911,44 @@
             .then(r => r.json())
             .then(data => {
                 if (data.success) {
+                    // Скрываем предупреждение если ИИ обучен
+                    document.getElementById('sandboxNotReadyAlert').classList.add('d-none');
                     renderSandboxCards(data.results);
                 } else {
-                    // ИИ не обучен - рисуем кнопку быстрого запуска в Песочнице
+                    // Показываем предупреждение если ИИ не обучен
+                    document.getElementById('sandboxNotReadyAlert').classList.remove('d-none');
                     document.getElementById('sandboxPredictionBadges').innerHTML = `
                     <div class="col-12 text-center py-4">
-                        <div class="alert text-white border-0 shadow-sm mb-4" style="background-color: #ea0606; opacity: 0.8;">
+                        <div class="alert text-white border-0 shadow-sm mb-3" style="background-color: #ea0606; opacity: 0.8;">
                             <i class="fas fa-exclamation-triangle me-2"></i> ИИ еще не обучен! Прогноз невозможен.
                         </div>
+                        <p class="text-muted text-sm mb-3">Обучите модель чтобы активировать песочницу</p>
                         <button class="btn bg-gradient-primary btn-lg shadow-sm" id="sandboxQuickTrainBtn" onclick="quickTrainSandbox()">
                             <i class="fas fa-bolt me-2"></i>Обучить ИИ прямо здесь
                         </button>
                     </div>
                 `;
                 }
+            })
+            .catch(error => {
+                console.error('Ошибка прогноза:', error);
+                document.getElementById('sandboxNotReadyAlert').classList.remove('d-none');
+                document.getElementById('sandboxPredictionBadges').innerHTML = `
+                    <div class="col-12 text-center py-4">
+                        <div class="alert text-white border-0 shadow-sm mb-3" style="background-color: #ea0606; opacity: 0.8;">
+                            <i class="fas fa-plug me-2"></i> Ошибка соединения с сервером
+                        </div>
+                    </div>
+                `;
             });
     }
 
-    // --- БЫСТРОЕ ОБУЧЕНИЕ ИЗ ПЕСОЧНИЦЫ ---
+        // --- БЫСТРОЕ ОБУЧЕНИЕ ИЗ ПЕСОЧНИЦЫ ---
     async function quickTrainSandbox() {
         const btn = document.getElementById('sandboxQuickTrainBtn');
         if (!btn) return;
 
+        const originalContent = btn.innerHTML;
         btn.disabled = true;
         btn.innerHTML = `<i class="fas fa-spinner fa-spin me-2"></i>Изучаю данные...`;
 
@@ -858,14 +966,31 @@
             if (data.success) {
                 updateSystemStats();
                 loadMLStatus();
-                Swal.fire({ icon: 'success', title: 'Готово!', text: 'ИИ обучен. Песочница активирована!', confirmButtonColor: '#cb0c9f' });
-                updateSandbox(); // Автоматически запрашиваем прогноз снова!
+                
+                // Обновляем ограничения для оптимизации
+                if (document.getElementById('advancedConstraints').checked) {
+                    initConstraintsSection();
+                }
+                
+                Swal.fire({ 
+                    icon: 'success', 
+                    title: 'Готово!', 
+                    text: 'ИИ обучен. Песочница активирована!', 
+                    confirmButtonColor: '#cb0c9f',
+                    timer: 2000
+                });
+                
+                // Автоматически запрашиваем прогноз снова!
+                setTimeout(() => {
+                    updateSandbox();
+                }, 500);
             } else {
-                Swal.fire({ icon: 'error', title: 'Ошибка', text: data.error, confirmButtonColor: '#cb0c9f' });
+                Swal.fire({ icon: 'error', title: 'Ошибка', text: data.error || 'Не удалось обучить модель', confirmButtonColor: '#cb0c9f' });
                 btn.disabled = false;
                 btn.innerHTML = `<i class="fas fa-bolt me-2"></i>Повторить обучение`;
             }
         } catch (err) {
+            console.error('Ошибка обучения:', err);
             Swal.fire({ icon: 'error', title: 'Ошибка сети', text: 'Не удалось связаться с сервером' });
             btn.disabled = false;
             btn.innerHTML = `<i class="fas fa-bolt me-2"></i>Повторить обучение`;
