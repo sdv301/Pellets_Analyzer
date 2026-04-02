@@ -9,10 +9,19 @@ from typing import Optional
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Настройки API (лучше хранить в переменных окружения)
-XAI_API_KEY = os.getenv('XAI_API_KEY', 'YOUR_XAI_API_KEY')
-OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', 'YOUR_OPENAI_API_KEY')
-ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY', 'YOUR_ANTHROPIC_API_KEY')  # Claude API
+# Настройки API (обязательно настройте через переменные окружения!)
+# Переменные окружения имеют приоритет над значениями по умолчанию
+XAI_API_KEY = os.getenv('XAI_API_KEY', '')
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
+ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY', '')
+
+# Проверка наличия API ключей при импорте
+def _check_api_key(key: str, provider: str) -> bool:
+    """Проверяет наличие настроенного API ключа"""
+    if not key or key in ('YOUR_XAI_API_KEY', 'YOUR_OPENAI_API_KEY', 'YOUR_ANTHROPIC_API_KEY', 'sk-your-openai-key-here', 'your-xai-key-here', 'your-anthropic-key-here'):
+        logger.warning(f"{provider} API ключ не настроен. Установите переменную окружения {provider}_API_KEY")
+        return False
+    return True
 
 # URL эндпоинтов
 XAI_API_URL = 'https://api.x.ai/v1/chat/completions'
@@ -59,8 +68,8 @@ def ask_ai(query: str, provider: str = "openai") -> str:
 
 def _ask_openai(query: str) -> str:
     """Запрос к OpenAI API"""
-    if OPENAI_API_KEY == 'YOUR_OPENAI_API_KEY':
-        raise Exception("OpenAI API ключ не настроен")
+    if not _check_api_key(OPENAI_API_KEY, 'OpenAI'):
+        raise Exception("OpenAI API ключ не настроен. Установите переменную окружения OPENAI_API_KEY")
     
     headers = {
         'Authorization': f'Bearer {OPENAI_API_KEY}',
@@ -91,8 +100,8 @@ def _ask_openai(query: str) -> str:
 
 def _ask_xai(query: str) -> str:
     """Запрос к xAI Grok API"""
-    if XAI_API_KEY == 'YOUR_XAI_API_KEY':
-        raise Exception("xAI API ключ не настроен")
+    if not _check_api_key(XAI_API_KEY, 'xAI'):
+        raise Exception("xAI API ключ не настроен. Установите переменную окружения XAI_API_KEY")
     
     headers = {
         'Authorization': f'Bearer {XAI_API_KEY}',
@@ -114,8 +123,8 @@ def _ask_xai(query: str) -> str:
 
 def _ask_anthropic(query: str) -> str:
     """Запрос к Anthropic Claude API"""
-    if ANTHROPIC_API_KEY == 'YOUR_ANTHROPIC_API_KEY':
-        raise Exception("Anthropic API ключ не настроен")
+    if not _check_api_key(ANTHROPIC_API_KEY, 'Anthropic'):
+        raise Exception("Anthropic API ключ не настроен. Установите переменную окружения ANTHROPIC_API_KEY")
     
     headers = {
         'X-API-Key': ANTHROPIC_API_KEY,

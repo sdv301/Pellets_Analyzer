@@ -4,6 +4,7 @@ from flask_session import Session
 import pandas as pd
 import os
 import numpy as np
+import secrets
 from data_processor import process_data_source
 from database import query_db, insert_data, init_db
 from ai_ml_integration import AIMLAnalyzer
@@ -16,7 +17,8 @@ app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'Uploads'
 app.config['SESSION_TYPE'] = 'filesystem'
 app.config['SESSION_FILE_DIR'] = os.path.join(os.path.dirname(__file__), 'sessions')
-app.config['SECRET_KEY'] = 'your-secret-key'
+# БЕЗОПАСНОСТЬ: Секретный ключ из переменной окружения или генерируется случайно
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', secrets.token_hex(24))
 
 # --- ОТКЛЮЧЕНИЕ КЭШИРОВАНИЯ (Чтобы страницы всегда обновлялись) ---
 app.config['TEMPLATES_AUTO_RELOAD'] = True
@@ -41,6 +43,12 @@ def handle_exception(e):
     """, 500
 # -----------------------------
 
+# Helper-функции для уменьшения дублирования кода
+def get_uploaded_files():
+    """Возвращает список загруженных файлов"""
+    upload_folder = app.config.get('UPLOAD_FOLDER', 'Uploads')
+    return os.listdir(upload_folder) if os.path.exists(upload_folder) else []
+
 @app.after_request
 def add_header(response):
     response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0, max-age=0'
@@ -59,7 +67,7 @@ init_db(db_path)  # Инициализация базы данных
 
 @app.route('/')
 def index():
-    uploaded_files = os.listdir(app.config['UPLOAD_FOLDER']) if os.path.exists(app.config['UPLOAD_FOLDER']) else []
+    uploaded_files = get_uploaded_files()
     show_data = session.get('show_data', False)
     
     # Статистика и данные для графиков (BankDash)
@@ -117,7 +125,7 @@ def index():
 
 @app.route('/', methods=['POST'])
 def upload_file():
-    uploaded_files = os.listdir(app.config['UPLOAD_FOLDER']) if os.path.exists(app.config['UPLOAD_FOLDER']) else []
+    uploaded_files = get_uploaded_files()
     if 'file' not in request.files:
         flash('Файл не предоставлен.', 'danger')
         return jsonify({
@@ -190,7 +198,7 @@ def upload_file():
 @app.route('/load_file', methods=['POST'])
 def load_file():
     selected_file = request.form.get('selected_file')
-    uploaded_files = os.listdir(app.config['UPLOAD_FOLDER']) if os.path.exists(app.config['UPLOAD_FOLDER']) else []
+    uploaded_files = get_uploaded_files()
     if not selected_file:
         return jsonify({
             'success': False,
@@ -256,9 +264,8 @@ def search():
         if all_measured_data.empty:
             return jsonify({'success': False, 'message': 'База данных пуста.'})
             
-        # Список для хранения индексов найденных строк для каждого критерия
-        # Используем OR логику (объединение результатов)
-        all_match_indices = []
+        # Начинаем со всех данных и последовательно применяем фильтры (логика И)
+        filtered_data = all_measured_data.copy()
         
         applied_filters = 0
         for i in range(len(search_columns)):
@@ -276,16 +283,15 @@ def search():
             applied_filters += 1
             
             try:
-                criterion_df = all_measured_data.copy()
                 # Специальная обработка для состава (строковый поиск)
                 if col == 'composition':
                     if op == 'LIKE' or op == '=':
-                        match = criterion_df[criterion_df[col].astype(str).str.contains(val, case=False, na=False)]
+                        mask = filtered_data[col].astype(str).str.contains(val, case=False, na=False)
                     elif op == '!=':
-                        match = criterion_df[~criterion_df[col].astype(str).str.contains(val, case=False, na=False)]
+                        mask = ~filtered_data[col].astype(str).str.contains(val, case=False, na=False)
                     else:
-                        match = pd.DataFrame()
-                    all_match_indices.extend(match.index.tolist())
+                        mask = pd.Series([False] * len(filtered_data))
+                    filtered_data = filtered_data[mask]
                     continue
 
                 # Числовой поиск - безопасная конвертация
@@ -298,35 +304,36 @@ def search():
 
                 if op == 'BETWEEN':
                     if f_val is not None and f_val_max is not None:
-                        match = criterion_df[(criterion_df[col] >= f_val) & (criterion_df[col] <= f_val_max)]
+                        mask = (filtered_data[col] >= f_val) & (filtered_data[col] <= f_val_max)
                     elif f_val is not None:
-                        match = criterion_df[criterion_df[col] >= f_val]
+                        mask = filtered_data[col] >= f_val
                     elif f_val_max is not None:
-                        match = criterion_df[criterion_df[col] <= f_val_max]
+                        mask = filtered_data[col] <= f_val_max
                     else:
-                        match = pd.DataFrame()
+                        mask = pd.Series([False] * len(filtered_data))
                 else:
                     if f_val is None: # Если не BETWEEN и значение пустое - пропускаем
                         continue
                         
                     if op == '=':
-                        match = criterion_df[criterion_df[col] == f_val]
+                        mask = filtered_data[col] == f_val
                     elif op == '!=':
-                        match = criterion_df[criterion_df[col] != f_val]
+                        mask = filtered_data[col] != f_val
                     elif op == '>':
-                        match = criterion_df[criterion_df[col] > f_val]
+                        mask = filtered_data[col] > f_val
                     elif op == '>=':
-                        match = criterion_df[criterion_df[col] >= f_val]
+                        mask = filtered_data[col] >= f_val
                     elif op == '<':
-                        match = criterion_df[criterion_df[col] < f_val]
+                        mask = filtered_data[col] < f_val
                     elif op == '<=':
-                        match = criterion_df[criterion_df[col] <= f_val]
+                        mask = filtered_data[col] <= f_val
                     elif op == 'LIKE':
-                        match = criterion_df[criterion_df[col].astype(str).str.contains(str(val), na=False)]
+                        mask = filtered_data[col].astype(str).str.contains(str(val), na=False)
                     else:
-                        match = pd.DataFrame()
+                        mask = pd.Series([False] * len(filtered_data))
                 
-                all_match_indices.extend(match.index.tolist())
+                # Применяем фильтр к текущим результатам (логика И)
+                filtered_data = filtered_data[mask]
 
             except Exception as e:
                 print(f"Search criterion error for col {col}: {e}")
@@ -334,10 +341,6 @@ def search():
                 
         if applied_filters == 0:
             return jsonify({'success': False, 'message': 'Критерии поиска не заданы.'})
-
-        # Оставляем только уникальные индексы (логика ИЛИ)
-        unique_indices = sorted(list(set(all_match_indices)))
-        filtered_data = all_measured_data.loc[unique_indices]
 
         if filtered_data.empty:
             return jsonify({'success': True, 'message': 'Ничего не найдено', 'count': 0, 'refresh_page': True})
@@ -429,7 +432,7 @@ def add_data():
             'measured_data': measured_data.head(10).to_html(classes='table table-striped table-sm', index=False),
             'components_data': components_data.head(10).to_html(classes='table table-striped table-sm', index=False),
             'graph': graph,
-            'uploaded_files': os.listdir(app.config['UPLOAD_FOLDER']) if os.path.exists(app.config['UPLOAD_FOLDER']) else [],
+            'uploaded_files': get_uploaded_files(),
             'components_sheet_name': session.get('components_sheet_name', 'Таблица компонентов'),
             'total_measured': len(measured_data),
             'total_components': len(components_data)
@@ -438,12 +441,12 @@ def add_data():
         return jsonify({
             'success': False,
             'message': f'Ошибка при добавлении данных: {str(e)}',
-            'uploaded_files': os.listdir(app.config['UPLOAD_FOLDER']) if os.path.exists(app.config['UPLOAD_FOLDER']) else []
+            'uploaded_files': get_uploaded_files()
         })
 
 @app.route('/tables')
 def tables():
-    uploaded_files = os.listdir(app.config['UPLOAD_FOLDER']) if os.path.exists(app.config['UPLOAD_FOLDER']) else []
+    uploaded_files = get_uploaded_files()
     page = int(request.args.get('page', 1))
     per_page = int(request.args.get('per_page', 10))
     
@@ -538,7 +541,7 @@ def clear_search():
 
 @app.route('/compare')
 def compare():
-    uploaded_files = os.listdir(app.config['UPLOAD_FOLDER']) if os.path.exists(app.config['UPLOAD_FOLDER']) else []
+    uploaded_files = get_uploaded_files()
     measured_data = query_db(db_path, "measured_parameters")
     compositions = measured_data['composition'].tolist() if not measured_data.empty else []
     return render_template('compare.html', segment='Сравнительная таблица',uploaded_files=uploaded_files, compositions=compositions)
@@ -736,7 +739,7 @@ def filter_parameters_with_criteria(data, param_group, show_diff_only=False, sel
 @app.route('/ai_analysis')
 def ai_analysis():
     """Страница интеллектуального ML анализа"""
-    uploaded_files = os.listdir(app.config['UPLOAD_FOLDER']) if os.path.exists(app.config['UPLOAD_FOLDER']) else []
+    uploaded_files = get_uploaded_files()
     return render_template('ai_analysis.html', segment='ИИ-анализ', uploaded_files=uploaded_files)
 
 @app.route('/ai_ml_system_status')
@@ -787,12 +790,12 @@ def perform_ai_ml_analysis():
 @app.route('/economics')
 def economics():
     """Страница экономической оценки"""
-    uploaded_files = os.listdir(app.config['UPLOAD_FOLDER']) if os.path.exists(app.config['UPLOAD_FOLDER']) else []
+    uploaded_files = get_uploaded_files()
     return render_template('economics.html', segment='Экономическая часть', uploaded_files=uploaded_files)
 
 @app.route('/create_graph', methods=['GET', 'POST'])
 def create_graph():
-    uploaded_files = os.listdir(app.config['UPLOAD_FOLDER']) if os.path.exists(app.config['UPLOAD_FOLDER']) else []
+    uploaded_files = get_uploaded_files()
     measured_data = query_db(db_path, "measured_parameters")
     parameters = measured_data.columns.tolist() if not measured_data.empty else []
     
@@ -931,7 +934,7 @@ def ignore_map_files(path):
 @app.route('/ml_dashboard')
 def ml_dashboard():
     try:
-        uploaded_files = os.listdir(app.config['UPLOAD_FOLDER']) if os.path.exists(app.config['UPLOAD_FOLDER']) else []
+        uploaded_files = get_uploaded_files()
         measured_data = query_db(db_path, "measured_parameters")
         
         from ml_optimizer import get_ml_system
@@ -1194,7 +1197,7 @@ def api_predict_composition():
 @app.route('/ml_history')
 def ml_history():
     """Страница истории ML оптимизаций"""
-    uploaded_files = os.listdir(app.config['UPLOAD_FOLDER']) if os.path.exists(app.config['UPLOAD_FOLDER']) else []
+    uploaded_files = get_uploaded_files()
     
     # Получаем историю оптимизаций
     from database import get_ml_optimizations
@@ -1210,7 +1213,7 @@ def ml_history():
 @app.route('/ml_saved_models')
 def ml_saved_models():
     """Страница сохраненных ML моделей"""
-    uploaded_files = os.listdir(app.config['UPLOAD_FOLDER']) if os.path.exists(app.config['UPLOAD_FOLDER']) else []
+    uploaded_files = get_uploaded_files()
     
     # Получаем сохраненные модели
     from database import get_active_ml_models
@@ -1463,96 +1466,118 @@ def upload_economics():
 
 @app.route('/api/calculate_economics', methods=['POST'])
 def calculate_economics():
-    """Рассчитывает экономические показатели по формулам из Excel"""
+    """Рассчитывает экономические показатели по формулам из методики (Пример расчета по эксельке.docx)"""
     try:
+        import math
         data = request.json
         
         # 1. Входные параметры от пользователя (из формы интерфейса)
-        q_boiler = float(data.get('q_boiler', 80)) # Мощность котла, кВт
-        t_hours = float(data.get('t_hours', 720))  # Время работы, ч
-        distance = float(data.get('distance', 258)) # Расстояние, км
-        capacity_factor = float(data.get('capacity_factor', 0.8)) # Коэфф. использования
-        efficiency = float(data.get('efficiency', 0.9)) # КПД котла
-        components = data.get('components', {}) # {"Опилки": 67.5, "Солома": 27.5, ...}
+        q_boiler = float(data.get('q_boiler', 80))    # Мощность котла, кВт
+        t_hours = float(data.get('t_hours', 720))     # Время работы, ч
+        distance = float(data.get('distance', 258))   # Расстояние, км
+        capacity_factor = float(data.get('capacity_factor', 0.8))  # Коэфф. использования мощности (a)
+        efficiency = float(data.get('efficiency', 0.9))  # КПД котла (b)
+        components = data.get('components', {})  # {"Опилки": 67.5, "Солома": 27.5, ...}
         
-        # --- Скрытые константы из Excel ---
-        RENT_COST_PER_M2 = 380.0       # Аренда склада, руб/м2
-        STORAGE_LOAD_KG_PER_M2 = 1100.0 # Удельная нагрузка на склад, кг/м2
-        TRUCK_BASE_RATE = 6000.0       # Базовая ставка за машину, руб
-        TRUCK_COST_PER_KM = 85.0       # Стоимость 1 км пути, руб/км
-        TRUCK_CAPACITY_KG = 20000.0    # Грузоподъемность одной фуры, кг
-        # ----------------------------------
+        # --- Скрытые константы из Excel/Методики ---
+        # Коэффициенты из формулы объема
+        COEFF_A = 0.8        # a - коэффициент использования мощности
+        COEFF_C = 3.6        # c - коэффициент пересчета мощности в МДж/кг (1 кВт*ч = 3.6 МДж)
+        COEFF_B = 0.9        # b - КПД котла
+        
+        # Экономика
+        RENT_COST_PER_M2 = 380.0        # С_аренда - стоимость аренды 1 м², руб/м²
+        STORAGE_LOAD_KG_PER_M2 = 1100.0 # Норматив нагрузки на склад, кг/м²
+        TRUCK_BASE_RATE = 6000.0        # БС - базовая ставка за машину, руб
+        TRUCK_COST_PER_KM = 85.0        # С_км - стоимость 1 км пути, руб/км
+        TRUCK_CAPACITY_KG = 20000.0     # m_г - грузоподъемность одной машины, кг
+        # -------------------------------------------
 
         # Загружаем актуальные данные из БД
         db_components = query_db(db_path, "components")
         db_map = {str(row['component']): row for _, row in db_components.iterrows()} if not db_components.empty else {}
 
         # 2. Расчет средневзвешенных характеристик смеси
-        mix_ro = 0.0  # Плотность (Ро)
-        mix_qai = 0.0 # Теплота сгорания (Qai)
-        mix_cc = 0.0  # Стоимость сырья (Cc)
-        mix_cu = 0.0  # Стоимость измельчения (Cи)
-        mix_cg = 0.0  # Стоимость гранулирования (Cг)
+        mix_ro = 0.0   # Плотность смеси (ρ), кг/м³
+        mix_qai = 0.0  # Низшая теплота сгорания смеси (Qi,v_a), МДж/кг
+        mix_cc = 0.0   # Стоимость сырья смеси (С_сырье), руб/кг
+        mix_cu = 0.0   # Стоимость измельчения смеси (С_измельчение), руб/кг
+        mix_cg = 0.0   # Стоимость гранулирования смеси (С_пеллетирование), руб/кг
         
         for comp_name, percentage in components.items():
             fraction = float(percentage) / 100.0
-            comp_name_clean = str(comp_name).strip() # Защита от пробелов
+            comp_name_clean = str(comp_name).strip()
             
             # ПРИОРИТЕТ: Встроенные точные данные -> База данных
             if comp_name_clean in COMPONENTS_DATA:
                 c_data = COMPONENTS_DATA[comp_name_clean]
                 ro = c_data['Ro']
-                qai = c_data['Qai'] # Берем именно низшую теплоту (18.18)!
+                qai = c_data['Qai']  # Низшая теплота сгорания
                 cc = c_data['Cc']
                 cu = c_data['Cu']
                 cg = c_data['Cg']
             else:
                 db_row = db_map.get(comp_name, {})
-                ro = db_row.get('ro') if not pd.isna(db_row.get('ro')) else 1000.0
-                qai = db_row.get('q') if not pd.isna(db_row.get('q')) else 0.0
-                cc = db_row.get('cost_raw') if not pd.isna(db_row.get('cost_raw')) else 0.0
-                cu = db_row.get('cost_crush') if not pd.isna(db_row.get('cost_crush')) else 0.0
-                cg = db_row.get('cost_granule') if not pd.isna(db_row.get('cost_granule')) else 0.0
+                ro = float(db_row.get('ro', 1000.0)) if not pd.isna(db_row.get('ro')) else 1000.0
+                qai = float(db_row.get('q', 0.0)) if not pd.isna(db_row.get('q')) else 0.0
+                cc = float(db_row.get('cost_raw', 0.0)) if not pd.isna(db_row.get('cost_raw')) else 0.0
+                cu = float(db_row.get('cost_crush', 0.0)) if not pd.isna(db_row.get('cost_crush')) else 0.0
+                cg = float(db_row.get('cost_granule', 0.0)) if not pd.isna(db_row.get('cost_granule')) else 0.0
 
-            # Добавляем долю компонента в общую копилку смеси
+            # Взвешенное усреднение по доле компонента
             mix_ro += fraction * float(ro)
             mix_qai += fraction * float(qai)
             mix_cc += fraction * float(cc)
             mix_cu += fraction * float(cu)
             mix_cg += fraction * float(cg)
-                  
-        if mix_ro == 0 or mix_qai == 0:
-            return jsonify({'success': False, 'error': 'Некорректный состав или отсутствуют данные в базе'})
+        
+        if mix_ro <= 0 or mix_qai <= 0:
+            return jsonify({'success': False, 'error': 'Некорректный состав или отсутствуют данные о теплоте сгорания/плотности'})
 
-        # 3. Расчет потребности в топливе (Объем и Масса)
-        import math
+        # 3. Расчет объема и массы топлива ПО МЕТОДИКЕ
+                # Формула: Vнеобх = (Q × T × a × c) / (Qi,v_a × b × ρ)
+        # где: Q - мощность котла, кВт
+        #      T - время работы, ч
+        #      a - коэфф. использования мощности (0.8)
+        #      c - коэфф. пересчета в МДж (3.6)
+        #      Qi,v_a - теплота сгорания смеси, МДж/кг
+        #      b - КПД котла (0.9)
+        #      ρ - плотность смеси, кг/м³
         
-        # Общая требуемая энергия в МДж = Мощность * Время * Коэфф * 3.6
-        total_energy_mj = q_boiler * t_hours * capacity_factor * 3.6
+        numerator = q_boiler * t_hours * COEFF_A * COEFF_C
+        denominator = mix_qai * COEFF_B * mix_ro
         
-        # Масса (кг) = Энергия / (Теплота_сгорания_смеси * КПД_котла)
-        mass_kg = total_energy_mj / (mix_qai * efficiency)
+        v_neobh_m3 = numerator / denominator  # Необходимый объем, м³
         
-        # Объем (м3) = Масса / Плотность_смеси
-        v_hran_m3 = mass_kg / mix_ro
+        # Формула массы: mнеобх = Vнеобх × ρ
+        mass_kg = v_neobh_m3 * mix_ro
+        mass_kg = round(mass_kg)  # Округляем до целых кг
         
-        mass_kg = round(mass_kg, 0) # Округляем
+        # Пересчитываем объем для точности
+        v_neobh_m3 = mass_kg / mix_ro
 
-        # 4. Затраты на хранение
-        area_m2 = math.ceil(mass_kg / STORAGE_LOAD_KG_PER_M2)
-        storage_cost = area_m2 * RENT_COST_PER_M2
-        
-        # 5. Затраты на производство
+        # 4. Затраты на хранение (SC) по методике
+        # Формула: SC = С_аренда × (mнеобх / 1100)
+        # где 1100 - норматив нагрузки на 1 м²
+        storage_area_m2 = math.ceil(mass_kg / STORAGE_LOAD_KG_PER_M2)
+        storage_cost = RENT_COST_PER_M2 * storage_area_m2
+
+        # 5. Затраты на производство (РС) по методике
+        # Формула: РС = (С_сырье + С_измельчение + С_пеллетирование) × mнеобх
         production_cost_per_kg = mix_cc + mix_cu + mix_cg
         production_cost = production_cost_per_kg * mass_kg
-        
-        # 6. Затраты на транспортировку
-        trip_cost = TRUCK_BASE_RATE + (TRUCK_COST_PER_KM * distance * 2) 
+
+        # 6. Затраты на транспортировку (ТС) по методике
+        # Формула: С_рейса = БС × С_км × S × 2
+        #          К = mнеобх / m_г (округление до целых)
+        #          ТС = С_рейса × К
+        trip_cost = TRUCK_BASE_RATE + (TRUCK_COST_PER_KM * distance * 2)
         trucks_needed = math.ceil(mass_kg / TRUCK_CAPACITY_KG)
         transport_cost = trip_cost * trucks_needed
-        
-        # 7. Итоговая калькуляция
-        total_cost = storage_cost + production_cost + transport_cost
+
+        # 7. Итоговая стоимость по методике
+        # Формула: С = РС + ТС + SC
+        total_cost = production_cost + transport_cost + storage_cost
         
         return jsonify({
             'success': True,
@@ -1564,18 +1589,19 @@ def calculate_economics():
                 'cost_granule': round(mix_cg, 2)
             },
             'storage': {
-                'volume_m3': round(v_hran_m3, 2),
-                'mass_kg': mass_kg,
-                'area_m2': area_m2,
-                'cost': storage_cost
+                'volume_m3': round(v_neobh_m3, 2),
+                'mass_kg': int(mass_kg),
+                'area_m2': int(storage_area_m2),
+                'cost': round(storage_cost, 2)
             },
             'production': {
+                'cost_per_kg': round(production_cost_per_kg, 2),
                 'cost': round(production_cost, 2)
             },
             'transport': {
-                'trip_cost': trip_cost,
-                'trucks': trucks_needed,
-                'cost': transport_cost
+                'trip_cost': round(trip_cost, 2),
+                'trucks': int(trucks_needed),
+                'cost': round(transport_cost, 2)
             },
             'total_cost': round(total_cost, 2)
         })

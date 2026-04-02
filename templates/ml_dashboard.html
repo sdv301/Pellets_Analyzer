@@ -403,14 +403,20 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
-    // Умный скролл к навигации по вкладкам с отступом
+        // Умный скролл к навигации по вкладкам с отступом
     function smartScroll() {
         const tabsElement = document.getElementById('ml-tabs');
         if (tabsElement) {
-            const headerOffset = 100; // Отступ под шапку сайта
-            const elementPosition = tabsElement.getBoundingClientRect().top;
-            const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
-            window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
+            // Небольшая задержка чтобы вкладка успела открыться
+            setTimeout(() => {
+                const headerOffset = 100; // Отступ под шапку сайта
+                const elementPosition = tabsElement.getBoundingClientRect().top;
+                const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+                window.scrollTo({ 
+                    top: offsetPosition, 
+                    behavior: 'smooth' 
+                });
+            }, 150);
         }
     }
 
@@ -423,19 +429,49 @@
         }
     }
 
-    document.addEventListener('DOMContentLoaded', function () {
+        document.addEventListener('DOMContentLoaded', function () {
+        console.log('🚀 ML Dashboard инициализация...');
+        
+        // Инициализируем все компоненты
         loadMLStatus();
         updateSystemStats();
         loadComponentFeatures();
         initConstraintsSection();
         initSandbox();
 
+        // Навешиваем обработчики на вкладки
         document.querySelectorAll('button[data-bs-toggle="tab"]').forEach(btn => {
-            btn.addEventListener('shown.bs.tab', smartScroll);
+            btn.addEventListener('shown.bs.tab', function (e) {
+                console.log('📑 Вкладка переключена:', e.target.dataset.bsTarget);
+                smartScroll();
+                
+                // Обновляем размеры графиков если они есть на вкладке
+                if (typeof Plotly !== 'undefined') {
+                    setTimeout(() => {
+                        const plotlyGraphs = document.querySelectorAll('.js-plotly-plot');
+                        plotlyGraphs.forEach(graph => Plotly.Plots.resize(graph));
+                    }, 200);
+                }
+            });
         });
-        document.getElementById('ml-training-form').addEventListener('submit', handleMLTraining);
-        document.getElementById('optimization-form').addEventListener('submit', handleOptimization);
-        document.getElementById('ml-augmentation-form').addEventListener('submit', handleAugmentation);
+        
+        // Обработчики форм
+        const trainingForm = document.getElementById('ml-training-form');
+        if (trainingForm) {
+            trainingForm.addEventListener('submit', handleMLTraining);
+        }
+        
+        const optimizationForm = document.getElementById('optimization-form');
+        if (optimizationForm) {
+            optimizationForm.addEventListener('submit', handleOptimization);
+        }
+        
+        const augmentationForm = document.getElementById('ml-augmentation-form');
+        if (augmentationForm) {
+            augmentationForm.addEventListener('submit', handleAugmentation);
+        }
+        
+        console.log('✅ ML Dashboard готов к работе');
     });
 
     // --- СТАТУС СИСТЕМЫ ---
@@ -480,28 +516,63 @@
         });
     }
 
-    // --- ПОДГРУЗКА КОМПОНЕНТОВ ИЗ БАЗЫ ДАННЫХ (БЕЗ НАЕЗДОВ И ОШИБОК ПРОБЕЛОВ) ---
+        // --- ПОДГРУЗКА КОМПОНЕНТОВ ИЗ БАЗЫ ДАННЫХ (БЕЗ НАЕЗДОВ И ОШИБОК ПРОБЕЛОВ) ---
     function loadComponentFeatures() {
-        fetch('/ml_system_status').then(r => r.json()).then(data => {
-            const container = document.getElementById('componentFeaturesContainer');
-            container.innerHTML = '';
+        console.log('🔄 Загрузка компонентов из БД...');
+        
+        fetch('/ml_system_status')
+            .then(r => r.json())
+            .then(data => {
+                const container = document.getElementById('componentFeaturesContainer');
+                
+                if (!container) {
+                    console.warn('⚠️ Контейнер компонентов не найден');
+                    return;
+                }
+                
+                container.innerHTML = '';
 
-            if (data.success && data.system_status.available_components && data.system_status.available_components.length > 0) {
-                data.system_status.available_components.forEach(comp => {
-                    // Создаем безопасный ID без пробелов (Рисовая шелуха -> Рисовая_шелуха)
-                    let safeId = comp.replace(/[^a-zA-Z0-9а-яА-ЯёЁ]/g, '_');
+                if (data.success && data.system_status.available_components && data.system_status.available_components.length > 0) {
+                    console.log('✅ Найдено компонентов:', data.system_status.available_components.length);
+                    
+                    data.system_status.available_components.forEach(comp => {
+                        // Создаем безопасный ID без пробелов (Рисовая шелуха -> Рисовая_шелуха)
+                        let safeId = comp.replace(/[^a-zA-Z0-9а-яА-ЯёЁ]/g, '_');
 
-                    // Добавлено m-1 (margin), чтобы кнопки не слипались при переносе строк
-                    container.innerHTML += `
-                    <div class="m-1" style="display: inline-block;">
-                        <input class="btn-check-custom feature-checkbox" type="checkbox" name="input_features[]" value="${comp}" id="feat_${safeId}" checked>
-                        <label for="feat_${safeId}" class="shadow-sm mb-0 user-select-none">${comp}</label>
-                    </div>`;
-                });
-            } else {
-                container.innerHTML = '<div class="alert alert-light border text-muted w-100 text-center text-sm"><i class="fas fa-database me-2"></i>В базе нет данных о сырье. Сгенерируйте их на Шаге 1.</div>';
-            }
-        });
+                        // Добавлено m-1 (margin), чтобы кнопки не слипались при переносе строк
+                        const wrapper = document.createElement('div');
+                        wrapper.className = 'm-1';
+                        wrapper.style.display = 'inline-block';
+                        
+                        const checkbox = document.createElement('input');
+                        checkbox.className = 'btn-check-custom feature-checkbox';
+                        checkbox.type = 'checkbox';
+                        checkbox.name = 'input_features[]';
+                        checkbox.value = comp;
+                        checkbox.id = `feat_${safeId}`;
+                        checkbox.checked = true;
+                        
+                        const label = document.createElement('label');
+                        label.htmlFor = `feat_${safeId}`;
+                        label.className = 'shadow-sm mb-0 user-select-none';
+                        label.textContent = comp;
+                        
+                        wrapper.appendChild(checkbox);
+                        wrapper.appendChild(label);
+                        container.appendChild(wrapper);
+                    });
+                } else {
+                    container.innerHTML = '<div class="alert alert-light border text-muted w-100 text-center text-sm"><i class="fas fa-database me-2"></i>В базе нет данных о сырье. Сгенерируйте их на Шаге 1.</div>';
+                    console.warn('⚠️ В базе нет компонентов');
+                }
+            })
+            .catch(error => {
+                console.error('❌ Ошибка загрузки компонентов:', error);
+                const container = document.getElementById('componentFeaturesContainer');
+                if (container) {
+                    container.innerHTML = '<div class="alert alert-danger text-white text-center text-sm"><i class="fas fa-exclamation-triangle me-2"></i>Ошибка загрузки компонентов</div>';
+                }
+            });
     }
 
     // --- АУГМЕНТАЦИЯ (С ПОЛНЫМ UI) ---

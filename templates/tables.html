@@ -347,15 +347,33 @@
         margin-bottom: 5px;
     }
 
-    .search-criterion .btn {
+        .search-criterion .btn {
         height: 38px;
         /* такая же высота как у инпутов */
+    }
+    
+    .search-criterion.has-error {
+        background-color: rgba(220, 53, 69, 0.05);
+        border-radius: 8px;
+        padding: 10px;
+        margin-bottom: 10px;
+    }
+    
+    .search-criterion.has-error .form-control,
+    .search-criterion.has-error .form-select {
+        border-color: #dc3545;
+    }
+    
+    .search-criterion.has-error .form-label {
+        color: #dc3545;
+        font-weight: 600;
     }
 </style>
 <script>
 
-    document.addEventListener('DOMContentLoaded', function () {
+        document.addEventListener('DOMContentLoaded', function () {
         initSearchCriteria();
+        initMainSearchCriterion();
 
         const headerMapping = {
             'composition': 'Составы',
@@ -398,14 +416,33 @@
         });
     });
 
-    // Логика переключения инпутов для поиска по диапазону
+        // Логика переключения инпутов для поиска по диапазону
     function toggleSearchInputs(criterionElement) {
         const operatorSelect = criterionElement.querySelector('[name="search_operator"]');
+        const columnSelect = criterionElement.querySelector('[name="search_column"]');
         const minInput = criterionElement.querySelector('[name="search_value"]');
         const maxInput = criterionElement.querySelector('[name="search_value_max"]');
-        const valueLabel = criterionElement.querySelector('.search-value-label'); // Use a class for dynamic labels
+        const valueLabel = criterionElement.querySelector('.search-value-label');
 
         if (!operatorSelect || !minInput || !maxInput || !valueLabel) return;
+
+        // Определяем, является ли столбец числовым
+        const numericColumns = ['density', 'kf', 'kt', 'h', 'mass_loss', 'tign', 'tb', 
+                                'tau_d1', 'tau_d2', 'tau_b', 'co2', 'co', 'so2', 'nox', 
+                                'q', 'ad', 'war', 'vd', 'cd', 'hd', 'nd', 'sd', 'od'];
+        const selectedColumn = columnSelect?.value || '';
+        const isNumeric = numericColumns.includes(selectedColumn);
+
+        // Устанавливаем тип input в зависимости от столбца
+        if (isNumeric) {
+            minInput.type = 'number';
+            minInput.step = 'any';
+            maxInput.type = 'number';
+            maxInput.step = 'any';
+        } else {
+            minInput.type = 'text';
+            maxInput.type = 'text';
+        }
 
         if (operatorSelect.value === 'BETWEEN') {
             maxInput.classList.remove('d-none');
@@ -414,26 +451,35 @@
         } else {
             maxInput.classList.add('d-none');
             maxInput.value = ""; // Очищаем скрытое поле
-            minInput.placeholder = "Введите значение";
+            minInput.placeholder = isNumeric ? "Введите числовое значение" : "Введите текст";
             valueLabel.textContent = "Значение";
         }
     }
 
-    // Инициализация правильного отображения при загрузке страницы для основного критерия
-    document.addEventListener("DOMContentLoaded", function () {
-        const mainSearchCriterion = document.querySelector('.search-criterion'); // Assuming the first one is the main
-        if (mainSearchCriterion) {
-            toggleSearchInputs(mainSearchCriterion);
-            mainSearchCriterion.querySelector('[name="search_operator"]').addEventListener('change', () => toggleSearchInputs(mainSearchCriterion));
+        // Инициализация основного критерия поиска при загрузке
+        function initMainSearchCriterion() {
+            const mainSearchCriterion = document.querySelector('.search-criterion');
+            if (mainSearchCriterion) {
+                toggleSearchInputs(mainSearchCriterion);
+                const operatorSelect = mainSearchCriterion.querySelector('[name="search_operator"]');
+                const columnSelect = mainSearchCriterion.querySelector('[name="search_column"]');
+            
+                if (operatorSelect) {
+                    operatorSelect.addEventListener('change', () => toggleSearchInputs(mainSearchCriterion));
+                }
+                if (columnSelect) {
+                    columnSelect.addEventListener('change', () => toggleSearchInputs(mainSearchCriterion));
+                }
+            }
         }
-    });
 
-    // Асинхронная отправка формы поиска
+        // Асинхронная отправка формы поиска
     document.getElementById('searchForm')?.addEventListener('submit', async function (e) {
         e.preventDefault();
 
         const rows = document.querySelectorAll('.search-criterion');
-        let hasValue = false;
+        let validCriteriaCount = 0;
+        let hasError = false;
 
         rows.forEach(row => {
             const col = row.querySelector('select[name="search_column"]')?.value;
@@ -441,20 +487,53 @@
             const val = row.querySelector('input[name="search_value"]')?.value;
             const valMax = row.querySelector('input[name="search_value_max"]')?.value;
 
-            if (col) {
-                if (op === 'BETWEEN') {
-                    if (val && valMax) hasValue = true;
-                } else if (val && val.trim() !== '') {
-                    hasValue = true;
+            // Пропускаем критерии без выбранного столбца
+            if (!col || col === '') return;
+
+            // Проверяем заполненность в зависимости от оператора
+            if (op === 'BETWEEN') {
+                if (!val || !val.trim() || !valMax || !valMax.trim()) {
+                    hasError = true;
+                    row.classList.add('has-error');
+                } else {
+                    validCriteriaCount++;
+                    row.classList.remove('has-error');
+                }
+            } else if (op === 'LIKE') {
+                // Для LIKE требуется непустое значение
+                if (!val || val.trim() === '') {
+                    hasError = true;
+                    row.classList.add('has-error');
+                } else {
+                    validCriteriaCount++;
+                    row.classList.remove('has-error');
+                }
+            } else {
+                // Для остальных операторов (=, >, <, >=, <=, !=)
+                if (!val || val.trim() === '') {
+                    hasError = true;
+                    row.classList.add('has-error');
+                } else {
+                    validCriteriaCount++;
+                    row.classList.remove('has-error');
                 }
             }
         });
 
-        if (!hasValue) {
+        if (hasError) {
             Swal.fire({
                 icon: 'warning',
                 title: 'Внимание',
-                text: 'Укажите хотя бы один корректный критерий поиска.'
+                text: 'Заполните все значения для выбранных критериев поиска.'
+            });
+            return;
+        }
+
+        if (validCriteriaCount === 0) {
+            Swal.fire({
+                icon: 'info',
+                title: 'Информация',
+                text: 'Выберите хотя бы один столбец и заполните значение для поиска.'
             });
             return;
         }
@@ -560,10 +639,15 @@
                     container.appendChild(criteriaRow);
                 }
 
-                // Инициализируем слушатель событий для BETWEEN оператора
+                                // Инициализируем слушатель событий для BETWEEN оператора и изменения столбца
                 const operatorSelect = criteriaRow.querySelector('[name="search_operator"]');
+                const columnSelect = criteriaRow.querySelector('[name="search_column"]');
+                
                 if (operatorSelect) {
                     operatorSelect.addEventListener('change', () => toggleSearchInputs(criteriaRow));
+                }
+                if (columnSelect) {
+                    columnSelect.addEventListener('change', () => toggleSearchInputs(criteriaRow));
                 }
 
                 // Добавляем обработчик для кнопки удаления
@@ -638,23 +722,31 @@
             });
     }
 
-    function resetSearch() {
+        function resetSearch() {
         const form = document.getElementById('searchForm');
         if (form) {
             form.reset();
-            // Очищаем динамические строки
+            
+            // Очищаем все динамические строки критериев
             const container = document.getElementById('criteriaContainer');
             if (container) container.innerHTML = '';
 
-            // Сбрасываем операторы и подсказки в первой строке
+            // Сбрасываем первую строку критерия
             const firstCriterion = form.querySelector('.search-criterion');
             if (firstCriterion) {
+                // Сбрасываем выбор столбца
+                const columnSelect = firstCriterion.querySelector('[name="search_column"]');
+                if (columnSelect) columnSelect.value = '';
+                
+                // Сбрасываем оператор
                 const operatorSelect = firstCriterion.querySelector('[name="search_operator"]');
+                if (operatorSelect) operatorSelect.value = '=';
+                
+                // Очищаем и сбрасываем поля значений
                 const valueInput = firstCriterion.querySelector('[name="search_value"]');
                 const valueMaxInput = firstCriterion.querySelector('[name="search_value_max"]');
                 const valueLabel = firstCriterion.querySelector('.search-value-label');
 
-                if (operatorSelect) operatorSelect.value = '=';
                 if (valueInput) {
                     valueInput.value = '';
                     valueInput.placeholder = "Введите значение";
@@ -664,7 +756,15 @@
                     valueMaxInput.classList.add('d-none');
                 }
                 if (valueLabel) valueLabel.textContent = "Значение";
+                
+                // Удаляем классы ошибок
+                firstCriterion.classList.remove('has-error');
             }
+            
+            // Удаляем классы ошибок со всех критериев
+            document.querySelectorAll('.search-criterion').forEach(cr => {
+                cr.classList.remove('has-error');
+            });
         }
         clearSearch();
     }
