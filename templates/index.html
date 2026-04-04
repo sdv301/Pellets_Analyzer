@@ -6,68 +6,94 @@
 <div class="container-fluid py-4">
     <div class="row">
         <div class="col-12">
-            <!-- BankDash Header: Явно и лаконично -->
+            <!-- BankDash Header -->
             <div class="d-flex justify-content-between align-items-center mb-4 animate-on-scroll">
                 <div>
                     <h2 class="font-weight-bolder text-dark mb-0">Дашборд Аналитики</h2>
                     <p class="text-sm text-muted mb-0">Ключевые показатели и графики топливных пеллет</p>
                 </div>
-                <div>
-                    <a href="{{ url_for('tables') }}" class="btn btn-primary px-3 py-2 me-2">
-                        <i class="fas fa-database me-2"></i> База Данных
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('tables') }}" class="btn btn-primary px-3 py-2">
+                        <i class="fas fa-database me-1"></i> База Данных
                     </a>
                     <a href="{{ url_for('ai_analysis') }}" class="btn btn-outline-premium px-3 py-2">
-                        <i class="fas fa-robot me-2"></i> ИИ-Ассистент
+                        <i class="fas fa-robot me-1"></i> ИИ-Ассистент
                     </a>
                 </div>
             </div>
 
-            <!-- Графики (Charts.js) и Быстрые действия -->
+            <!-- Графики и Быстрые действия -->
             <div class="row mb-4">
                 <!-- Главный график -->
                 <div class="col-lg-8 mb-4 mb-lg-0">
                     <div class="card shadow-sm border-0 h-100 animate-on-scroll stagger-1">
-                        <div class="card-header bg-white pb-0 pt-4 px-4 border-0">
+                        <div class="card-header bg-white pb-0 pt-4 px-4 border-0 d-flex justify-content-between align-items-center">
                             <h6 class="mb-0 text-dark font-weight-bolder">Сравнение параметров составов</h6>
+                            <span class="badge bg-light text-muted" id="chartBadge">
+                                <i class="fas fa-chart-bar me-1"></i><span id="chartCount">{{ chart_labels | length | default(0) }}</span>
+                            </span>
                         </div>
                         <div class="card-body px-4 pb-4">
-                            <div style="height: 300px; width: 100%;">
+                            <div class="chart-container" style="height: 300px; width: 100%; position: relative;">
                                 <canvas id="mainBarChart"></canvas>
+                                <!-- Заглушка при отсутствии данных -->
+                                <div id="chartPlaceholder" class="d-flex align-items-center justify-content-center position-absolute top-0 start-0 w-100 h-100 {% if chart_labels and chart_labels|length > 0 %}d-none{% endif %}">
+                                    <div class="text-center text-muted">
+                                        <i class="fas fa-chart-bar fa-3x mb-3 opacity-50"></i>
+                                        <p class="mb-0">Загрузите данные для отображения графика</p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Быстрые действия (Quick Actions) (BankDash Style) -->
+                <!-- Быстрые действия -->
                 <div class="col-lg-4">
                     <div class="row">
                         <div class="col-12 mb-4">
                             <a href="{{ url_for('ml_dashboard') }}" class="text-decoration-none w-100">
                                 <div class="card shadow-sm border-0 hover-lift animate-on-scroll stagger-2">
                                     <div class="card-body p-4 d-flex align-items-center">
-                                        <div class="icon icon-shape bg-primary shadow-sm text-center border-radius-md me-3 d-flex align-items-center justify-content-center"
+                                        <div class="icon icon-shape bg-gradient-primary shadow-sm text-center border-radius-md me-3 d-flex align-items-center justify-content-center"
                                             style="width: 50px; height: 50px;">
                                             <i class="fas fa-brain fa-lg text-white"></i>
                                         </div>
                                         <div>
                                             <h6 class="text-dark font-weight-bolder mb-1">ML Оптимизатор</h6>
-                                            <p class="text-xs text-muted mb-0">Обучение моделей</p>
+                                            <p class="text-xs text-muted mb-0">Обучение моделей и предсказания</p>
                                         </div>
                                     </div>
                                 </div>
                             </a>
                         </div>
-                        <div class="col-12">
+                        <div class="col-12 mb-4">
                             <a href="{{ url_for('create_graph') }}" class="text-decoration-none w-100">
                                 <div class="card shadow-sm border-0 hover-lift animate-on-scroll stagger-3">
                                     <div class="card-body p-4 d-flex align-items-center">
-                                        <div class="icon icon-shape bg-info shadow-sm text-center border-radius-md me-3 d-flex align-items-center justify-content-center"
+                                        <div class="icon icon-shape bg-gradient-info shadow-sm text-center border-radius-md me-3 d-flex align-items-center justify-content-center"
                                             style="width: 50px; height: 50px;">
                                             <i class="fas fa-chart-line fa-lg text-white"></i>
                                         </div>
                                         <div>
                                             <h6 class="text-dark font-weight-bolder mb-1">Генератор Графиков</h6>
                                             <p class="text-xs text-muted mb-0">Визуализация данных</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="col-12">
+                            <a href="{{ url_for('economics') }}" class="text-decoration-none w-100">
+                                <div class="card shadow-sm border-0 hover-lift animate-on-scroll stagger-4">
+                                    <div class="card-body p-4 d-flex align-items-center">
+                                        <div class="icon icon-shape bg-gradient-success shadow-sm text-center border-radius-md me-3 d-flex align-items-center justify-content-center"
+                                            style="width: 50px; height: 50px;">
+                                            <i class="fas fa-coins fa-lg text-white"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="text-dark font-weight-bolder mb-1">Экономика</h6>
+                                            <p class="text-xs text-muted mb-0">Расчёт стоимости</p>
                                         </div>
                                     </div>
                                 </div>
@@ -80,19 +106,28 @@
             <!-- Форма загрузки и выбора файла -->
             <div class="card shadow-sm border-0 animate-on-scroll stagger-4 mb-4">
                 <div class="card-header bg-white pb-0 pt-4 px-4 text-center border-0">
-                    <h6 class="text-dark font-weight-bolder">Загрузка и Выбор Файла</h6>
+                    <h6 class="text-dark font-weight-bolder"><i class="fas fa-cloud-upload-alt me-2"></i>Загрузка и Выбор Файла</h6>
                 </div>
                 <div class="card-body px-4 pt-4 pb-4">
+                    <!-- Зона drag & drop -->
+                    <div id="dropZone" class="drop-zone mb-3">
+                        <i class="fas fa-file-csv fa-2x text-muted mb-2"></i>
+                        <p class="text-muted mb-1">Перетащите файл сюда или нажмите для выбора</p>
+                        <small class="text-muted">Поддерживаемые форматы: CSV, XLSX</small>
+                        <input type="file" id="fileInput" name="file" accept=".csv,.xlsx" class="d-none">
+                    </div>
+                    
                     <form method="post" enctype="multipart/form-data" id="dataForm">
                         <div class="row align-items-end">
                             <div class="col-md-5 mb-3 mb-md-0">
-                                <label for="file" class="form-label text-sm font-weight-bold text-muted">Загрузить
-                                    CSV/Excel</label>
+                                <label for="file" class="form-label text-sm font-weight-bold text-muted">Или выберите файл с диска</label>
                                 <input type="file" class="form-control" id="file" name="file" accept=".csv,.xlsx">
+                                <div id="fileInfo" class="file-info d-none mt-1">
+                                    <small class="text-muted"><i class="fas fa-file me-1"></i><span id="fileName"></span></small>
+                                </div>
                             </div>
                             <div class="col-md-5 mb-3 mb-md-0">
-                                <label for="selected_file"
-                                    class="form-label text-sm font-weight-bold text-muted">Выбрать существующий</label>
+                                <label for="selected_file" class="form-label text-sm font-weight-bold text-muted">Или выберите из базы</label>
                                 <select class="form-select" id="selected_file" name="selected_file">
                                     <option value="" disabled selected>Выберите файл из базы</option>
                                     {% for file in uploaded_files %}
@@ -101,27 +136,34 @@
                                 </select>
                             </div>
                             <div class="col-md-2 text-center text-md-end">
-                                <button type="submit" class="btn btn-primary w-100 mb-0">Загрузить</button>
+                                <button type="submit" class="btn btn-primary w-100 mb-0" id="submitBtn">
+                                    <span class="btn-text"><i class="fas fa-upload me-1"></i> Загрузить</span>
+                                    <span class="btn-loading d-none">
+                                        <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                        Загрузка...
+                                    </span>
+                                </button>
                             </div>
+                        </div>
+                        <div class="form-text mt-2">
+                            <i class="fas fa-info-circle me-1"></i>Выберите один вариант: загрузить новый файл или выбрать существующий
                         </div>
                     </form>
                 </div>
             </div>
 
-            <!-- Дашборд Статистика (вместо таблиц) -->
+            <!-- Дашборд Статистика -->
             <div class="row mt-4">
                 <div class="col-xl-4 col-md-6 mb-4">
                     <div class="card shadow-sm border-0 animate-on-scroll stagger-1 h-100 hover-lift">
                         <div class="card-body p-4">
                             <div class="d-flex align-items-center">
-                                <div
-                                    class="icon icon-shape bg-primary shadow-sm text-center border-radius-md me-3 text-white">
+                                <div class="icon icon-shape bg-gradient-primary shadow-sm text-center border-radius-md me-3 text-white">
                                     <i class="fas fa-flask"></i>
                                 </div>
                                 <div class="ms-2">
                                     <p class="text-sm mb-0 text-muted font-weight-bold">Измеренных параметров</p>
-                                    <h4 class="font-weight-bolder text-dark mb-0">{{ total_measured_count | default(0)
-                                        }}</h4>
+                                    <h4 class="font-weight-bolder text-dark mb-0" id="statMeasured">{{ total_measured_count | default(0) }}</h4>
                                 </div>
                             </div>
                         </div>
@@ -132,14 +174,12 @@
                     <div class="card shadow-sm border-0 animate-on-scroll stagger-2 h-100 hover-lift">
                         <div class="card-body p-4">
                             <div class="d-flex align-items-center">
-                                <div
-                                    class="icon icon-shape bg-success shadow-sm text-center border-radius-md me-3 text-white">
+                                <div class="icon icon-shape bg-gradient-success shadow-sm text-center border-radius-md me-3 text-white">
                                     <i class="fas fa-leaf"></i>
                                 </div>
                                 <div class="ms-2">
                                     <p class="text-sm mb-0 text-muted font-weight-bold">Компонентов в базе</p>
-                                    <h4 class="font-weight-bolder text-dark mb-0">{{ total_components_count | default(0)
-                                        }}</h4>
+                                    <h4 class="font-weight-bolder text-dark mb-0" id="statComponents">{{ total_components_count | default(0) }}</h4>
                                 </div>
                             </div>
                         </div>
@@ -150,13 +190,12 @@
                     <div class="card shadow-sm border-0 animate-on-scroll stagger-3 h-100 hover-lift">
                         <div class="card-body p-4">
                             <div class="d-flex align-items-center">
-                                <div
-                                    class="icon icon-shape bg-info shadow-sm text-center border-radius-md me-3 text-white">
+                                <div class="icon icon-shape bg-gradient-info shadow-sm text-center border-radius-md me-3 text-white">
                                     <i class="fas fa-file-excel"></i>
                                 </div>
                                 <div class="ms-2">
                                     <p class="text-sm mb-0 text-muted font-weight-bold">Загружено файлов</p>
-                                    <h4 class="font-weight-bolder text-dark mb-0">{{ uploaded_files | length }}</h4>
+                                    <h4 class="font-weight-bolder text-dark mb-0" id="statFiles">{{ uploaded_files | length }}</h4>
                                 </div>
                             </div>
                         </div>
@@ -182,13 +221,84 @@
         </div>
     </div>
 </div>
-</div>
 
 {% block extra_js %}
 <!-- Загрузка Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
+    /* Drop Zone стили */
+    .drop-zone {
+        border: 2px dashed #e0e0e0;
+        border-radius: 12px;
+        padding: 2rem;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        background: #fafafa;
+    }
+
+    .drop-zone:hover, .drop-zone.drag-over {
+        border-color: #2D60FF;
+        background: rgba(45, 96, 255, 0.05);
+    }
+
+    .drop-zone.drag-over {
+        transform: scale(1.02);
+    }
+
+    /* Информация о файле */
+    .file-info {
+        padding: 0.25rem 0.5rem;
+        background: #f8f9fa;
+        border-radius: 6px;
+    }
+
+    /* Состояние загрузки кнопки */
+    .btn-loading {
+        display: inline-flex;
+        align-items: center;
+    }
+
+    /* Hover-эффекты для карточек */
+    .hover-lift {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .hover-lift:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1) !important;
+    }
+
+    /* Градиенты для иконок */
+    .bg-gradient-primary {
+        background: linear-gradient(310deg, #7928ca, #ff0080) !important;
+    }
+
+    .bg-gradient-info {
+        background: linear-gradient(310deg, #2152ff, #21d4fd) !important;
+    }
+
+    .bg-gradient-success {
+        background: linear-gradient(310deg, #17ad37, #98ec2d) !important;
+    }
+
+    /* Анимация для статистики */
+    .stat-animate {
+        animation: countUp 0.5s ease-out;
+    }
+
+    @keyframes countUp {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Chart container */
+    .chart-container {
+        position: relative;
+    }
+
+    /* Toast */
     .toast-container {
         position: fixed;
         bottom: 20px;
@@ -199,272 +309,376 @@
     .toast {
         min-width: 300px;
     }
-
-    .table-responsive {
-        max-height: 400px;
-        max-width: 100%;
-        overflow-x: auto;
-        overflow-y: auto;
-    }
-
-    .table {
-        font-size: 0.9rem;
-    }
 </style>
+
 <script>
+document.addEventListener('DOMContentLoaded', function () {
+    // === Инициализация графика ===
+    initMainChart();
+    
+    // === Инициализация формы загрузки ===
+    initFileUpload();
+    
+    // === Взаимное исключение: файл или выбор из базы ===
+    initMutualExclusion();
+});
 
-    document.addEventListener('DOMContentLoaded', function () {
-        console.log('=== ОТЛАДКА JS: Начало замены заголовков ===');
+/**
+ * Инициализация главного графика Chart.js
+ */
+function initMainChart() {
+    const canvas = document.getElementById('mainBarChart');
+    if (!canvas) return;
 
-        const headerMapping = {
-            'composition': 'Составы',
-            'density': 'Плотность, кг/м3',
-            'kf': 'Ударопрочность, %',
-            'kt': 'Устойчивость к колебательным нагрузкам, %',
-            'h': 'Гигроскопичность, %',
-            'mass_loss': 'Потеря массы, %',
-            'tign': 'Температура зажигания, °С',
-            'tb': 'Температура выгорания, °C',
-            'tau_d1': 'Задержка газофазного зажигания, C',
-            'tau_d2': 'Задержка гетерогенного зажигания, C',
-            'tau_b': 'Время горения, С',
-            'co2': 'Концентрации диоксида углерода, %',
-            'co': 'Концентрации монооксида углерода, %',
-            'so2': 'Концентрации оксидов серы, ppm',
-            'nox': 'Концентрации оксидов азота, ppm',
-            'q': 'Теплота сгорания, МДж/кг',
-            'ad': 'Содержание золы на сухую массу, %',
-            'component': 'Компоненты',
-            'war': 'Влажность на аналитическую массу, %',
-            'vd': 'Содержание летучих на сухую массу, %',
-            'cd': 'Содержание углерода на сухую массу, %',
-            'hd': 'Содержание водорода на сухую массу, %',
-            'nd': 'Содержание азота на сухую массу, %',
-            'sd': 'Содержание серы на сухую массу, %',
-            'od': 'Содержание кислорода на сухую массу, %'
-        };
-
-        // Находим все таблицы и заменяем заголовки
-        const tables = document.querySelectorAll('table');
-        console.log(`=== ОТЛАДКА JS: Найдено таблиц: ${tables.length}`);
-
-        tables.forEach((table, index) => {
-            const headers = table.querySelectorAll('thead th');
-            console.log(`=== ОТЛАДКА JS: Таблица ${index + 1}, заголовков: ${headers.length}`);
-
-            headers.forEach((th, thIndex) => {
-                const englishHeader = th.textContent.trim();
-                console.log(`=== ОТЛАДКА JS: Заголовок ${thIndex}: "${englishHeader}"`);
-
-                if (headerMapping[englishHeader]) {
-                    console.log(`=== ОТЛАДКА JS: Заменяем "${englishHeader}" на "${headerMapping[englishHeader]}"`);
-                    th.textContent = headerMapping[englishHeader];
-                }
-            });
-        });
-
-        console.log('=== ОТЛАДКА JS: Замена заголовков завершена ===');
-    });
-
-    // Асинхронная отправка формы загрузки/выбора файла
-    document.getElementById('dataForm')?.addEventListener('submit', async function (e) {
-        e.preventDefault();
-        const formData = new FormData(this);
-        const fileInput = document.getElementById('file');
-        const selectedFile = document.getElementById('selected_file').value;
-        const url = fileInput.files.length > 0 ? '/' : '/load_file';
-        try {
-            const response = await fetch(url, {
-                method: 'POST',
-                body: formData
-            });
-            const data = await response.json();
-            if (data.success) {
-                showToast(data.message, 'success');
-                if (data.uploaded_files) {
-                    updateFileSelect(data.uploaded_files);
-                }
-                // ЕСЛИ ЕСТЬ refresh_page - перезагружаем страницу
-                if (data.refresh_page) {
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 1000);
-                }
-            } else {
-                showToast(data.message, 'danger');
-            }
-        } catch (error) {
-            showToast('Ошибка: ' + error.message, 'danger');
-        }
-    });
-
-    function showToast(message, type) {
-        const toastContainer = document.createElement('div');
-        toastContainer.className = 'toast-container';
-        toastContainer.innerHTML = `
-                <div class="toast align-items-center text-white bg-${type} border-0" role="alert" aria-live="assertive" aria-atomic="true">
-                    <div class="d-flex">
-                        <div class="toast-body">${message}</div>
-                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-                    </div>
-                </div>
-            `;
-        document.body.appendChild(toastContainer);
-        const toast = toastContainer.querySelector('.toast');
-        bootstrap.Toast.getOrCreateInstance(toast).show();
-        setTimeout(() => toastContainer.remove(), 3000);
+    // Безопасное получение данных из Jinja
+    let chartLabels, chartData;
+    try {
+        chartLabels = JSON.parse('{{ chart_labels | default([]) | tojson | safe }}');
+        chartData = JSON.parse('{{ chart_data | default([]) | tojson | safe }}');
+    } catch (e) {
+        console.error('Ошибка парсинга данных графика:', e);
+        chartLabels = ['Ошибка загрузки'];
+        chartData = [0];
     }
 
-    function updateContent(data) {
-        let measuredDataCard = document.querySelector('#measuredDataCard');
-        let componentsDataCard = document.querySelector('#componentsDataCard');
+    const hasData = chartLabels && chartLabels.length > 0 && chartLabels[0] !== 'Нет данных';
+    const badge = document.getElementById('chartBadge');
+    const placeholder = document.getElementById('chartPlaceholder');
 
-
-        if (!measuredDataCard) {
-            measuredDataCard = document.createElement('div');
-            measuredDataCard.className = 'card glass-card animate-on-scroll stagger-1 mb-4';
-            measuredDataCard.id = 'measuredDataCard';
-            measuredDataCard.innerHTML = `
-                    <div class="card-header pb-0 text-center bg-transparent">
-                        <h6 class="gradient-text-blue">Загруженная таблица (Измеренные параметры)</h6>
-                        <p class="text-sm ms-3 text-muted">Характеристики составов пеллет, включая плотность (ρ), зольность (ad), теплоту сгорания (q) и другие параметры.</p>
-                    </div>
-                    <div class="card-body px-4 pt-0 pb-2" id="measuredDataContainer">
-                        <div class="table-responsive">
-                            <div class="alert alert-warning ms-3 text-white border-0" style="background: rgba(255, 171, 0, 0.8);">Таблица измеренных параметров пуста. Загрузите данные.</div>
-                        </div>
-                    </div>
-                `;
-            document.querySelector('.col-12').appendChild(measuredDataCard);
+    if (!hasData) {
+        chartLabels = ['Загрузите данные'];
+        chartData = [0];
+        if (placeholder) placeholder.classList.remove('d-none');
+        if (badge) badge.classList.add('d-none');
+    } else {
+        if (placeholder) placeholder.classList.add('d-none');
+        if (badge) {
+            badge.classList.remove('d-none');
+            document.getElementById('chartCount').textContent = chartLabels.length;
         }
-
-        if (!componentsDataCard) {
-            componentsDataCard = document.createElement('div');
-            componentsDataCard.className = 'card glass-card animate-on-scroll stagger-2 mb-4';
-            componentsDataCard.id = 'componentsDataCard';
-            componentsDataCard.innerHTML = `
-                    <div class="card-header pb-0 text-center bg-transparent">
-                        <h6 class="gradient-text-blue">\${data.components_sheet_name || 'Таблица компонентов'}</h6>
-                        <p class="text-sm ms-3 text-muted">Характеристики отдельных компонентов пеллет (например, опилки, солома), включая зольность (ad), теплоту сгорания (q), влажность (war) и другие параметры.</p>
-                    </div>
-                    <div class="card-body px-4 pt-0 pb-2" id="componentsDataContainer">
-                        <div class="table-responsive">
-                            <div class="alert alert-warning ms-3 text-white border-0" style="background: rgba(255, 171, 0, 0.8);">Таблица компонентов пуста. Загрузите данные.</div>
-                        </div>
-                    </div>
-                `;
-            document.querySelector('.col-12').appendChild(componentsDataCard);
-        }
-
-
-
-        const measuredDataContainer = document.querySelector('#measuredDataContainer');
-        const componentsDataContainer = document.querySelector('#componentsDataContainer');
-
-
-        if (data.measured_data) {
-            measuredDataContainer.innerHTML = `<div class="table-responsive">${data.measured_data}</div>`;
-        } else {
-            measuredDataContainer.innerHTML = '<div class="table-responsive"><div class="alert alert-warning ms-3">Таблица измеренных параметров пуста. Загрузите данные.</div></div>';
-        }
-
-        if (data.components_data) {
-            componentsDataContainer.innerHTML = `<div class="table-responsive">${data.components_data}</div>`;
-        } else {
-            componentsDataContainer.innerHTML = '<div class="table-responsive"><div class="alert alert-warning ms-3">Таблица компонентов пуста. Загрузите данные.</div></div>';
-        }
-
     }
 
-    function updateFileSelect(files) {
-        const select = document.querySelector('#selected_file');
-        select.innerHTML = '<option value="" disabled selected>Выберите файл</option>';
-        files.forEach(file => {
-            const option = document.createElement('option');
-            option.value = file;
-            option.textContent = file;
-            select.appendChild(option);
-        });
+    const ctx = canvas.getContext('2d');
+    
+    // Уничтожаем существующий график если есть
+    if (canvas._chart) {
+        canvas._chart.destroy();
     }
 
-    // Инициализация Chart.js для Дашборда
-    document.addEventListener('DOMContentLoaded', function () {
-        // Проверяем наличие canvas
-        var canvas = document.getElementById('mainBarChart');
-        if (canvas) {
-            var ctx = canvas.getContext('2d');
-
-            // Используем данные из бэкенда (Flask/Jinja)
-            // Прячем Jinja в строку, чтобы автоформаттер (Prettier/IDE) не ломал фигурные скобки
-            var chartLabels = JSON.parse('{{ chart_labels | default([]) | tojson | safe }}');
-            var chartData = JSON.parse('{{ chart_data | default([]) | tojson | safe }}');
-
-            // Если данных нет, показываем заглушку
-            if (!chartLabels || chartLabels.length === 0) {
-                chartLabels = ['Нет данных'];
-                chartData = [0];
-            }
-
-            var mainChart = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: chartLabels,
-                    datasets: [{
-                        label: 'Количество упоминаний в составе',
-                        data: chartData,
-                        backgroundColor: '#2D60FF',
-                        borderRadius: 6,
-                        barPercentage: 0.6,
-                        categoryPercentage: 0.8
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            display: false // Скрываем легенду для чистоты BankDash
-                        },
-                        tooltip: {
-                            backgroundColor: '#343C6A',
-                            titleFont: { size: 13, family: "'Inter', sans-serif" },
-                            bodyFont: { size: 14, family: "'Inter', sans-serif" },
-                            padding: 12,
-                            cornerRadius: 8,
-                            displayColors: false
-                        }
+    canvas._chart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: chartLabels,
+            datasets: [{
+                label: 'Количество упоминаний в составе',
+                data: chartData,
+                backgroundColor: hasData ? 
+                    chartData.map((_, i) => {
+                        const colors = ['#7928CA', '#FF0080', '#2152FF', '#21D4FD', '#17AD37', '#98EC2D', '#F5365C'];
+                        return colors[i % colors.length];
+                    }) : 
+                    '#E0E0E0',
+                borderRadius: 6,
+                barPercentage: 0.6,
+                categoryPercentage: 0.8
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: {
+                duration: hasData ? 800 : 0,
+                easing: 'easeOutQuart'
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#343C6A',
+                    titleFont: { size: 13, family: "'Inter', sans-serif" },
+                    bodyFont: { size: 14, family: "'Inter', sans-serif" },
+                    padding: 12,
+                    cornerRadius: 8,
+                    displayColors: false,
+                    enabled: hasData
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: '#E6EFF5',
+                        drawBorder: false,
+                        borderDash: [5, 5]
                     },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            grid: {
-                                color: '#E6EFF5',
-                                drawBorder: false,
-                                borderDash: [5, 5] // Пунктирная линия сетки как в BankDash
-                            },
-                            ticks: {
-                                color: '#718EBF',
-                                font: { family: "'Inter', sans-serif", size: 12 },
-                                padding: 10
-                            }
-                        },
-                        x: {
-                            grid: {
-                                display: false,
-                                drawBorder: false
-                            },
-                            ticks: {
-                                color: '#718EBF',
-                                font: { family: "'Inter', sans-serif", size: 12 },
-                                padding: 10
-                            }
-                        }
+                    ticks: {
+                        color: '#718EBF',
+                        font: { family: "'Inter', sans-serif", size: 12 },
+                        padding: 10,
+                        stepSize: hasData ? undefined : 1
+                    }
+                },
+                x: {
+                    grid: { display: false, drawBorder: false },
+                    ticks: {
+                        color: hasData ? '#718EBF' : '#B0B0B0',
+                        font: { family: "'Inter', sans-serif", size: 12 },
+                        padding: 10
                     }
                 }
-            });
+            }
+        }
+    });
+}
+
+/**
+ * Инициализация формы загрузки с drag & drop
+ */
+function initFileUpload() {
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const fileField = document.getElementById('file');
+    const fileInfo = document.getElementById('fileInfo');
+    const fileName = document.getElementById('fileName');
+
+    if (!dropZone || !fileInput) return;
+
+    // Клик по drop zone открывает выбор файла
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    // Drag & Drop события
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+        });
+    });
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropZone.addEventListener(eventName, () => dropZone.classList.add('drag-over'));
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, () => dropZone.classList.remove('drag-over'));
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            handleFileSelect(files[0]);
         }
     });
 
+    // Событие выбора файла через input
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            handleFileSelect(e.target.files[0]);
+        }
+    });
+
+    // Событие выбора файла через стандартное поле
+    fileField.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            handleFileSelect(e.target.files[0]);
+        }
+    });
+
+    function handleFileSelect(file) {
+        // Проверяем расширение
+        const ext = file.name.split('.').pop().toLowerCase();
+        if (!['csv', 'xlsx'].includes(ext)) {
+            showToast('Неподдерживаемый формат. Используйте CSV или XLSX.', 'danger');
+            return;
+        }
+
+        // Обновляем стандартное поле файла
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        fileField.files = dataTransfer.files;
+
+        // Показываем информацию о файле
+        if (fileInfo && fileName) {
+            fileName.textContent = `${file.name} (${(file.size / 1024).toFixed(1)} КБ)`;
+            fileInfo.classList.remove('d-none');
+        }
+
+        // Очищаем выбор из базы
+        const selectFile = document.getElementById('selected_file');
+        if (selectFile) selectFile.value = '';
+
+        showToast(`Файл "${file.name}" выбран для загрузки`, 'info');
+    }
+}
+
+/**
+ * Взаимное исключение: файл или выбор из базы
+ */
+function initMutualExclusion() {
+    const fileField = document.getElementById('file');
+    const selectField = document.getElementById('selected_file');
+
+    if (!fileField || !selectField) return;
+
+    fileField.addEventListener('change', () => {
+        if (fileField.files.length > 0) {
+            selectField.value = '';
+        }
+    });
+
+    selectField.addEventListener('change', () => {
+        if (selectField.value) {
+            fileField.value = '';
+            const fileInfo = document.getElementById('fileInfo');
+            if (fileInfo) fileInfo.classList.add('d-none');
+        }
+    });
+}
+
+/**
+ * Отправка формы с индикатором загрузки
+ */
+document.getElementById('dataForm')?.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    
+    const fileInput = document.getElementById('file');
+    const selectedFile = document.getElementById('selected_file').value;
+    const hasFile = fileInput && fileInput.files.length > 0;
+    const hasSelection = selectedFile && selectedFile !== '';
+
+    if (!hasFile && !hasSelection) {
+        showToast('Выберите файл для загрузки или загрузите новый', 'warning');
+        return;
+    }
+
+    // Показываем индикатор загрузки
+    const submitBtn = document.getElementById('submitBtn');
+    const btnText = submitBtn?.querySelector('.btn-text');
+    const btnLoading = submitBtn?.querySelector('.btn-loading');
+    
+    if (submitBtn) submitBtn.disabled = true;
+    if (btnText) btnText.classList.add('d-none');
+    if (btnLoading) btnLoading.classList.remove('d-none');
+
+    const formData = new FormData(this);
+    const url = hasFile ? '/' : '/load_file';
+
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) {
+            throw new Error(`Ошибка сервера: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (data.success) {
+            showToast(data.message, 'success');
+            
+            // Обновляем список файлов
+            if (data.uploaded_files) {
+                updateFileSelect(data.uploaded_files);
+            }
+
+            // Обновляем статистику
+            if (data.total_measured !== undefined) {
+                animateStatValue('statMeasured', data.total_measured);
+            }
+            if (data.total_components !== undefined) {
+                animateStatValue('statComponents', data.total_components);
+            }
+
+            // Перезагрузка при необходимости
+            if (data.refresh_page) {
+                setTimeout(() => window.location.reload(), 1000);
+            }
+        } else {
+            showToast(data.message || 'Произошла ошибка при загрузке', 'danger');
+        }
+    } catch (error) {
+        showToast('Ошибка: ' + error.message, 'danger');
+    } finally {
+        // Восстанавливаем кнопку
+        if (submitBtn) submitBtn.disabled = false;
+        if (btnText) btnText.classList.remove('d-none');
+        if (btnLoading) btnLoading.classList.add('d-none');
+    }
+});
+
+/**
+ * Анимация изменения значения статистики
+ */
+function animateStatValue(elementId, newValue) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    
+    el.textContent = newValue;
+    el.classList.add('stat-animate');
+    setTimeout(() => el.classList.remove('stat-animate'), 500);
+}
+
+/**
+ * Обновление списка файлов в select
+ */
+function updateFileSelect(files) {
+    const select = document.getElementById('selected_file');
+    if (!select) return;
+    
+    const currentValue = select.value;
+    select.innerHTML = '<option value="" disabled selected>Выберите файл из базы</option>';
+    
+    files.forEach(file => {
+        const option = document.createElement('option');
+        option.value = file;
+        option.textContent = file;
+        select.appendChild(option);
+    });
+
+    // Восстанавливаем выбор если файл ещё существует
+    if (currentValue && files.includes(currentValue)) {
+        select.value = currentValue;
+    }
+
+    // Обновляем счётчик файлов
+    const statFiles = document.getElementById('statFiles');
+    if (statFiles) {
+        statFiles.textContent = files.length;
+    }
+}
+
+/**
+ * Показ toast-уведомления
+ */
+function showToast(message, type = 'info') {
+    // Удаляем существующий контейнер
+    let toastContainer = document.querySelector('.toast-container');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.className = 'toast-container';
+        document.body.appendChild(toastContainer);
+    }
+
+    const toastEl = document.createElement('div');
+    toastEl.className = `toast align-items-center text-white bg-${type} border-0 mb-2`;
+    toastEl.setAttribute('role', 'alert');
+    toastEl.setAttribute('aria-live', 'assertive');
+    toastEl.setAttribute('aria-atomic', 'true');
+    toastEl.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">${message}</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+    `;
+    
+    toastContainer.appendChild(toastEl);
+    
+    const toast = new bootstrap.Toast(toastEl, { delay: 3000 });
+    toast.show();
+
+    // Удаляем из DOM после скрытия
+    toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove());
+}
 </script>
 {% endblock extra_js %}
 {% endblock %}

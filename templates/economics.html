@@ -378,6 +378,21 @@
             const file = e.target.files[0];
             if (!file) return;
 
+            // Проверка расширения
+            const allowedExts = ['.xlsx', '.xls'];
+            const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+            if (!allowedExts.includes(ext)) {
+                Swal.fire({
+                    title: 'Неверный формат',
+                    text: 'Поддерживаются только файлы Excel (.xlsx, .xls)',
+                    icon: 'warning',
+                    background: '#1e1e2d',
+                    color: '#fff'
+                });
+                pricesFileInput.value = '';
+                return;
+            }
+
             const formData = new FormData();
             formData.append('file', file);
 
@@ -389,11 +404,16 @@
                 method: 'POST',
                 body: formData
             })
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     uploadPricesBtn.disabled = false;
                     uploadPricesBtn.innerHTML = '<i class="fas fa-upload me-1"></i>Загрузить цены';
-                    pricesFileInput.value = ''; // Reset input
+                    pricesFileInput.value = '';
 
                     if (data.success) {
                         Swal.fire({
@@ -403,7 +423,6 @@
                             background: '#1e1e2d',
                             color: '#fff'
                         });
-                        // Refresh component list to get updated data if needed
                         loadAvailableComponents();
                     } else {
                         Swal.fire({
@@ -418,10 +437,10 @@
                 .catch(error => {
                     uploadPricesBtn.disabled = false;
                     uploadPricesBtn.innerHTML = '<i class="fas fa-upload me-1"></i>Загрузить цены';
-                    pricesFileInput.value = ''; // Reset input
+                    pricesFileInput.value = '';
                     Swal.fire({
                         title: 'Ошибка',
-                        text: 'Сервер недоступен: ' + error,
+                        text: 'Сервер недоступен: ' + error.message,
                         icon: 'error',
                         background: '#1e1e2d',
                         color: '#fff'

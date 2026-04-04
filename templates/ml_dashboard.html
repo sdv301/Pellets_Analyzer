@@ -7,80 +7,143 @@
     /* =========================================
        ПРЕМИУМ CSS СТИЛИ (SOFT UI) И ВКЛАДКИ
        ========================================= */
-    .nav-pills .nav-link {
-        border-radius: 0.75rem;
-        padding: 12px 20px;
-        font-weight: 600;
-        color: #67748e;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* =========================================
+       ВКЛАДКИ #ml-tabs
+       ========================================= */
+
+    /* --- Контейнер: CSS-переменные + визуальные свойства (единый блок) --- */
+    #ml-tabs {
+        /* Light theme variables */
+        --tab-bg: rgba(255, 255, 255, 0.4);
+        --tab-border: rgba(255, 255, 255, 0.3);
+        --tab-color: var(--bank-text-muted, #67748e);
+        --tab-hover-bg: rgba(255, 255, 255, 0.5);
+        --tab-hover-color: var(--bank-text-main, #344767);
+        --tab-hover-border: rgba(255, 255, 255, 0.2);
+        --tab-active-bg: rgba(255, 255, 255, 0.5);
+        --tab-active-color: var(--bank-primary, #2D60FF);
+        --tab-active-border: rgba(255, 255, 255, 0.3);
+        --tab-icon-bg: rgba(255, 255, 255, 0.3);
+        --tab-icon-color: var(--bank-primary, #2D60FF);
+        --tab-icon-bg-active: rgba(45, 96, 255, 0.15);
+        --tab-inactive-icon-bg: rgba(0, 0, 0, 0.06);
+        --tab-inactive-icon-color: var(--bank-text-muted, #67748e);
+
+        /* Glass-эффект контейнера */
+        background: var(--tab-bg) !important;
+        backdrop-filter: blur(20px) saturate(180%);
+        -webkit-backdrop-filter: blur(20px) saturate(180%);
+        border: 1px solid var(--tab-border) !important;
+        box-shadow: none !important;
+        transition: all 0.3s ease;
+        padding: 6px !important;
+    }
+
+    /* --- Тёмная тема: только переопределение переменных --- */
+    [data-theme="dark"] #ml-tabs {
+        --tab-bg: rgba(30, 30, 45, 0.5);
+        --tab-border: rgba(255, 255, 255, 0.06);
+        --tab-color: var(--text-secondary, #94979b);
+        --tab-hover-bg: rgba(255, 255, 255, 0.05);
+        --tab-hover-color: var(--text-primary, #e3e5e8);
+        --tab-hover-border: transparent;
+        --tab-active-bg: rgba(255, 255, 255, 0.05);
+        --tab-active-color: var(--accent, #5e6ad2);
+        --tab-active-border: rgba(255, 255, 255, 0.08);
+        --tab-icon-bg: rgba(255, 255, 255, 0.06);
+        --tab-icon-color: var(--accent, #5e6ad2);
+        --tab-icon-bg-active: rgba(94, 106, 210, 0.2);
+        --tab-inactive-icon-bg: rgba(255, 255, 255, 0.06);
+        --tab-inactive-icon-color: var(--text-secondary, #94979b);
+    }
+
+    /* --- Кнопка вкладки (универсальный класс) --- */
+    .ml-tab-btn {
+        position: relative;
+        border-radius: 0.6rem;
+        padding: 10px 16px;
+        font-weight: 500;
+        color: var(--tab-color);
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         border: 1px solid transparent;
-        margin: 0 5px;
+        margin: 0 2px;
         background: transparent;
         width: 100%;
+        outline: none !important;
+        box-shadow: none !important;
+        -webkit-tap-highlight-color: transparent;
     }
 
-    .nav-pills .nav-link.active {
-        background: linear-gradient(310deg, #cb0c9f 0%, #ff4b8b 100%);
-        color: white !important;
-        box-shadow: 0 4px 15px 0 rgba(203, 12, 159, 0.35);
-        transform: translateY(-2px);
+    /* Сброс Bootstrap-артефактов при фокусе / показе */
+    .ml-tab-btn:focus,
+    .ml-tab-btn:focus-visible,
+    .ml-tab-btn:active,
+    .ml-tab-btn.show {
+        outline: none !important;
+        box-shadow: none !important;
+        text-decoration: none !important;
     }
 
-    .nav-pills .nav-link:hover:not(.active) {
-        background-color: #f8f9fa;
-        color: #344767;
-        border-color: #e9ecef;
+    /* Hover неактивной вкладки */
+    .ml-tab-btn:hover:not(.active) {
+        background: var(--tab-hover-bg);
+        color: var(--tab-hover-color);
+        border-color: var(--tab-hover-border);
     }
 
-    /* Dark mode nav pills */
-    [data-theme="dark"] .nav-pills .nav-link {
-        color: #b0b0b0;
+    /* Активная вкладка */
+    .ml-tab-btn.active {
+        box-shadow: none;
+        filter: none;
+        transform: none;
+        background: var(--tab-active-bg);
+        color: var(--tab-active-color);
+        border-color: var(--tab-active-border);
     }
 
-    [data-theme="dark"] .nav-pills .nav-link:hover:not(.active) {
-        background-color: rgba(255, 255, 255, 0.05);
-        color: #e8e8e8;
-        border-color: #3a3a5a;
-    }
-
-    [data-theme="dark"] .nav-pills.nav-fill {
-        background-color: #1e1e3f !important;
-        border-color: #2a2a4a !important;
-    }
-
-        .step-icon {
+    /* --- Иконка шага (step-icon) --- */
+    .step-icon {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 28px;
-        height: 28px;
+        width: 24px;
+        height: 24px;
         border-radius: 50%;
-        background: rgba(255, 255, 255, 0.2);
-        margin-right: 8px;
-        font-size: 0.8rem;
+        background: var(--tab-icon-bg);
+        color: var(--tab-icon-color);
+        margin-right: 6px;
+        font-size: 0.75rem;
+        transition: all 0.2s ease;
     }
 
-    .nav-link:not(.active) .step-icon {
-        background: #e9ecef;
-        color: #cb0c9f;
+    /* Иконка неактивной вкладки */
+    .ml-tab-btn:not(.active) .step-icon {
+        background: var(--tab-inactive-icon-bg);
+        color: var(--tab-inactive-icon-color);
     }
 
-    [data-theme="dark"] .nav-link:not(.active) .step-icon {
-        background: #2a2a4a;
-        color: #ff4b8b;
+    /* Иконка активной вкладки */
+    .ml-tab-btn.active .step-icon {
+        background: var(--tab-icon-bg-active);
+        color: var(--tab-icon-color);
     }
 
-        .glass-card {
-        background: rgba(255, 255, 255, 0.95);
+    .glass-card {
+        background: rgba(255, 255, 255, 0.7) !important;
+        backdrop-filter: blur(16px) saturate(180%);
+        -webkit-backdrop-filter: blur(16px) saturate(180%);
         border-radius: 1rem;
-        box-shadow: 0 8px 24px rgba(149, 157, 165, 0.1);
-        border: 1px solid rgba(255, 255, 255, 0.8);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.3) !important;
     }
 
     [data-theme="dark"] .glass-card {
-        background: rgba(30, 30, 63, 0.95);
-        border: 1px solid rgba(255, 255, 255, 0.05);
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+        background: rgba(30, 30, 45, 0.6) !important;
+        backdrop-filter: blur(16px) saturate(180%);
+        -webkit-backdrop-filter: blur(16px) saturate(180%);
+        border: 1px solid rgba(255, 255, 255, 0.06) !important;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
     }
 
         /* Кастомные чекбоксы-тэги для компонентов из БД */
@@ -142,9 +205,9 @@
         width: 20px;
         height: 20px;
         border-radius: 50%;
-        background: #cb0c9f;
+                background: #0d6efd;
         cursor: pointer;
-        box-shadow: 0 2px 6px rgba(203, 12, 159, 0.4);
+        box-shadow: 0 2px 6px rgba(13, 110, 253, 0.35);
         border: 2px solid white;
     }
 
@@ -153,10 +216,10 @@
         background: #2a2a4a;
     }
 
-    [data-theme="dark"] .custom-range::-webkit-slider-thumb {
-        background: #ff4b8b;
+        [data-theme="dark"] .custom-range::-webkit-slider-thumb {
+        background: #3b82f6;
         border-color: #1e1e3f;
-        box-shadow: 0 2px 6px rgba(255, 75, 139, 0.4);
+        box-shadow: 0 2px 6px rgba(59, 130, 246, 0.4);
     }
 
         /* Индикатор 100% в песочнице */
@@ -178,6 +241,56 @@
     [data-theme="dark"] .total-bar-container {
         background: #2a2a4a;
     }
+
+    /* Sandbox prediction cards */
+    .sandbox-prediction-card {
+        background: var(--bank-card-bg, #FFFFFF);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .sandbox-prediction-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1) !important;
+    }
+
+    [data-theme="dark"] .sandbox-prediction-card {
+        background: var(--bank-card-bg);
+        border-color: var(--bank-border-color) !important;
+    }
+
+    /* Fix glass-card bg-gray-100 conflict */
+    [data-theme="dark"] .glass-card.bg-gray-100 {
+        background-color: var(--bank-bg-color) !important;
+    }
+
+    /* Fix inline bg-white in JS-generated content */
+    [data-theme="dark"] .card.bg-white {
+        background-color: var(--bank-card-bg) !important;
+    }
+
+    [data-theme="dark"] .bg-gray-200 {
+        background-color: var(--bg-tertiary, #1a1d24) !important;
+        color: var(--text-primary, #e3e5e8) !important;
+    }
+
+    /* Fix border-left inline styles */
+    [data-theme="dark"] [style*="border-left: 3px solid"] {
+        border-left-color: var(--accent, #5e6ad2) !important;
+    }
+
+    [data-theme="dark"] [style*="border-left: 4px solid"] {
+        border-left-color: var(--success, #4daa57) !important;
+    }
+
+    /* Fix text-dark in dark mode */
+    [data-theme="dark"] .text-dark {
+        color: var(--text-primary) !important;
+    }
+
+    /* Fix bg-gray-100 inside glass-cards */
+    [data-theme="dark"] .glass-card .bg-gray-100 {
+        background-color: var(--bg-tertiary, #1a1d24) !important;
+    }
 </style>
 {% endblock extrastyle %}
 
@@ -190,31 +303,31 @@
         </div>
     </div>
 
-    <div class="row mb-4 justify-content-center">
-        <div class="col-lg-10">
-            <ul class="nav nav-pills nav-fill p-2 bg-white shadow-sm border-radius-xl" id="ml-tabs" role="tablist">
+        <div class="row mb-4 justify-content-center">
+        <div class="col-xl-9 col-lg-10 col-md-12">
+            <ul class="nav nav-fill p-2" id="ml-tabs" role="tablist">
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#step1-status" type="button"
+                    <button class="nav-link ml-tab-btn active" data-bs-toggle="tab" data-bs-target="#step1-status" type="button"
                         role="tab"><span class="step-icon"><i class="fas fa-database"></i></span>1. База</button>
                 </li>
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#step2-train" type="button"
+                    <button class="nav-link ml-tab-btn" data-bs-toggle="tab" data-bs-target="#step2-train" type="button"
                         role="tab"><span class="step-icon"><i class="fas fa-brain"></i></span>2. Обучение</button>
                 </li>
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#step3-optimize" type="button"
+                    <button class="nav-link ml-tab-btn" data-bs-toggle="tab" data-bs-target="#step3-optimize" type="button"
                         role="tab"><span class="step-icon"><i class="fas fa-magic"></i></span>3. Поиск</button>
                 </li>
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#step4-sandbox" type="button"
+                    <button class="nav-link ml-tab-btn" data-bs-toggle="tab" data-bs-target="#step4-sandbox" type="button"
                         role="tab"><span class="step-icon"><i class="fas fa-sliders-h"></i></span>4. Песочница</button>
                 </li>
             </ul>
         </div>
     </div>
 
-    <div class="row justify-content-center">
-        <div class="col-lg-10">
+        <div class="row justify-content-center">
+        <div class="col-xl-9 col-lg-10 col-md-12">
             <div class="tab-content">
 
                 <div class="tab-pane fade show active" id="step1-status" role="tabpanel">
@@ -280,7 +393,7 @@
 
                         <form id="ml-training-form">
                             <div class="row mt-4">
-                                <div class="col-md-6 border-end pe-4">
+                                <div class="col-md-6 pe-md-4 mb-3 mb-md-0" style="border-right: 1px solid #dee2e6;">
                                     <label class="fw-bold text-dark text-sm"><i class="fas fa-cogs text-info me-1"></i>
                                         1. Выберите алгоритм ML:</label>
                                     <select name="algorithm"
@@ -310,7 +423,7 @@
                                     </div>
                                 </div>
 
-                                <div class="col-md-6 ps-4">
+                                <div class="col-md-6 ps-md-4">
                                     <label class="fw-bold text-dark text-sm"><i
                                             class="fas fa-puzzle-piece text-success me-1"></i> 3. Из чего будем
                                         собирать?</label>
@@ -323,7 +436,7 @@
                                 </div>
                             </div>
 
-                            <div class="mt-4 pt-3 border-top d-flex justify-content-between align-items-center">
+                            <div class="mt-4 pt-3 border-top d-flex justify-content-between align-items-center flex-wrap gap-2">
                                 <button type="button" class="btn btn-link text-muted m-0"
                                     onclick="goToTab('step1-status')"><i class="fas fa-arrow-left me-1"></i>
                                     Назад</button>
@@ -398,7 +511,7 @@
                                 class="fas fa-arrow-right ms-2"></i></button></div>
                 </div>
 
-                                <div class="tab-pane fade" id="step4-sandbox" role="tabpanel">
+                <div class="tab-pane fade" id="step4-sandbox" role="tabpanel">
                     <div class="alert alert-light border shadow-sm mb-4 d-flex align-items-center">
                         <i class="fas fa-info-circle fa-2x text-info me-3"></i>
                         <div>
@@ -452,11 +565,11 @@
 
                         <div class="col-lg-7">
                             <div class="glass-card p-4 h-100 bg-gray-100">
-                                <h6 class="fw-bold w-100 text-dark mb-4"><i
+                                <h6 class="fw-bold text-dark mb-4"><i
                                         class="fas fa-tachometer-alt text-primary me-2"></i>Результат смешивания
                                     (Прогноз ИИ)</h6>
 
-                                                                <div class="row g-3" id="sandboxPredictionBadges">
+                                <div class="row g-3" id="sandboxPredictionBadges">
                                     <div class="col-12 text-center py-5 text-muted">
                                         <i class="fas fa-spinner fa-spin fa-2x mb-3"></i>
                                         <p>Загрузка прогнозов...</p>
@@ -477,35 +590,30 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
-                // Умный скролл к навигации по вкладкам с отступом
+    // Умный скролл к навигации по вкладкам с отступом
     function smartScroll() {
         const tabsElement = document.getElementById('ml-tabs');
         if (tabsElement) {
-            // Небольшая задержка чтобы вкладка успела открыться
-            setTimeout(() => {
-                const headerOffset = 100; // Отступ под шапку сайта
-                const elementPosition = tabsElement.getBoundingClientRect().top;
-                const offsetPosition = elementPosition + window.scrollY - headerOffset;
-                window.scrollTo({ 
-                    top: offsetPosition, 
-                    behavior: 'smooth' 
-                });
-            }, 100);
+            const headerOffset = 100;
+            const elementPosition = tabsElement.getBoundingClientRect().top;
+            const offsetPosition = elementPosition + window.scrollY - headerOffset;
+            window.scrollTo({
+                top: offsetPosition,
+                behavior: 'smooth'
+            });
         }
     }
 
     function goToTab(tabId) {
         const triggerEl = document.querySelector(`button[data-bs-target="#${tabId}"]`);
         if (triggerEl) {
-            // Используем правильный способ переключения вкладок Bootstrap 5
             const tab = bootstrap.Tab.getOrCreateInstance(triggerEl);
             tab.show();
-            // Вызываем smartScroll вручную после переключения
-            setTimeout(() => smartScroll(), 50);
+            // smartScroll вызовется автоматически через событие shown.bs.tab
         }
     }
 
-                document.addEventListener('DOMContentLoaded', function () {
+    document.addEventListener('DOMContentLoaded', function () {
         console.log('🚀 ML Dashboard инициализация...');
         
         // Инициализируем все компоненты
@@ -522,7 +630,8 @@
         document.querySelectorAll('button[data-bs-toggle="tab"]').forEach(btn => {
             btn.addEventListener('shown.bs.tab', function (e) {
                 console.log('📑 Вкладка переключена:', e.target.dataset.bsTarget);
-                smartScroll();
+                // Ждём пока анимация fade завершится и DOM обновится
+                setTimeout(() => smartScroll(), 200);
                 
                 // Обновляем размеры графиков если они есть на вкладке
                 if (typeof Plotly !== 'undefined') {
@@ -550,7 +659,7 @@
             augmentationForm.addEventListener('submit', handleAugmentation);
         }
         
-                console.log('✅ ML Dashboard готов к работе');
+        console.log('✅ ML Dashboard готов к работе');
     });
 
     // --- ПРОВЕРКА ГОТОВНОСТИ ML СИСТЕМЫ ---
@@ -583,20 +692,21 @@
         fetch('/ml_system_status').then(r => r.json()).then(data => {
             const c = document.getElementById('mlSystemStatus');
             if (data.success && data.system_status.trained_models.length > 0) {
-                let html = '<h6 class="text-dark mb-3 mt-2">Обученные нейросети:</h6><div class="row g-3">';
+                let html = '<h6 class="mb-3 mt-2">Обученные нейросети:</h6><div class="row g-3">';
                 for (const [prop, metrics] of Object.entries(data.system_status.model_metrics)) {
                     const r2 = metrics.training_metrics ? (metrics.training_metrics.r2_score * 100).toFixed(1) : 'N/A';
                     const badgeClass = r2 >= 80 ? 'bg-success' : (r2 >= 50 ? 'bg-warning' : 'bg-danger');
+                    const leftBorder = r2 >= 80 ? '#198754' : (r2 >= 50 ? '#ffc107' : '#dc3545');
                     html += `
                     <div class="col-md-6">
-                        <div class="card shadow-sm border-0 bg-white h-100">
+                        <div class="card shadow-sm border-0 h-100">
                             <div class="card-body p-3">
                                 <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <span class="text-dark fw-bold text-sm">${metrics.display_name || prop}</span>
+                                    <span class="fw-bold text-sm">${metrics.display_name || prop}</span>
                                     <span class="badge ${badgeClass}">${r2}% Точность</span>
                                 </div>
-                                <div class="bg-gray-100 p-2 border-radius-sm" style="border-left: 3px solid #cb0c9f;">
-                                    <div class="text-xs fw-bold text-dark">Метод: ${metrics.algorithm_used || 'Выбрано ИИ'}</div>
+                                <div class="p-2 border-radius-sm" style="border-left: 3px solid ${leftBorder};">
+                                    <div class="text-xs fw-bold">Метод: ${metrics.algorithm_used || 'Выбрано ИИ'}</div>
                                     <div class="text-xs text-muted mt-1">${metrics.algorithm_reason || ''}</div>
                                 </div>
                             </div>
@@ -608,7 +718,7 @@
         });
     }
 
-        // --- ПОДГРУЗКА КОМПОНЕНТОВ ИЗ БАЗЫ ДАННЫХ (БЕЗ НАЕЗДОВ И ОШИБОК ПРОБЕЛОВ) ---
+    // --- ПОДГРУЗКА КОМПОНЕНТОВ ИЗ БАЗЫ ДАННЫХ (БЕЗ НАЕЗДОВ И ОШИБОК ПРОБЕЛОВ) ---
     function loadComponentFeatures() {
         console.log('🔄 Загрузка компонентов из БД...');
         
@@ -688,14 +798,14 @@
                     icon: 'success',
                     title: 'База успешно расширена!',
                     text: data.message,
-                    confirmButtonColor: '#cb0c9f'
+                    confirmButtonColor: '#0d6efd'
                 });
             } else {
                 Swal.fire({
                     icon: 'error',
                     title: 'Ошибка',
                     text: data.error,
-                    confirmButtonColor: '#cb0c9f'
+                    confirmButtonColor: '#0d6efd'
                 });
             }
         } catch (error) {
@@ -732,7 +842,7 @@
                 resDiv.innerHTML = `<span class="text-success"><i class="fas fa-check"></i> ${data.message}</span>`;
                 updateSystemStats();
                 loadMLStatus();
-                Swal.fire({ icon: 'success', title: 'Обучение завершено!', confirmButtonColor: '#cb0c9f' });
+                Swal.fire({ icon: 'success', title: 'Обучение завершено!', confirmButtonColor: '#0d6efd' });
             } else {
                 resDiv.innerHTML = `<span class="text-danger"><i class="fas fa-exclamation-triangle"></i> ${data.error}</span>`;
             }
@@ -752,17 +862,23 @@
             section.style.display = this.checked ? 'block' : 'none';
             if (this.checked) {
                 fetch('/ml_system_status').then(r => r.json()).then(data => {
-                    const cContainer = document.getElementById('constraintsContainer'); cContainer.innerHTML = '';
-                    data.system_status.available_components.forEach(comp => {
-                        cContainer.innerHTML += `
-                        <div class="col-md-6 mb-1">
-                            <label class="text-xs fw-bold text-dark mb-1">${comp}</label>
-                            <div class="input-group input-group-sm">
-                                <span class="input-group-text">Min %</span><input type="number" name="min_${comp}" class="form-control" value="0">
-                                <span class="input-group-text ms-1">Max %</span><input type="number" name="max_${comp}" class="form-control" value="100">
-                            </div>
-                        </div>`;
-                    });
+                    const cContainer = document.getElementById('constraintsContainer');
+                    cContainer.innerHTML = '';
+                    if (data.success && data.system_status.available_components) {
+                        data.system_status.available_components.forEach(comp => {
+                            let safeId = comp.replace(/[^a-zA-Z0-9а-яА-ЯёЁ]/g, '_');
+                            cContainer.innerHTML += `
+                            <div class="col-md-6 mb-1">
+                                <label class="text-xs fw-bold text-dark mb-1">${comp}</label>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text">Min %</span><input type="number" name="min_${safeId}" class="form-control" value="0" min="0" max="100">
+                                    <span class="input-group-text ms-1">Max %</span><input type="number" name="max_${safeId}" class="form-control" value="100" min="0" max="100">
+                                </div>
+                            </div>`;
+                        });
+                    }
+                }).catch(err => {
+                    console.error('Ошибка загрузки ограничений:', err);
                 });
             }
         });
@@ -792,10 +908,10 @@
                     }
                 }
 
-                let html = `<div class="card border border-success bg-white shadow-sm mb-3"><div class="card-body">`;
+                let html = `<div class="card border border-success shadow-sm mb-3"><div class="card-body">`;
 
                 if (isMono) {
-                    html += `<div class="alert alert-info py-2 px-3 text-sm text-dark border-0 bg-gray-100"><i class="fas fa-robot text-primary me-2"></i><b>Анализ ИИ:</b> Для достижения максимума добавление примесей ухудшит результат. Лучший вариант — чистое сырье.</div>`;
+                    html += `<div class="alert alert-info py-2 px-3 text-sm border-0"><i class="fas fa-robot text-primary me-2"></i><b>Анализ ИИ:</b> Для достижения максимума добавление примесей ухудшит результат. Лучший вариант — чистое сырье.</div>`;
                 }
 
                 html += `<div class="row align-items-center">
@@ -804,20 +920,20 @@
                                 <h2 class="text-success fw-bolder mb-0">${Number(data.predicted_value || data.optimal_value || 0).toFixed(2)}</h2>
                             </div>
                             <div class="col-md-7 ps-4">
-                                <h6 class="text-dark text-sm mb-2">Точный Состав:</h6>
+                                <h6 class="text-sm mb-2">Точный Состав:</h6>
                                 <div class="d-flex flex-wrap gap-2">`;
 
                 if (data.optimal_composition) {
                     for (const [comp, pct] of Object.entries(data.optimal_composition)) {
-                        html += `<span class="badge bg-gray-200 text-dark border">${comp}: <span class="text-primary">${Number(pct).toFixed(1)}%</span></span>`;
+                        html += `<span class="badge bg-light text-dark border">${comp}: <span class="text-primary">${Number(pct).toFixed(1)}%</span></span>`;
                     }
                 }
                 resDiv.innerHTML = html + `</div></div></div></div></div>`;
             } else {
-                resDiv.innerHTML = `<div class="alert alert-danger text-white border-0">${data.error}</div>`;
+                resDiv.innerHTML = `<div class="alert alert-danger border-0">${data.error}</div>`;
             }
         } catch (error) {
-            resDiv.innerHTML = `<div class="alert alert-danger text-white border-0">Ошибка связи с ИИ</div>`;
+            resDiv.innerHTML = `<div class="alert alert-danger border-0">Ошибка связи с ИИ</div>`;
         } finally {
             btn.disabled = false;
             spinner.classList.add('d-none');
@@ -862,6 +978,7 @@
                         sandboxTimer = setTimeout(updateSandbox, 150);
                     });
                 });
+                updateTotalColor(100);
                 updateSandbox();
             } else {
                 container.innerHTML = '<div class="text-center text-muted py-4"><i class="fas fa-info-circle mb-2 fa-2x"></i><br>Нет компонентов для песочницы</div>';
@@ -875,13 +992,46 @@
         const changedSafeId = changed.getAttribute('data-safe-id');
         let newVal = parseFloat(changed.value);
 
+        // Один компонент = 100%, остальные = 0
+        if (sliders.length === 1) {
+            document.getElementById(`val_${changedSafeId}`).textContent = newVal.toFixed(1) + '%';
+            document.getElementById('sandboxTotalText').textContent = newVal.toFixed(1) + '%';
+            updateTotalColor(newVal);
+            return;
+        }
+
+        if (newVal >= 99.9) {
+            sliders.forEach(s => {
+                const sid = s.getAttribute('data-safe-id');
+                if (sid === changedSafeId) {
+                    s.value = '100.0';
+                    document.getElementById(`val_${sid}`).textContent = '100.0%';
+                } else {
+                    s.value = '0.0';
+                    document.getElementById(`val_${sid}`).textContent = '0.0%';
+                }
+            });
+            document.getElementById('sandboxTotalText').textContent = '100.0%';
+            updateTotalColor(100);
+            return;
+        }
+
         let others = sliders.filter(s => s.getAttribute('data-comp') !== changedComp);
         let sumOthers = others.reduce((sum, s) => sum + parseFloat(s.value), 0);
         let targetOtherSum = 100 - newVal;
 
-        if (sumOthers > 0) {
+        if (others.length === 0) {
+            document.getElementById(`val_${changedSafeId}`).textContent = newVal.toFixed(1) + '%';
+            document.getElementById('sandboxTotalText').textContent = newVal.toFixed(1) + '%';
+            updateTotalColor(newVal);
+            return;
+        }
+
+        if (sumOthers > 0.05) {
             others.forEach(s => {
                 let adjustedVal = (parseFloat(s.value) * (targetOtherSum / sumOthers)).toFixed(1);
+                if (parseFloat(adjustedVal) < 0) adjustedVal = '0.0';
+                if (parseFloat(adjustedVal) > 100) adjustedVal = '100.0';
                 s.value = adjustedVal;
                 document.getElementById(`val_${s.getAttribute('data-safe-id')}`).textContent = adjustedVal + '%';
             });
@@ -897,9 +1047,24 @@
 
         let actualSum = sliders.reduce((sum, s) => sum + parseFloat(s.value), 0);
         document.getElementById('sandboxTotalText').textContent = actualSum.toFixed(1) + '%';
+        updateTotalColor(actualSum);
     }
 
-        function updateSandbox() {
+    function updateTotalColor(sum) {
+        const totalText = document.getElementById('sandboxTotalText');
+        const totalBar = document.getElementById('sandboxTotalBar');
+        if (Math.abs(sum - 100) < 0.2) {
+            totalText.className = 'text-success mb-0';
+            totalBar.style.background = 'linear-gradient(310deg, #17ad37 0%, #98ec2d 100%)';
+            totalBar.style.width = '100%';
+        } else {
+            totalText.className = 'text-warning mb-0';
+            totalBar.style.background = 'linear-gradient(310deg, #f5365c 0%, #f56036 100%)';
+            totalBar.style.width = Math.min(sum, 100) + '%';
+        }
+    }
+
+    function updateSandbox() {
         const comp = {};
         document.querySelectorAll('.sandbox-slider').forEach(s => comp[s.getAttribute('data-comp')] = parseFloat(s.value));
 
@@ -919,7 +1084,7 @@
                     document.getElementById('sandboxNotReadyAlert').classList.remove('d-none');
                     document.getElementById('sandboxPredictionBadges').innerHTML = `
                     <div class="col-12 text-center py-4">
-                        <div class="alert text-white border-0 shadow-sm mb-3" style="background-color: #ea0606; opacity: 0.8;">
+                        <div class="alert alert-danger border-0 shadow-sm mb-3">
                             <i class="fas fa-exclamation-triangle me-2"></i> ИИ еще не обучен! Прогноз невозможен.
                         </div>
                         <p class="text-muted text-sm mb-3">Обучите модель чтобы активировать песочницу</p>
@@ -935,7 +1100,7 @@
                 document.getElementById('sandboxNotReadyAlert').classList.remove('d-none');
                 document.getElementById('sandboxPredictionBadges').innerHTML = `
                     <div class="col-12 text-center py-4">
-                        <div class="alert text-white border-0 shadow-sm mb-3" style="background-color: #ea0606; opacity: 0.8;">
+                        <div class="alert alert-danger border-0 shadow-sm mb-3">
                             <i class="fas fa-plug me-2"></i> Ошибка соединения с сервером
                         </div>
                     </div>
@@ -943,7 +1108,7 @@
             });
     }
 
-        // --- БЫСТРОЕ ОБУЧЕНИЕ ИЗ ПЕСОЧНИЦЫ ---
+    // --- БЫСТРОЕ ОБУЧЕНИЕ ИЗ ПЕСОЧНИЦЫ ---
     async function quickTrainSandbox() {
         const btn = document.getElementById('sandboxQuickTrainBtn');
         if (!btn) return;
@@ -976,7 +1141,7 @@
                     icon: 'success', 
                     title: 'Готово!', 
                     text: 'ИИ обучен. Песочница активирована!', 
-                    confirmButtonColor: '#cb0c9f',
+                    confirmButtonColor: '#0d6efd',
                     timer: 2000
                 });
                 
@@ -985,7 +1150,7 @@
                     updateSandbox();
                 }, 500);
             } else {
-                Swal.fire({ icon: 'error', title: 'Ошибка', text: data.error || 'Не удалось обучить модель', confirmButtonColor: '#cb0c9f' });
+                Swal.fire({ icon: 'error', title: 'Ошибка', text: data.error || 'Не удалось обучить модель', confirmButtonColor: '#0d6efd' });
                 btn.disabled = false;
                 btn.innerHTML = `<i class="fas fa-bolt me-2"></i>Повторить обучение`;
             }
@@ -997,6 +1162,7 @@
         }
     }
 
+    // --- Рендер карточек песочницы ---
     function renderSandboxCards(results) {
         const badgeC = document.getElementById('sandboxPredictionBadges');
         badgeC.innerHTML = '';
@@ -1013,10 +1179,10 @@
 
             badgeC.innerHTML += `
             <div class="col-6 mb-3">
-                <div class="p-3 border rounded bg-white shadow-sm text-center h-100 d-flex flex-column justify-content-center">
+                <div class="p-3 border rounded shadow-sm text-center h-100 d-flex flex-column justify-content-center sandbox-prediction-card">
                     <i class="fas ${icon} fa-2x mb-2 opacity-8"></i>
-                    <div class="text-xs text-muted mb-1" style="line-height: 1.2;">${name}</div>
-                    <div class="fw-bolder text-dark" style="font-size: 1.25rem;">${value}</div>
+                    <div class="text-xs text-muted mb-1">${name}</div>
+                    <div class="fw-bolder" style="font-size: 1.25rem;">${value}</div>
                 </div>
             </div>`;
         });

@@ -1,7 +1,270 @@
 import sqlite3
 import pandas as pd
 import json
+import os
+import logging
 from datetime import datetime
+from typing import Optional, Dict, Any
+from contextlib import contextmanager
+
+logger = logging.getLogger(__name__)
+
+# ============================================================
+# КОНФИГУРАЦИЯ УДАЛЁННОГО ПОДКЛЮЧЕНИЯ
+# Загружается из переменных окружения или из db_config.json
+# ============================================================
+
+def _load_db_config() -> Dict[str, Any]:
+    """Загружает конфигурацию подключения к БД."""
+    config = {
+        'use_remote': False,
+        'db_path': 'pellets_data.db',
+        # SSH-туннель
+        'ssh_host': os.environ.get('DB_SSH_HOST', ''),
+        'ssh_port': int(os.environ.get('DB_SSH_PORT', '22')),
+        'ssh_user': os.environ.get('DB_SSH_USER', ''),
+        'ssh_password': os.environ.get('DB_SSH_PASSWORD', ''),
+        'ssh_key_path': os.environ.get('DB_SSH_KEY_PATH', ''),
+        'ssh_key_password': os.environ.get('DB_SSH_KEY_PASSWORD', ''),
+        # Удалённая БД
+        'remote_db_path': os.environ.get('DB_REMOTE_PATH', ''),
+        # Синхронизация
+        'auto_sync': True,
+        'sync_interval': 300,  # 5 минут
+    }
+    
+    # Загрузка из файла конфигурации (если существует)
+    config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'db_config.json')
+    if os.path.exists(config_file):
+        try:
+            with open(config_file, 'r', encoding='utf-8') as f:
+                file_config = json.load(f)
+                config.update(file_config)
+        except Exception as e:
+            logger.warning(f"Не удалось загрузить config из {config_file}: {e}")
+    
+    return config
+
+# Глобальная конфигурация
+_db_config = _load_db_config()
+_remote_sync = None
+_tunnel = None
+
+
+class DatabaseConnection:
+    """
+    Менеджер подключений к базе данных с поддержкой SSH-туннеля.
+    
+    Поддерживает:
+    - Локальное подключение к SQLite
+    - Удалённое подключение через SSH-туннель (с синхронизацией файла)
+    - Автоматическую синхронизацию при изменении данных
+    
+    Пример использования:
+        # Локальная БД
+        with DatabaseConnection() as conn:
+            df = conn.query("SELECT * FROM components")
+        
+        # Удалённая БД через SSH
+        with DatabaseConnection(use_remote=True, ssh_host='server.com', ...) as conn:
+            df = conn.query("SELECT * FROM components")
+    """
+    
+    def __init__(
+        self,
+        db_path: Optional[str] = None,
+        use_remote: Optional[bool] = None,
+        ssh_host: Optional[str] = None,
+        ssh_port: Optional[int] = None,
+        ssh_user: Optional[str] = None,
+        ssh_password: Optional[str] = None,
+        ssh_key_path: Optional[str] = None,
+        remote_db_path: Optional[str] = None,
+        auto_sync: Optional[bool] = None
+    ):
+        global _db_config
+        
+        self.config = _db_config.copy()
+        
+        # Переопределение из параметров
+        if db_path:
+            self.config['db_path'] = db_path
+        if use_remote is not None:
+            self.config['use_remote'] = use_remote
+        if ssh_host:
+            self.config['ssh_host'] = ssh_host
+        if ssh_port:
+            self.config['ssh_port'] = ssh_port
+        if ssh_user:
+            self.config['ssh_user'] = ssh_user
+        if ssh_password:
+            self.config['ssh_password'] = ssh_password
+        if ssh_key_path:
+            self.config['ssh_key_path'] = ssh_key_path
+        if remote_db_path:
+            self.config['remote_db_path'] = remote_db_path
+        if auto_sync is not None:
+            self.config['auto_sync'] = auto_sync
+        
+        self._local_db_path = self.config['db_path']
+        self._sync = None
+        self._modified = False
+    
+    def __enter__(self):
+        self.connect()
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+        return False
+    
+    def connect(self) -> Dict[str, Any]:
+        """
+        Устанавливает подключение к БД.
+        
+        Returns:
+            Dict с результатом подключения
+        """
+        if self.config['use_remote'] and self.config['remote_db_path']:
+            return self._connect_remote()
+        else:
+            return self._connect_local()
+    
+    def _connect_local(self) -> Dict[str, Any]:
+        """Подключение к локальной БД."""
+        if not os.path.exists(self._local_db_path):
+            logger.info(f"Создание новой БД: {self._local_db_path}")
+            init_db(self._local_db_path)
+        
+        return {
+            'success': True,
+            'mode': 'local',
+            'db_path': self._local_db_path,
+            'message': f'Подключено к локальной БД: {self._local_db_path}'
+        }
+    
+    def _connect_remote(self) -> Dict[str, Any]:
+        """Подключение к удалённой БД через SSH с синхронизацией."""
+        try:
+            from ssh_tunnel import SQLiteRemoteSync
+            
+            self._sync = SQLiteRemoteSync(
+                ssh_host=self.config['ssh_host'],
+                ssh_port=self.config['ssh_port'],
+                ssh_user=self.config['ssh_user'],
+                ssh_password=self.config['ssh_password'] or None,
+                ssh_key_path=self.config['ssh_key_path'] or None,
+                ssh_key_password=self.config['ssh_key_password'] or None,
+                remote_db_path=self.config['remote_db_path'],
+                local_db_path=self._local_db_path
+            )
+            
+            logger.info(f"Синхронизация удалённой БД: {self.config['remote_db_path']}")
+            if not self._sync.download():
+                return {
+                    'success': False,
+                    'error': 'Не удалось скачать удалённую БД. Проверьте SSH-подключение.',
+                    'mode': 'fallback_local'
+                }
+            
+            return {
+                'success': True,
+                'mode': 'remote',
+                'db_path': self._local_db_path,
+                'remote_path': self.config['remote_db_path'],
+                'message': f'Синхронизирована удалённая БД: {self.config["remote_db_path"]}'
+            }
+            
+        except ImportError:
+            return {
+                'success': False,
+                'error': 'Не установлены зависимости для SSH. Установите: pip install paramiko sshtunnel',
+                'mode': 'error'
+            }
+        except Exception as e:
+            return {
+                'success': False,
+                'error': f'Ошибка подключения к удалённой БД: {str(e)}',
+                'mode': 'error'
+            }
+    
+    def close(self):
+        """Закрывает подключение и синхронизирует изменения."""
+        if self._sync and self.config['auto_sync'] and self._modified:
+            logger.info("Синхронизация изменений с удалённой БД...")
+            self._sync.upload()
+        
+        if self._sync:
+            self._sync._disconnect_ssh()
+            self._sync = None
+    
+    def get_connection(self) -> sqlite3.Connection:
+        """Возвращает sqlite3.Connection для прямого использования."""
+        return sqlite3.connect(self._local_db_path)
+    
+    def mark_modified(self):
+        """Отмечает, что данные были изменены (нужна синхронизация)."""
+        self._modified = True
+    
+    def query(self, sql: str, params: tuple = None) -> pd.DataFrame:
+        """Выполняет SELECT-запрос."""
+        conn = sqlite3.connect(self._local_db_path)
+        try:
+            if params:
+                df = pd.read_sql_query(sql, conn, params=params)
+            else:
+                df = pd.read_sql_query(sql, conn)
+            return df
+        finally:
+            conn.close()
+    
+    def execute(self, sql: str, params: tuple = None):
+        """Выполняет INSERT/UPDATE/DELETE-запрос."""
+        conn = sqlite3.connect(self._local_db_path)
+        try:
+            cursor = conn.cursor()
+            if params:
+                cursor.execute(sql, params)
+            else:
+                cursor.execute(sql)
+            conn.commit()
+            self.mark_modified()
+        finally:
+            conn.close()
+    
+    def executemany(self, sql: str, rows: list):
+        """Выполняет массовую вставку/обновление."""
+        conn = sqlite3.connect(self._local_db_path)
+        try:
+            cursor = conn.cursor()
+            cursor.executemany(sql, rows)
+            conn.commit()
+            self.mark_modified()
+        finally:
+            conn.close()
+
+
+def get_db_connection(**kwargs) -> DatabaseConnection:
+    """
+    Фабрика подключений к БД.
+    
+    Пример:
+        with get_db_connection() as conn:
+            df = conn.query("SELECT * FROM components")
+    """
+    return DatabaseConnection(**kwargs)
+
+
+# ============================================================
+# СТАРЫЕ ФУНКЦИИ (обратная совместимость)
+# Теперь используют DatabaseConnection
+# ============================================================
+
+def _get_db_path(db_path: str = None) -> str:
+    """Возвращает путь к БД с учётом конфигурации."""
+    if db_path:
+        return db_path
+    return _db_config.get('db_path', 'pellets_data.db')
 
 def init_db(db_path):
     """Инициализация базы данных и создание таблиц с индексами."""

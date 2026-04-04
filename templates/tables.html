@@ -359,16 +359,57 @@
         border-radius: 8px;
         padding: 10px;
         margin-bottom: 10px;
+        border-left: 3px solid #dc3545;
+        transition: all 0.3s ease;
     }
     
     .search-criterion.has-error .form-control,
     .search-criterion.has-error .form-select {
         border-color: #dc3545;
+        box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.15);
     }
     
     .search-criterion.has-error .form-label {
         color: #dc3545;
         font-weight: 600;
+    }
+
+    /* Стили для валидного критерия */
+    .search-criterion.is-valid {
+        background-color: rgba(25, 135, 84, 0.03);
+        border-radius: 8px;
+        padding: 10px;
+        margin-bottom: 10px;
+        border-left: 3px solid #198754;
+        transition: all 0.3s ease;
+    }
+
+    .search-criterion.is-valid .form-control,
+    .search-criterion.is-valid .form-select {
+        border-color: #198754;
+    }
+
+    /* Анимация для нового критерия */
+    .search-criterion.new-criterion {
+        animation: slideIn 0.3s ease-out;
+    }
+
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Подсказка для BETWEEN */
+    .between-hint {
+        font-size: 0.75rem;
+        color: #6c757d;
+        margin-top: 2px;
     }
 </style>
 <script>
@@ -482,42 +523,77 @@
         const rows = document.querySelectorAll('.search-criterion');
         let validCriteriaCount = 0;
         let hasError = false;
+        let errorMessages = [];
 
-        rows.forEach(row => {
+        rows.forEach((row, index) => {
             const col = row.querySelector('select[name="search_column"]')?.value;
             const op = row.querySelector('select[name="search_operator"]')?.value;
             const val = row.querySelector('input[name="search_value"]')?.value;
             const valMax = row.querySelector('input[name="search_value_max"]')?.value;
 
             // Пропускаем критерии без выбранного столбца
-            if (!col || col === '') return;
+            if (!col || col === '') {
+                // Проверяем, есть ли незаполненные поля при выбранном операторе
+                const hasPartialData = (val && val.trim()) || (valMax && valMax.trim());
+                if (hasPartialData) {
+                    hasError = true;
+                    row.classList.add('has-error');
+                    errorMessages.push(`Критерий #${index + 1}: заполнены значения, но не выбран столбец`);
+                } else {
+                    row.classList.remove('has-error');
+                }
+                return;
+            }
 
             // Проверяем заполненность в зависимости от оператора
             if (op === 'BETWEEN') {
-                if (!val || !val.trim() || !valMax || !valMax.trim()) {
+                const hasMin = val && val.trim();
+                const hasMax = valMax && valMax.trim();
+                if (!hasMin && !hasMax) {
                     hasError = true;
                     row.classList.add('has-error');
+                    errorMessages.push(`Критерий #${index + 1} (${col}): для диапазона укажите оба значения (ОТ и ДО)`);
+                } else if (!hasMin) {
+                    hasError = true;
+                    row.classList.add('has-error');
+                    errorMessages.push(`Критерий #${index + 1} (${col}): укажите минимальное значение диапазона`);
+                } else if (!hasMax) {
+                    hasError = true;
+                    row.classList.add('has-error');
+                    errorMessages.push(`Критерий #${index + 1} (${col}): укажите максимальное значение диапазона`);
                 } else {
-                    validCriteriaCount++;
-                    row.classList.remove('has-error');
+                    // Проверяем, что min <= max
+                    if (parseFloat(val) > parseFloat(valMax)) {
+                        hasError = true;
+                        row.classList.add('has-error');
+                        errorMessages.push(`Критерий #${index + 1} (${col}): минимальное значение не может быть больше максимального`);
+                    } else {
+                        validCriteriaCount++;
+                        row.classList.remove('has-error');
+                        row.classList.add('is-valid');
+                    }
                 }
-                        } else if (op === 'LIKE' || op === 'APPROX' || op === 'CONTAINS') {
+            } else if (op === 'LIKE' || op === 'APPROX' || op === 'CONTAINS') {
                 // Для LIKE, APPROX, CONTAINS требуется непустое значение
                 if (!val || val.trim() === '') {
                     hasError = true;
                     row.classList.add('has-error');
+                    errorMessages.push(`Критерий #${index + 1} (${col}): введите значение для поиска`);
                 } else {
                     validCriteriaCount++;
                     row.classList.remove('has-error');
+                    row.classList.add('is-valid');
                 }
             } else {
                 // Для остальных операторов (=, >, <, >=, <=, !=)
                 if (!val || val.trim() === '') {
                     hasError = true;
                     row.classList.add('has-error');
+                    errorMessages.push(`Критерий #${index + 1} (${col}): введите значение`);
                 } else {
                     validCriteriaCount++;
                     row.classList.remove('has-error');
+                    row.classList.add('is-valid');
                 }
             }
         });
@@ -526,7 +602,9 @@
             Swal.fire({
                 icon: 'warning',
                 title: 'Внимание',
-                text: 'Заполните все значения для выбранных критериев поиска.'
+                html: 'Обнаружены ошибки в критериях поиска:<br><ul style="text-align:left;max-height:200px;overflow-y:auto;">' +
+                    errorMessages.map(msg => `<li>${msg}</li>`).join('') + '</ul>',
+                confirmButtonText: 'Понятно'
             });
             return;
         }
@@ -640,10 +718,14 @@
                 // Просто добавляем в контейнер
                 const container = document.getElementById('criteriaContainer');
                 if (container) {
+                    criteriaRow.classList.add('new-criterion');
                     container.appendChild(criteriaRow);
                 }
 
-                                // Инициализируем слушатель событий для BETWEEN оператора и изменения столбца
+                // АВТОИНИЦИАЛИЗАЦИЯ: сразу вызываем toggleSearchInputs для нового критерия
+                toggleSearchInputs(criteriaRow);
+
+                // Инициализируем слушатель событий для BETWEEN оператора и изменения столбца
                 const operatorSelect = criteriaRow.querySelector('[name="search_operator"]');
                 const columnSelect = criteriaRow.querySelector('[name="search_column"]');
                 
@@ -657,7 +739,11 @@
                 // Добавляем обработчик для кнопки удаления
                 const removeBtn = criteriaRow.querySelector('.remove-criterion');
                 removeBtn.addEventListener('click', function () {
-                    criteriaRow.remove();
+                    // Анимация удаления
+                    criteriaRow.style.transition = 'opacity 0.3s, transform 0.3s';
+                    criteriaRow.style.opacity = '0';
+                    criteriaRow.style.transform = 'translateX(-20px)';
+                    setTimeout(() => criteriaRow.remove(), 300);
                 });
             });
         }
@@ -761,13 +847,13 @@
                 }
                 if (valueLabel) valueLabel.textContent = "Значение";
                 
-                // Удаляем классы ошибок
-                firstCriterion.classList.remove('has-error');
+                // Удаляем классы ошибок и валидности
+                firstCriterion.classList.remove('has-error', 'is-valid');
             }
             
-            // Удаляем классы ошибок со всех критериев
+            // Удаляем классы ошибок и валидности со всех критериев
             document.querySelectorAll('.search-criterion').forEach(cr => {
-                cr.classList.remove('has-error');
+                cr.classList.remove('has-error', 'is-valid', 'new-criterion');
             });
         }
         clearSearch();

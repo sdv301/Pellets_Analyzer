@@ -101,6 +101,97 @@ class CompositionParser:
         
         return composition_dict
 
+    def validate_and_normalize(self, composition: Dict[str, float],
+                                valid_components: List[str] = None,
+                                auto_normalize: bool = True) -> Tuple[Dict[str, float], List[str]]:
+        """
+        Валидирует и нормализует состав.
+        
+        Args:
+            composition: Словарь {компонент: процент}
+            valid_components: Список допустимых компонентов (если None — пропускается)
+            auto_normalize: Автоматически нормализовать до 100%
+            
+        Returns:
+            Tuple[нормализованный_состав, список_предупреждений]
+        """
+        warnings = []
+        
+        if not composition:
+            return {}, ['Состав пуст']
+        
+        # Фильтрация неизвестных компонентов
+        if valid_components:
+            valid_set = set(valid_components)
+            unknown = [k for k in composition.keys() if k not in valid_set]
+            if unknown:
+                warnings.append(f'Неизвестные компоненты удалены: {", ".join(unknown)}')
+                composition = {k: v for k, v in composition.items() if k in valid_set}
+        
+        if not composition:
+            return {}, ['Нет допустимых компонентов после фильтрации']
+        
+        # Удаление нулевых/отрицательных значений
+        composition = {k: v for k, v in composition.items() if v > 0}
+        if not composition:
+            return {}, ['Все компоненты имеют нулевое или отрицательное значение']
+        
+        total = sum(composition.values())
+        
+        if abs(total - 100) > 0.1:
+            if auto_normalize:
+                warnings.append(f'Сумма компонентов {total:.1f}% нормализована до 100%')
+                composition = {k: round((v / total) * 100, 2) for k, v in composition.items()}
+            else:
+                warnings.append(f'Сумма компонентов {total:.1f}% отличается от 100%')
+        
+        return composition, warnings
+
+    def create_composition(self, components: Dict[str, float],
+                           valid_components: List[str] = None,
+                           auto_normalize: bool = True) -> Dict:
+        """
+        Создает валидный состав из компонентов.
+        
+        Args:
+            components: Словарь {имя_компонента: процент_или_доля}
+            valid_components: Список допустимых компонентов
+            auto_normalize: Автоматически нормализовать до 100%
+            
+        Returns:
+            Dict с ключами:
+                - success: bool
+                - composition: Dict[str, float] (нормализованный состав)
+                - warnings: List[str] (предупреждения)
+                - error: str (ошибка, если есть)
+        """
+        if not components:
+            return {'success': False, 'error': 'Компоненты не указаны'}
+        
+        normalized, warnings = self.validate_and_normalize(
+            components, valid_components, auto_normalize
+        )
+        
+        if not normalized:
+            return {'success': False, 'error': warnings[0] if warnings else 'Не удалось создать состав'}
+        
+        return {
+            'success': True,
+            'composition': normalized,
+            'warnings': warnings
+        }
+
+    def composition_to_text(self, composition: Dict[str, float]) -> str:
+        """Преобразует словарь состава в текстовый формат для БД."""
+        if not composition:
+            return ""
+        sorted_comp = sorted(composition.items(), key=lambda x: x[1], reverse=True)
+        return ", ".join([f"{v}% {k}" for k, v in sorted_comp])
+
+    def composition_from_text(self, text: str) -> Dict[str, float]:
+        """Парсит текстовый формат состава в словарь (алиас для parse_composition)."""
+        return self.parse_composition(text)
+
 
 class PelletPropertyPredictor:
     def __init__(self, ml_system=None):
@@ -398,6 +489,29 @@ class PelletPropertyPredictor:
             return {}
         return self.training_metrics[target_property].get('feature_importance', {})
 
+    def create_composition(self, components: Dict[str, float],
+                           valid_components: List[str] = None,
+                           auto_normalize: bool = True) -> Dict:
+        """
+        Создаёт валидный состав из компонентов через парсер.
+        """
+        return self.parser.create_composition(components, valid_components, auto_normalize)
+
+    def validate_composition(self, composition: Dict[str, float],
+                             valid_components: List[str] = None) -> Tuple[Dict[str, float], List[str]]:
+        """
+        Валидирует и нормализует состав.
+        """
+        return self.parser.validate_and_normalize(composition, valid_components)
+
+    def composition_to_text(self, composition: Dict[str, float]) -> str:
+        """Преобразует словарь состава в текстовый формат для БД."""
+        return self.parser.composition_to_text(composition)
+
+    def composition_from_text(self, text: str) -> Dict[str, float]:
+        """Парсит текстовый формат состава в словарь."""
+        return self.parser.parse_composition(text)
+
 
 class MLCompositionOptimizer:
     def __init__(self, predictor):
@@ -530,8 +644,31 @@ class MLCompositionOptimizer:
 
 
 class PelletMLSystem:
-    def __init__(self, db_path: str = 'pellets_data.db'):
+    def __init__(self, db_path: str = 'pellets_data.db', use_remote: bool = False, **ssh_kwargs):
+        """
+        Инициализация ML-системы с поддержкой удалённой БД.
+        
+        Args:
+            db_path: Путь к локальной БД (или кэш для удалённой)
+            use_remote: Использовать удалённую БД через SSH
+            **ssh_kwargs: Параметры для SSH-подключения:
+                - ssh_host: Адрес SSH-сервера
+                - ssh_port: Порт SSH (22)
+                - ssh_user: Имя пользователя
+                - ssh_password: Пароль
+                - ssh_key_path: Путь к ключу
+                - remote_db_path: Путь к удалённой БД
+                - auto_sync: Автосинхронизация
+        """
         self.db_path = db_path
+        self.use_remote = use_remote
+        self.ssh_kwargs = ssh_kwargs
+        self._db_connection = None
+        
+        # Подключение к БД
+        if use_remote:
+            self._connect_remote_db()
+        
         self.predictor = PelletPropertyPredictor(self)
         self.ml_optimizer = MLCompositionOptimizer(self.predictor)
         models_loaded = self.predictor.load_models()
@@ -541,6 +678,45 @@ class PelletMLSystem:
         # АВТОМАТИЧЕСКАЯ ИНИЦИАЛИЗАЦИЯ МОДЕЛЕЙ ПРИ ПЕРВОМ ЗАПУСКЕ
         if not models_loaded or not self.predictor.is_trained:
             self._initialize_default_models()
+    
+    def _connect_remote_db(self):
+        """Подключается к удалённой БД через SSH-туннель."""
+        try:
+            from database import DatabaseConnection
+            self._db_connection = DatabaseConnection(
+                db_path=self.db_path,
+                use_remote=True,
+                **self.ssh_kwargs
+            )
+            result = self._db_connection.connect()
+            if result['success']:
+                logger.info(f"✅ Подключено к удалённой БД: {result.get('remote_path', 'unknown')}")
+            else:
+                logger.warning(f"⚠️ Не удалось подключиться к удалённой БД: {result.get('error')}. Использую локальную.")
+                self.use_remote = False
+                self._db_connection = None
+        except Exception as e:
+            logger.error(f"Ошибка подключения к удалённой БД: {e}")
+            self.use_remote = False
+            self._db_connection = None
+    
+    def sync_to_remote(self) -> bool:
+        """Синхронизирует локальную БД с удалённой."""
+        if self._db_connection and self.use_remote:
+            try:
+                self._db_connection.close()  # Это вызовет upload
+                self._db_connection.connect()  # Переподключение
+                return True
+            except Exception as e:
+                logger.error(f"Ошибка синхронизации: {e}")
+                return False
+        return False
+    
+    def close(self):
+        """Закрывает подключение к БД."""
+        if self._db_connection:
+            self._db_connection.close()
+            self._db_connection = None
 
     def _initialize_default_models(self):
         """
@@ -799,6 +975,66 @@ class PelletMLSystem:
             'is_linear': True
         }
 
+    def create_composition(self, components: Dict[str, float],
+                           auto_normalize: bool = True,
+                           check_db: bool = True) -> Dict:
+        """
+        Создаёт валидный состав из компонентов с проверкой по БД.
+        
+        Args:
+            components: Словарь {имя_компонента: процент}
+            auto_normalize: Автоматически нормализовать до 100%
+            check_db: Проверять наличие компонентов в БД
+            
+        Returns:
+            Dict с ключами:
+                - success: bool
+                - composition: Dict[str, float] (нормализованный состав)
+                - text: str (текстовое представление для БД)
+                - warnings: List[str]
+                - error: str (если ошибка)
+        """
+        if not components:
+            return {'success': False, 'error': 'Компоненты не указаны'}
+        
+        # Определяем допустимые компоненты
+        valid_components = None
+        if check_db and not self.components.empty:
+            valid_components = list(self.components['component'].values)
+            # Также добавляем компоненты из ML модели
+            if self.predictor.feature_names:
+                valid_components = list(set(valid_components + self.predictor.feature_names))
+        
+        # Создаём и валидируем состав
+        result = self.predictor.create_composition(components, valid_components, auto_normalize)
+        
+        if not result.get('success'):
+            return result
+        
+        composition = result['composition']
+        warnings = result.get('warnings', [])
+        
+        # Проверяем предсказуемость свойств
+        predictions = {}
+        if self.predictor.is_trained:
+            for prop in self.predictor.models.keys():
+                try:
+                    pred = self.predictor.predict(composition, prop)
+                    if pred is not None:
+                        display_name = self.predictor.target_properties_mapping.get(prop, prop)
+                        predictions[display_name] = round(float(pred), 2)
+                except Exception as e:
+                    logger.warning(f"Не удалось предсказать {prop}: {e}")
+        
+        return {
+            'success': True,
+            'composition': composition,
+            'text': self.predictor.composition_to_text(composition),
+            'warnings': warnings,
+            'predictions': predictions,
+            'total': round(sum(composition.values()), 2)
+        }
+
     def augment_database(self, variations_count: int = 3, confidence_interval: float = 5.0) -> Dict:
         try:
             from database import query_db, insert_data
@@ -847,8 +1083,57 @@ class PelletMLSystem:
 
 
 _ml_system = None
-def get_ml_system():
+def get_ml_system(use_remote: bool = False, **ssh_kwargs):
+    """
+    Получение ML-системы с поддержкой удалённой БД.
+    
+    Args:
+        use_remote: Использовать удалённую БД через SSH
+        **ssh_kwargs: Параметры SSH-подключения
+            - ssh_host: Адрес SSH-сервера
+            - ssh_user: Имя пользователя
+            - ssh_password: Пароль (или ssh_key_path)
+            - ssh_key_path: Путь к SSH-ключу
+            - remote_db_path: Путь к удалённой БД
+    
+    Пример:
+        # Локальная БД
+        ml = get_ml_system()
+        
+        # Удалённая БД
+        ml = get_ml_system(
+            use_remote=True,
+            ssh_host='server.com',
+            ssh_user='user',
+            ssh_key_path='~/.ssh/id_rsa',
+            remote_db_path='/path/to/pellets_data.db'
+        )
+    """
     global _ml_system
+    
+    # Если параметры изменились — пересоздаём
+    if _ml_system is not None:
+        if not use_remote and _ml_system.use_remote:
+            _ml_system.close()
+            _ml_system = None
+        elif use_remote and _ml_system.use_remote:
+            return _ml_system  # Уже подключено
+        else:
+            _ml_system.close()
+            _ml_system = None
+    
     if _ml_system is None:
-        _ml_system = PelletMLSystem()
+        if use_remote:
+            _ml_system = PelletMLSystem(use_remote=True, **ssh_kwargs)
+        else:
+            _ml_system = PelletMLSystem()
+    
     return _ml_system
+
+
+def reload_ml_system():
+    """Перезагружает ML-систему (полезно после изменения данных)."""
+    global _ml_system
+    if _ml_system:
+        _ml_system.close()
+        _ml_system = None

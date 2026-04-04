@@ -93,19 +93,18 @@
         </ul>
     </div>
 
-    <style>
+        <style>
         .nav-active-gradient {
             background: rgba(45, 96, 255, 0.05) !important;
-            /* Soft blue background for active links */
             box-shadow: none !important;
-            color: var(--bank-primary) !important;
+            color: #2d60ff !important;
             position: relative;
         }
 
         .nav-link.active {
             border-radius: 8px;
             margin: 0 8px;
-            color: var(--bank-primary) !important;
+            color: #2d60ff !important;
         }
 
         .nav-link.active::before {
@@ -116,18 +115,41 @@
             transform: translateY(-50%);
             height: 60%;
             width: 4px;
-            background-color: var(--bank-primary);
+            background-color: #2d60ff;
             border-radius: 0 4px 4px 0;
         }
 
         .nav-link.active .icon {
             background: rgba(45, 96, 255, 0.1) !important;
-            color: var(--bank-primary) !important;
+            color: #2d60ff !important;
             box-shadow: none !important;
         }
 
         .nav-link.active .icon i {
-            color: var(--bank-primary) !important;
+            color: #2d60ff !important;
+        }
+
+        /* Linear dark theme overrides */
+        [data-theme="dark"] .nav-active-gradient {
+            background: rgba(94, 106, 210, 0.12) !important;
+            color: #5e6ad2 !important;
+        }
+
+        [data-theme="dark"] .nav-link.active {
+            color: #5e6ad2 !important;
+        }
+
+        [data-theme="dark"] .nav-link.active::before {
+            background-color: #5e6ad2 !important;
+        }
+
+        [data-theme="dark"] .nav-link.active .icon {
+            background: #5e6ad2 !important;
+            color: white !important;
+        }
+
+        [data-theme="dark"] .nav-link.active .icon i {
+            color: white !important;
         }
     </style>
 </aside>

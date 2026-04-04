@@ -104,6 +104,48 @@
         white-space: normal;
         height: 100%;
     }
+
+    /* Dark mode overrides for ai_analysis page */
+    [data-theme="dark"] .step-dot {
+        background: var(--bank-border-color);
+        border-color: var(--bank-border-color);
+    }
+
+    [data-theme="dark"] .step-dot.active {
+        background: var(--bank-primary);
+        box-shadow: 0 0 10px rgba(92, 124, 250, 0.4);
+    }
+
+    [data-theme="dark"] .step-dot:hover {
+        background: var(--bank-primary-hover, #5c7cfa);
+    }
+
+    [data-theme="dark"] .floating-icon {
+        color: var(--bank-primary);
+        opacity: 0.05;
+    }
+
+    [data-theme="dark"] .scrolly-section.bg-gray-50 {
+        background-color: var(--bank-bg-color) !important;
+    }
+
+    [data-theme="dark"] .quick-query {
+        background-color: var(--bg-tertiary, #1a1d24) !important;
+        color: var(--text-primary, #e3e5e8) !important;
+        border-color: var(--border-primary, #282b33) !important;
+    }
+
+    [data-theme="dark"] .quick-query:hover {
+        background-color: var(--bg-hover, #1e2128) !important;
+    }
+
+    [data-theme="dark"] #ai-ml-results .text-light {
+        color: var(--text-tertiary, #5a5e66) !important;
+    }
+
+    [data-theme="dark"] .max-w-1000 {
+        max-width: 1000px;
+    }
 </style>
 {% endblock extrastyle %}
 

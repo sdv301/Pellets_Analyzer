@@ -4,11 +4,12 @@
 <head>
   {% include "includes/head.html" %}
   {% block extrastyle %}{% endblock extrastyle %}
-  <!-- Темная тема (Global Loader) -->
+    <!-- Темная тема (Global Loader) -->
   <script>
     (function () {
       const currentTheme = localStorage.getItem('theme');
-      if (currentTheme === 'dark') {
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if (currentTheme === 'dark' || (!currentTheme && prefersDark)) {
         document.documentElement.setAttribute('data-theme', 'dark');
       }
     })();

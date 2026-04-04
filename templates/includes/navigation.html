@@ -22,13 +22,12 @@
           <!-- Результаты будут здесь -->
         </ul>
       </div>
-      <ul class="navbar-nav justify-content-end">
-        <li class="nav-item d-flex align-items-center me-3">
-          <div class="form-check form-switch p-0 m-0 d-flex align-items-center" title="Переключить тему">
-            <i class="fas fa-sun text-warning me-2"></i>
-            <input class="form-check-input m-0 cursor-pointer" type="checkbox" id="themeToggle">
-            <i class="fas fa-moon text-secondary ms-2" id="moonIcon"></i>
-          </div>
+            <ul class="navbar-nav justify-content-end">
+                <li class="nav-item d-flex align-items-center me-3">
+          <a href="javascript:;" class="nav-link text-body p-0" id="themeToggleBtn" title="Переключить тему">
+            <i class="fas fa-moon" id="moonIcon" style="font-size: 1.1rem;"></i>
+            <i class="fas fa-sun d-none" id="sunIcon" style="font-size: 1.1rem;"></i>
+          </a>
         </li>
         <li class="nav-item d-flex align-items-center">
           <!-- Убраны ссылки на авторизацию -->
@@ -51,22 +50,42 @@
   document.addEventListener('DOMContentLoaded', function () {
     const searchInput = document.getElementById('globalSearchInput');
     const resultsContainer = document.getElementById('globalSearchResults');
-    const themeToggle = document.getElementById('themeToggle');
+        const themeToggleBtn = document.getElementById('themeToggleBtn');
+    const moonIcon = document.getElementById('moonIcon');
+    const sunIcon = document.getElementById('sunIcon');
     let searchTimeout;
 
     // Инициализация темы
-    if (themeToggle) {
-      if (localStorage.getItem('theme') === 'dark') {
-        themeToggle.checked = true;
-      }
+    const savedTheme = localStorage.getItem('theme');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
 
-      themeToggle.addEventListener('change', function () {
-        if (this.checked) {
-          document.documentElement.setAttribute('data-theme', 'dark');
-          localStorage.setItem('theme', 'dark');
+    function applyDarkTheme() {
+      document.documentElement.setAttribute('data-theme', 'dark');
+      moonIcon.classList.add('d-none');
+      sunIcon.classList.remove('d-none');
+      localStorage.setItem('theme', 'dark');
+    }
+
+    function applyLightTheme() {
+      document.documentElement.removeAttribute('data-theme');
+      moonIcon.classList.remove('d-none');
+      sunIcon.classList.add('d-none');
+      localStorage.setItem('theme', 'light');
+    }
+
+    if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+      applyDarkTheme();
+    } else {
+      applyLightTheme();
+    }
+
+    // Обработчик переключения
+    if (themeToggleBtn) {
+      themeToggleBtn.addEventListener('click', function () {
+        if (document.documentElement.getAttribute('data-theme') === 'dark') {
+          applyLightTheme();
         } else {
-          document.documentElement.removeAttribute('data-theme');
-          localStorage.setItem('theme', 'light');
+          applyDarkTheme();
         }
       });
     }

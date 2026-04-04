@@ -212,7 +212,6 @@ div {
 }
 
 /* --- 2. BankDash Components (Replacing Glassmorphism) --- */
-.glass-card,
 .card {
     background: var(--bank-card-bg) !important;
     backdrop-filter: none !important;
@@ -222,6 +221,24 @@ div {
     border-radius: 20px !important;
     transition: var(--transition-smooth) !important;
     overflow: hidden;
+}
+
+/* Glass cards keep their backdrop-filter (defined per-page) */
+.glass-card {
+    background: rgba(255, 255, 255, 0.7) !important;
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06) !important;
+    border-radius: 1rem !important;
+    transition: var(--transition-smooth) !important;
+    overflow: hidden;
+}
+
+[data-theme="dark"] .glass-card {
+    background: rgba(30, 30, 45, 0.6) !important;
+    border-color: rgba(255, 255, 255, 0.06) !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3) !important;
 }
 
 .glass-card:hover,
@@ -395,7 +412,7 @@ div {
 .nav-link.active::before {
     content: '';
     position: absolute;
-    left: -1rem;
+    left: 0;
     top: 50%;
     transform: translateY(-50%);
     height: 60%;
@@ -836,21 +853,38 @@ div {
     color: #e8e8e8 !important;
 }
 
-/* Smooth theme transition */
+/* Smooth theme Transition — only on key elements for performance */
 body,
-body * {
-    transition: background-color 0.3s ease, color 0.2s ease, border-color 0.3s ease !important;
+.card,
+.glass-card,
+.bank-card,
+.sidenav,
+.navbar,
+.form-control,
+.form-select,
+.btn,
+a,
+.nav-link,
+.table,
+.modal-content,
+.dropdown-menu,
+.toast,
+.alert,
+.progress,
+.badge {
+    transition: background-color 0.3s ease, color 0.2s ease, border-color 0.3s ease, box-shadow 0.3s ease !important;
 }
 
 /* Disable transitions during initial load */
 body.theme-loading,
-body.theme-loading * {
+body.theme-loading *,
+body.theme-loading .card,
+body.theme-loading .glass-card,
+body.theme-loading .bank-card,
+body.theme-loading .sidenav,
+body.theme-loading .navbar,
+body.theme-loading .form-control,
+body.theme-loading .form-select,
+body.theme-loading .btn {
     transition: none !important;
 }
-
-/* Remove theme-loading class after load */
-<script>
-window.addEventListener('load', function() {
-    document.body.classList.remove('theme-loading');
-});
-</script>

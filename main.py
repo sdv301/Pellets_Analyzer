@@ -32,8 +32,16 @@ logging.basicConfig(
     ]
 )
 
+@app.errorhandler(404)
+def handle_not_found(e):
+    """Обработчик 404 — не логируем как критическую ошибку"""
+    return "404 Not Found", 404
+
 @app.errorhandler(Exception)
 def handle_exception(e):
+    # Не обрабатываем HTTP-исключения повторно
+    if isinstance(e, Exception) and hasattr(e, 'code'):
+        return str(e), e.code
     error_info = traceback.format_exc()
     app.logger.error(f"КРИТИЧЕСКАЯ ОШИБКА:\n{error_info}")
     return f"""
@@ -303,14 +311,17 @@ def search():
                     continue
 
                 if op == 'BETWEEN':
+                    # Строгая проверка: для BETWEEN требуются ОБА значения
                     if f_val is not None and f_val_max is not None:
+                        # Проверяем, что min <= max
+                        if f_val > f_val_max:
+                            print(f"Skipping BETWEEN: min ({f_val}) > max ({f_val_max})")
+                            continue
                         mask = (filtered_data[col] >= f_val) & (filtered_data[col] <= f_val_max)
-                    elif f_val is not None:
-                        mask = filtered_data[col] >= f_val
-                    elif f_val_max is not None:
-                        mask = filtered_data[col] <= f_val_max
                     else:
-                        mask = pd.Series([False] * len(filtered_data))
+                        # Если хотя бы одно значение отсутствует — пропускаем критерий
+                        print(f"Skipping BETWEEN: missing values (min={f_val}, max={f_val_max})")
+                        continue
                 elif op == 'APPROX':
                     # Приблизительное совпадение с допуском ±5%
                     if f_val is not None:
@@ -1433,50 +1444,69 @@ def download_economics():
 @app.route('/api/upload_economics', methods=['POST'])
 def upload_economics():
     """Загружает новый формат Excel и обновляет базу данных"""
+    import sqlite3
+
     if 'file' not in request.files:
         return jsonify({'success': False, 'error': 'Файл не найден'})
-        
+
     file = request.files['file']
     if file.filename == '':
         return jsonify({'success': False, 'error': 'Файл не выбран'})
 
     try:
         df = pd.read_excel(file)
-        
-        # Проверяем новые колонки
-        required_cols = ['Компоненты', 'Qai,V, МДж/кг', 'Cc, руб/кг', 'Cи, руб/кг', 'Cг, руб/кг']
-        for col in required_cols:
-            if col not in df.columns:
-                return jsonify({'success': False, 'error': f'Неверный формат. Не найдена колонка: {col}'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'Не удалось прочитать Excel: {str(e)}'})
 
-        import sqlite3
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
+    # Проверяем обязательные колонки
+    required_cols = ['Компоненты', 'Qai,V, МДж/кг', 'Cc, руб/кг', 'Cи, руб/кг', 'Cг, руб/кг']
+    missing = [col for col in required_cols if col not in df.columns]
+    if missing:
+        return jsonify({
+            'success': False,
+            'error': f'Неверный формат. Отсутствуют колонки: {", ".join(missing)}'
+        })
+
+    # Валидируем и очищаем данные
+    df['Компоненты'] = df['Компоненты'].astype(str).str.strip()
+    df = df[df['Компоненты'].str.len() > 0]  # Убираем пустые строки
+
+    if df.empty:
+        return jsonify({'success': False, 'error': 'Файл не содержит данных о компонентах'})
+
+    # Приводим числовые колонки к float, заменяя невалидные значения на 0
+    numeric_cols = ['Qai,V, МДж/кг', 'Cc, руб/кг', 'Cи, руб/кг', 'Cг, руб/кг']
+    for col in numeric_cols:
+        df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0.0)
+
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    try:
         cursor.execute("DELETE FROM components")
-        
+
         for _, row in df.iterrows():
             name = str(row['Компоненты']).strip()
-            
-            # Если компонент базовый, берем его скрытую плотность, иначе 1000
             ro = COMPONENTS_DATA.get(name, {}).get('Ro', 1000.0)
-            
+
             cursor.execute("""
-                INSERT INTO components (component, ro, q, cost_raw, cost_crush, cost_granule) 
+                INSERT INTO components (component, ro, q, cost_raw, cost_crush, cost_granule)
                 VALUES (?, ?, ?, ?, ?, ?)
             """, (
                 name,
-                float(ro), # Скрытая плотность
+                float(ro),
                 float(row['Qai,V, МДж/кг']),
                 float(row['Cc, руб/кг']),
                 float(row['Cи, руб/кг']),
                 float(row['Cг, руб/кг'])
             ))
-            
+
         conn.commit()
-        conn.close()
-        return jsonify({'success': True, 'message': 'Цены успешно обновлены!'})
+        return jsonify({'success': True, 'message': f'Цены успешно обновлены! Загружено компонентов: {len(df)}'})
     except Exception as e:
-        return jsonify({'success': False, 'error': f'Ошибка при чтении файла: {str(e)}'})
+        conn.rollback()  # Откат при ошибке — данные не потеряны
+        return jsonify({'success': False, 'error': f'Ошибка записи в БД: {str(e)}'})
+    finally:
+        conn.close()
 
 @app.route('/api/calculate_economics', methods=['POST'])
 def calculate_economics():
@@ -1493,18 +1523,15 @@ def calculate_economics():
         efficiency = float(data.get('efficiency', 0.9))  # КПД котла (b)
         components = data.get('components', {})  # {"Опилки": 67.5, "Солома": 27.5, ...}
         
-        # --- Скрытые константы из Excel/Методики ---
-        # Коэффициенты из формулы объема
-        COEFF_A = 0.8        # a - коэффициент использования мощности
-        COEFF_C = 3.6        # c - коэффициент пересчета мощности в МДж/кг (1 кВт*ч = 3.6 МДж)
-        COEFF_B = 0.9        # b - КПД котла
-        
-        # Экономика
-        RENT_COST_PER_M2 = 380.0        # С_аренда - стоимость аренды 1 м², руб/м²
+        # --- Константы из Excel/Методики ---
+        COEFF_C = 3.6        # c - коэффициент пересчета мощности в МДж/кг (1 кВт·ч = 3.6 МДж)
+
+        # Экономика (из Excel "Исходники", строки 119-120, 107, 124)
+        RENT_COST_PER_M2 = 380.0        # С_аренда — стоимость аренды 1 м², руб/м²
         STORAGE_LOAD_KG_PER_M2 = 1100.0 # Норматив нагрузки на склад, кг/м²
-        TRUCK_BASE_RATE = 6000.0        # БС - базовая ставка за машину, руб
-        TRUCK_COST_PER_KM = 85.0        # С_км - стоимость 1 км пути, руб/км
-        TRUCK_CAPACITY_KG = 20000.0     # m_г - грузоподъемность одной машины, кг
+        TRUCK_BASE_RATE = 6000.0        # БС — базовая ставка за машину, руб
+        TRUCK_COST_PER_KM = 85.0        # С_км — стоимость 1 км пути, руб/км
+        TRUCK_CAPACITY_KG = 20000.0     # m_г — грузоподъёмность одной машины, кг
         # -------------------------------------------
 
         # Загружаем актуальные данные из БД
@@ -1549,17 +1576,17 @@ def calculate_economics():
             return jsonify({'success': False, 'error': 'Некорректный состав или отсутствуют данные о теплоте сгорания/плотности'})
 
         # 3. Расчет объема и массы топлива ПО МЕТОДИКЕ
-                # Формула: Vнеобх = (Q × T × a × c) / (Qi,v_a × b × ρ)
-        # где: Q - мощность котла, кВт
-        #      T - время работы, ч
-        #      a - коэфф. использования мощности (0.8)
-        #      c - коэфф. пересчета в МДж (3.6)
-        #      Qi,v_a - теплота сгорания смеси, МДж/кг
-        #      b - КПД котла (0.9)
-        #      ρ - плотность смеси, кг/м³
-        
-        numerator = q_boiler * t_hours * COEFF_A * COEFF_C
-        denominator = mix_qai * COEFF_B * mix_ro
+        # Формула: Vнеобх = (Q × T × a × c) / (Qi,v_a × b × ρ)
+        # где: Q — мощность котла, кВт
+        #      T — время работы, ч
+        #      a — коэфф. использования мощности (из формы, по умолчанию 0.8)
+        #      c — коэфф. пересчета в МДж (3.6)
+        #      Qi,v_a — теплота сгорания смеси, МДж/кг
+        #      b — КПД котла (из формы, по умолчанию 0.9)
+        #      ρ — плотность смеси, кг/м³
+
+        numerator = q_boiler * t_hours * capacity_factor * COEFF_C
+        denominator = mix_qai * efficiency * mix_ro
         
         v_neobh_m3 = numerator / denominator  # Необходимый объем, м³
         
@@ -1582,8 +1609,8 @@ def calculate_economics():
         production_cost = production_cost_per_kg * mass_kg
 
         # 6. Затраты на транспортировку (ТС) по методике
-        # Формула: С_рейса = БС × С_км × S × 2
-        #          К = mнеобх / m_г (округление до целых)
+        # Формула: С_рейса = БС + С_км × S × 2  (туда и обратно)
+        #          К = ceil(mнеобх / m_г)
         #          ТС = С_рейса × К
         trip_cost = TRUCK_BASE_RATE + (TRUCK_COST_PER_KM * distance * 2)
         trucks_needed = math.ceil(mass_kg / TRUCK_CAPACITY_KG)
