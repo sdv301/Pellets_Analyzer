@@ -72,7 +72,7 @@
                                         <label class="form-label fw-bold">Ось X (базовый параметр):</label>
                                         <select name="x_param" class="form-select border-radius-lg" id="xParam">
                                             {% for param in parameters %}
-                                            <option value="{{ param }}" {% if param=='ad' %}selected{% endif %}>{{ param
+                                            <option value="{{ param }}" {% if param=='ad' %}selected{% endif %}>{{ param_labels.get(param, param)
                                                 }}</option>
                                             {% endfor %}
                                         </select>
@@ -81,7 +81,7 @@
                                         <label class="form-label fw-bold">Ось Y (целевой параметр):</label>
                                         <select name="y_param" class="form-select border-radius-lg" id="yParam">
                                             {% for param in parameters %}
-                                            <option value="{{ param }}" {% if param=='q' %}selected{% endif %}>{{ param
+                                            <option value="{{ param }}" {% if param=='q' %}selected{% endif %}>{{ param_labels.get(param, param)
                                                 }}</option>
                                             {% endfor %}
                                         </select>
@@ -95,7 +95,7 @@
                                         <select name="z_param" class="form-select border-radius-lg" id="zParam">
                                             <option value="">Не выбрано</option>
                                             {% for param in parameters %}
-                                            <option value="{{ param }}">{{ param }}</option>
+                                            <option value="{{ param }}">{{ param_labels.get(param, param) }}</option>
                                             {% endfor %}
                                         </select>
                                     </div>
@@ -104,7 +104,7 @@
                                         <select name="color_param" class="form-select border-radius-lg" id="colorParam">
                                             <option value="">Не выбрано (по умолчанию)</option>
                                             {% for param in parameters %}
-                                            <option value="{{ param }}">{{ param }}</option>
+                                            <option value="{{ param }}">{{ param_labels.get(param, param) }}</option>
                                             {% endfor %}
                                         </select>
                                     </div>
@@ -116,7 +116,7 @@
                                             <select name="size_param" class="form-select border-radius-lg">
                                                 <option value="">Не выбрано</option>
                                                 {% for param in parameters %}
-                                                <option value="{{ param }}">{{ param }}</option>
+                                                <option value="{{ param }}">{{ param_labels.get(param, param) }}</option>
                                                 {% endfor %}
                                             </select>
                                         </div>
@@ -125,7 +125,7 @@
                                             <select name="animation_param" class="form-select border-radius-lg">
                                                 <option value="">Не выбрано</option>
                                                 {% for param in parameters %}
-                                                <option value="{{ param }}">{{ param }}</option>
+                                                <option value="{{ param }}">{{ param_labels.get(param, param) }}</option>
                                                 {% endfor %}
                                             </select>
                                         </div>
@@ -947,34 +947,6 @@
 <script src="https://cdn.plot.ly/plotly-2.27.1.min.js"></script>
 
 <script>
-
-
-    function testPlotlyManually() {
-        // Простой тестовый график
-        const testData = [{
-            x: [1, 2, 3, 4, 5],
-            y: [1, 2, 3, 4, 5],
-            type: 'scatter'
-        }];
-
-        const testLayout = {
-            title: 'Тестовый график Plotly',
-            width: 800,
-            height: 600
-        };
-
-        const plotlyContainer = document.getElementById('plotlyContainer');
-        plotlyContainer.innerHTML = '<div id="manual-test-plot" style="width: 100%; height: 500px;"></div>';
-        plotlyContainer.style.display = 'block';
-
-        if (typeof Plotly !== 'undefined') {
-            Plotly.newPlot('manual-test-plot', testData, testLayout);
-            console.log('✅ Manual Plotly test successful');
-        } else {
-            console.error('❌ Plotly not available for manual test');
-            plotlyContainer.innerHTML = '<div class="alert alert-danger">Plotly.js не загружен</div>';
-        }
-    }
     // Глобальные переменные
     let currentGraph = null;
     let currentGraphType = 'matplotlib';
@@ -1385,59 +1357,6 @@
         return false;
     }
 
-    function ensureContainersExist() {
-        console.log('🔧 Проверка существования контейнеров...');
-
-        let graphContainer = document.getElementById('graphContainer');
-        let plotlyContainer = document.getElementById('plotlyContainer');
-
-        console.log('📦 Текущее состояние:', {
-            graphContainer: !!graphContainer,
-            plotlyContainer: !!plotlyContainer
-        });
-
-        // Если plotlyContainer не найден, создаем его в ПРАВИЛЬНОМ месте
-        if (!plotlyContainer) {
-            console.warn('⚠️ plotlyContainer не найден, создаем в правильном месте...');
-
-            // Находим ПРАВИЛЬНЫЙ контейнер - тот, где должен быть график
-            const graphArea = document.querySelector('.col-lg-8 .card-body');
-            if (graphArea) {
-                plotlyContainer = document.createElement('div');
-                plotlyContainer.id = 'plotlyContainer';
-                plotlyContainer.style.display = 'none';
-                plotlyContainer.style.height = '100%';
-                plotlyContainer.style.width = '100%';
-
-                // Добавляем в ПРАВИЛЬНОЕ место - в область графика
-                graphArea.appendChild(plotlyContainer);
-                console.log('✅ plotlyContainer создан и добавлен в область графика');
-            } else {
-                console.error('❌ Не удалось найти область графика для создания plotlyContainer');
-
-                // Альтернативный поиск
-                const rightColumn = document.querySelector('.col-lg-8');
-                if (rightColumn) {
-                    const cardBody = rightColumn.querySelector('.card-body');
-                    if (cardBody) {
-                        plotlyContainer = document.createElement('div');
-                        plotlyContainer.id = 'plotlyContainer';
-                        plotlyContainer.style.display = 'none';
-                        plotlyContainer.style.height = '100%';
-                        plotlyContainer.style.width = '100%';
-                        cardBody.appendChild(plotlyContainer);
-                        console.log('✅ plotlyContainer создан в правой колонке');
-                    }
-                }
-            }
-        }
-
-        return {
-            graphContainer: graphContainer || document.getElementById('graphContainer'),
-            plotlyContainer: plotlyContainer || document.getElementById('plotlyContainer')
-        };
-    }
-
     function displayGraph(graphData, graphType) {
         console.log('🎨 displayGraph вызвана с:', { graphType, hasData: !!graphData });
 
@@ -1658,38 +1577,6 @@
         });
     }
 
-    function extractPlotlyDataAdvanced(container) {
-        const scripts = container.querySelectorAll('script');
-
-        for (let script of scripts) {
-            const scriptContent = script.textContent || script.innerHTML;
-
-            if (scriptContent.includes('Plotly.newPlot')) {
-                console.log('🔍 Найден Plotly.newPlot скрипт');
-
-                // Пытаемся извлечь аргументы разными способами
-                const args = extractPlotlyArguments(scriptContent);
-                if (args) {
-                    return args;
-                }
-            }
-
-            // Ищем данные в переменных
-            if (scriptContent.includes('data = ') || scriptContent.includes('var data')) {
-                console.log('🔍 Найдены данные в переменных');
-                const data = extractJavaScriptVariable(scriptContent, 'data');
-                const layout = extractJavaScriptVariable(scriptContent, 'layout') || {};
-                const config = extractJavaScriptVariable(scriptContent, 'config') || {};
-
-                if (data) {
-                    return { data, layout, config };
-                }
-            }
-        }
-
-        return null;
-    }
-
     // Проверка поддержки полноэкранного режима
     function checkFullscreenSupport() {
         const doc = document.documentElement;
@@ -1700,275 +1587,6 @@
         console.log('🔍 Поддержка полноэкранного режима:', support);
         return support;
     }
-
-
-    function extractPlotlyArguments(scriptContent) {
-        // Упрощенное извлечение - ищем вызов Plotly.newPlot и пытаемся выполнить его
-        const plotlyCallMatch = scriptContent.match(/Plotly\.newPlot\(([^)]+)\)/);
-        if (!plotlyCallMatch) return null;
-
-        const fullCall = plotlyCallMatch[0];
-        console.log('📞 Найден вызов Plotly:', fullCall.substring(0, 200) + '...');
-
-        try {
-            // Создаем безопасный контекст для выполнения
-            const data = [];
-            const layout = {};
-            const config = {};
-
-            // Временные переменные для выполнения
-            window.tempPlotlyData = data;
-            window.tempPlotlyLayout = layout;
-            window.tempPlotlyConfig = config;
-
-            // Заменяем вызов Plotly на присваивание нашим переменным
-            const modifiedScript = scriptContent
-                .replace(/Plotly\.newPlot\([^,]+,\s*([^,]+),\s*([^,]+),\s*([^)]+)\)/,
-                    'window.tempPlotlyData = $1; window.tempPlotlyLayout = $2; window.tempPlotlyConfig = $3;')
-                .replace(/Plotly\.newPlot\([^,]+,\s*([^,]+),\s*([^)]+)\)/,
-                    'window.tempPlotlyData = $1; window.tempPlotlyLayout = $2;');
-
-            // Выполняем скрипт
-            eval(modifiedScript);
-
-            // Получаем данные
-            const result = {
-                data: window.tempPlotlyData,
-                layout: window.tempPlotlyLayout,
-                config: window.tempPlotlyConfig
-            };
-
-            // Очищаем временные переменные
-            delete window.tempPlotlyData;
-            delete window.tempPlotlyLayout;
-            delete window.tempPlotlyConfig;
-
-            console.log('✅ Данные успешно извлечены:', {
-                data_length: result.data ? result.data.length : 0,
-                layout_keys: result.layout ? Object.keys(result.layout) : []
-            });
-
-            return result;
-
-        } catch (error) {
-            console.error('❌ Ошибка извлечения аргументов:', error);
-            return null;
-        }
-    }
-
-    function extractJavaScriptVariable(scriptContent, varName) {
-        // Ищем переменную в разных форматах
-        const patterns = [
-            new RegExp(`(?:var|let|const)\\s+${varName}\\s*=\\s*({[^;]+});?`),
-            new RegExp(`(?:var|let|const)\\s+${varName}\\s*=\\s*(\\[[^;]+\\]);?`),
-            new RegExp(`${varName}\\s*=\\s*({[^;]+});?`),
-            new RegExp(`${varName}\\s*=\\s*(\\[[^;]+\\]);?`)
-        ];
-
-        for (let pattern of patterns) {
-            const match = scriptContent.match(pattern);
-            if (match) {
-                try {
-                    // Чистим строку от возможных проблем
-                    let jsonStr = match[1]
-                        .replace(/(['"])?([a-zA-Z0-9_]+)(['"])?:/g, '"$2":') // Ключи в двойные кавычки
-                        .replace(/'/g, '"') // Заменяем одинарные кавычки на двойные
-                        .replace(/,(\s*[}\]])/g, '$1'); // Убираем висящие запятые
-
-                    return JSON.parse(jsonStr);
-                } catch (e) {
-                    console.error(`❌ Ошибка парсинга переменной ${varName}:`, e);
-                    console.log('📄 Проблемная строка:', match[1].substring(0, 100));
-                    continue;
-                }
-            }
-        }
-
-        return null;
-    }
-
-    function executePlotlyScriptsAdvanced(container, targetId) {
-        const scripts = container.querySelectorAll('script');
-        let executed = false;
-
-        scripts.forEach((script, index) => {
-            if (!script.src && script.textContent) {
-                try {
-                    let modifiedScript = script.textContent;
-
-                    // Заменяем ID контейнера если нужно
-                    if (modifiedScript.includes("document.getElementById('")) {
-                        const idMatch = modifiedScript.match(/document\.getElementById\('([^']+)'\)/);
-                        if (idMatch) {
-                            modifiedScript = modifiedScript.replace(new RegExp(idMatch[1], 'g'), targetId);
-                        }
-                    }
-
-                    // Выполняем скрипт
-                    eval(modifiedScript);
-                    executed = true;
-                    console.log(`✅ Скрипт ${index + 1} выполнен`);
-
-                } catch (error) {
-                    console.error(`❌ Ошибка выполнения скрипта ${index + 1}:`, error);
-                }
-            }
-        });
-
-        if (executed) {
-            // Обновляем размер после выполнения скриптов
-            setTimeout(() => {
-                const plotlyDiv = document.getElementById(targetId);
-                if (plotlyDiv && typeof Plotly !== 'undefined') {
-                    Plotly.Plots.resize(plotlyDiv);
-                    console.log('✅ Размер Plotly графика обновлен');
-                }
-            }, 300);
-        } else {
-            console.log('ℹ️ Скрипты не были выполнены, используем альтернативный метод');
-            useDirectHTMLRender(container.innerHTML, targetId);
-        }
-    }
-
-    function useDirectHTMLRender(graphData, graphId) {
-        console.log('🔄 Прямой HTML рендер Plotly');
-
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = graphData;
-
-        // Ищем оригинальный Plotly div
-        const originalDiv = tempDiv.querySelector('.js-plotly-plot');
-        const targetDiv = document.getElementById(graphId);
-
-        if (originalDiv && targetDiv) {
-            // Копируем содержимое и атрибуты
-            targetDiv.innerHTML = originalDiv.innerHTML;
-            targetDiv.className = originalDiv.className;
-
-            for (let attr of originalDiv.attributes) {
-                targetDiv.setAttribute(attr.name, attr.value);
-            }
-
-            console.log('✅ HTML напрямую скопирован');
-
-            // Пытаемся инициализировать Plotly если он доступен
-            if (typeof Plotly !== 'undefined' && targetDiv.classList.contains('js-plotly-plot')) {
-                setTimeout(() => {
-                    try {
-                        Plotly.Plots.resize(targetDiv);
-                        console.log('✅ Plotly инициализирован после прямого рендера');
-                    } catch (e) {
-                        console.log('ℹ️ Plotly уже инициализирован');
-                    }
-                }, 500);
-            }
-        } else {
-            // Последняя попытка - просто вставляем HTML
-            targetDiv.innerHTML = graphData;
-            console.log('✅ Весь HTML вставлен напрямую');
-        }
-    }
-
-    function extractPlotlyData(scriptContent) {
-        // Пытаемся найти данные в разных форматах
-        const patterns = [
-            /Plotly\.newPlot\([^,]+,([^,]+),([^,]+),([^)]+)\)/,
-            /Plotly\.newPlot\([^,]+,([^,]+),([^)]+)\)/,
-            /Plotly\.plot\([^,]+,([^,]+),([^,]+),([^)]+)\)/
-        ];
-
-        for (let pattern of patterns) {
-            const match = scriptContent.match(pattern);
-            if (match) {
-                try {
-                    const data = JSON.parse(match[1].trim());
-                    const layout = match[2] ? JSON.parse(match[2].trim()) : {};
-                    const config = match[3] ? JSON.parse(match[3].trim()) : {};
-
-                    return { data, layout, config };
-                } catch (e) {
-                    console.error('❌ Ошибка парсинга данных Plotly:', e);
-                    continue;
-                }
-            }
-        }
-
-        return null;
-    }
-
-    function extractFromScript(scriptContent, variableName) {
-        const pattern = new RegExp(`(?:var|let|const)\\s+${variableName}\\s*=\\s*({[^;]+});?`, 'i');
-        const match = scriptContent.match(pattern);
-
-        if (match) {
-            try {
-                return JSON.parse(match[1]);
-            } catch (e) {
-                console.error(`❌ Ошибка парсинга переменной ${variableName}:`, e);
-            }
-        }
-
-        return null;
-    }
-
-    function fallbackPlotlyRender(graphData, graphId) {
-        console.log('🔄 Fallback рендер Plotly');
-
-        // Просто вставляем HTML и пытаемся выполнить скрипты
-        const tempContainer = document.createElement('div');
-        tempContainer.innerHTML = graphData;
-
-        // Находим оригинальный div Plotly
-        const originalPlotlyDiv = tempContainer.querySelector('.js-plotly-plot');
-
-        if (originalPlotlyDiv && originalPlotlyDiv.id) {
-            // Если у оригинального div есть ID, используем его
-            const targetDiv = document.getElementById(graphId);
-            if (targetDiv) {
-                targetDiv.id = originalPlotlyDiv.id;
-                targetDiv.innerHTML = originalPlotlyDiv.innerHTML;
-                targetDiv.className = originalPlotlyDiv.className;
-
-                // Копируем все атрибуты
-                for (let attr of originalPlotlyDiv.attributes) {
-                    targetDiv.setAttribute(attr.name, attr.value);
-                }
-
-                // Выполняем скрипты
-                executePlotlyScriptsSimple(tempContainer);
-                console.log('✅ Fallback рендер завершен');
-            }
-        } else {
-            // Последняя попытка - простой HTML
-            document.getElementById(graphId).innerHTML =
-                '<div class="alert alert-warning h-100 d-flex align-items-center justify-content-center">' +
-                '<div class="text-center"><i class="fas fa-exclamation-triangle fa-2x mb-2"></i>' +
-                '<p>Не удалось создать интерактивный график</p>' +
-                '<button class="btn btn-sm btn-outline-primary mt-2" onclick="retryPlotlyRender()">Попробовать снова</button>' +
-                '</div></div>';
-        }
-    }
-
-    function resizePlotlyGraph() {
-        const dynamicContainer = document.getElementById('dynamicGraphContainer');
-        if (!dynamicContainer) return;
-
-        const plotlyGraphs = dynamicContainer.querySelectorAll('.js-plotly-plot, .plotly');
-
-        plotlyGraphs.forEach((graph, index) => {
-            if (typeof Plotly !== 'undefined') {
-                setTimeout(() => {
-                    try {
-                        Plotly.Plots.resize(graph);
-                        console.log(`✅ Размер Plotly графика ${index + 1} обновлен`);
-                    } catch (error) {
-                        console.warn(`⚠️ Не удалось обновить размер графика ${index + 1}:`, error);
-                    }
-                }, 100 * (index + 1));
-            }
-        });
-    }
-
 
 
     function createMatplotlibGraph(graphData, container) {
@@ -2061,17 +1679,6 @@
         }
     }
 
-    function showEmptyState() {
-        const graphContent = document.getElementById('graphContent');
-        const emptyState = document.getElementById('emptyState');
-        const universalArea = document.getElementById('universalGraphArea');
-
-        graphContent.style.display = 'none';
-        emptyState.style.display = 'flex';
-        universalArea.classList.remove('has-graph');
-    }
-
-
     function updateStatistics(stats) {
         const statsContainer = document.getElementById('dataStats');
 
@@ -2138,9 +1745,9 @@
 
         try {
             if (currentGraphType === 'plotly') {
-                // Для Plotly графиков
-                const plotlyContainer = document.getElementById('plotlyContainer');
-                const plotlyGraph = plotlyContainer.querySelector('.js-plotly-plot');
+                // Для Plotly графиков — ищем в dynamicGraphContainer
+                const dynamicContainer = document.getElementById('dynamicGraphContainer');
+                const plotlyGraph = dynamicContainer.querySelector('.js-plotly-plot');
 
                 if (plotlyGraph) {
                     Plotly.downloadImage(plotlyGraph, {
@@ -2150,6 +1757,8 @@
                         height: 600
                     });
                     showMessage('График Plotly скачан', 'success');
+                } else {
+                    showMessage('Plotly график не найден', 'warning');
                 }
             } else {
                 // Для matplotlib/seaborn графиков
@@ -2440,9 +2049,7 @@
 
         toggleComposition(composition, isVisible);
 
-        // НЕ обновляем график автоматически при клике на чекбокс
-        // Пользователь сам нажмет "Создать график" когда будет готов
-        showMessage('Состав изменен. Нажмите "Создать график" для обновления.', 'info', 2000);
+        // НЕ показываем сообщение при каждом клике — слишком шумно
     }
 
     // Функция переключения состава
@@ -2623,15 +2230,6 @@
                 Составы на графике
                 <small class="badge bg-primary ms-2">${selected}/${total}</small>
             `;
-
-                // Меняем цвет заголовка в зависимости от выбора
-                if (selected === 0) {
-                    cardHeader.classList.add('text-warning');
-                    cardHeader.classList.remove('text-white');
-                } else {
-                    cardHeader.classList.remove('text-warning');
-                    cardHeader.classList.add('text-white');
-                }
             }
         }
     }

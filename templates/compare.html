@@ -180,7 +180,7 @@
                     <h5 class="text-muted fw-bolder">Данные не загружены</h5>
                     <p class="text-muted text-sm">Загрузите файл на главной странице, чтобы выбрать составы для
                         сравнения.</p>
-                    <a href="{{ url_for('index') }}" class="btn bg-gradient-dark mt-3">
+                    <a href="{{ url_for('dashboard') }}" class="btn bg-gradient-dark mt-3">
                         <i class="fas fa-upload me-2"></i>Перейти к загрузке
                     </a>
                 </div>
@@ -581,7 +581,7 @@
 
     .score-header {
         display: flex;
-        justify-content: between;
+        justify-content: space-between;
         align-items: flex-start;
         margin-bottom: 15px;
     }
@@ -795,13 +795,6 @@
     let comparisonChart = null;
     let differenceChart = null;
 
-    document.addEventListener('DOMContentLoaded', function () {
-        initializePage();
-        loadComparisonHistory();
-        setupEventListeners();
-        updateCheckboxIcons();
-    });
-
 
     function updateCheckboxIcons() {
         document.querySelectorAll('.form-check-input').forEach(checkbox => {
@@ -855,13 +848,19 @@
     function safeInitialize() {
         try {
             initializePage();
-            initializeCriteriaPanel();
+            if (typeof initializeCriteriaPanel === 'function') {
+                initializeCriteriaPanel();
+            }
             loadComparisonHistory();
             setupEventListeners();
 
             // Обновляем иконки после загрузки
             setTimeout(() => {
-                updateAllCheckboxIcons();
+                if (typeof updateAllCheckboxIcons === 'function') {
+                    updateAllCheckboxIcons();
+                } else {
+                    updateCheckboxIcons();
+                }
             }, 100);
 
         } catch (error) {
@@ -870,7 +869,7 @@
         }
     }
 
-    // Заменяем вызов в DOMContentLoaded
+    // Единый обработчик DOMContentLoaded
     document.addEventListener('DOMContentLoaded', safeInitialize);
 
     // Улучшенная функция создания визуализаций с реальными данными
@@ -1275,91 +1274,6 @@
             </div>
         `;
         }
-    }
-
-    function createVisualizations(data) {
-        // Уничтожаем старые графики если они есть
-        if (comparisonChart) {
-            comparisonChart.destroy();
-        }
-        if (differenceChart) {
-            differenceChart.destroy();
-        }
-
-        const comparisonCtx = document.getElementById('comparisonChart').getContext('2d');
-        const differenceCtx = document.getElementById('differenceChart').getContext('2d');
-
-        // Пример данных для графиков (в реальности нужно брать из data)
-        const compositions = data.compositions || ['Состав 1', 'Состав 2'];
-
-        comparisonChart = new Chart(comparisonCtx, {
-            type: 'bar',
-            data: {
-                labels: ['Теплота сгорания', 'Зольность', 'Плотность', 'Время горения'],
-                datasets: compositions.map((comp, index) => ({
-                    label: comp.substring(0, 20) + '...',
-                    data: [18 + index * 0.5, 1.5 - index * 0.3, 980 + index * 20, 180 - index * 10],
-                    backgroundColor: index === 0 ? 'rgba(54, 162, 235, 0.8)' : 'rgba(255, 99, 132, 0.8)',
-                    borderColor: index === 0 ? 'rgb(54, 162, 235)' : 'rgb(255, 99, 132)',
-                    borderWidth: 1
-                }))
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    title: {
-                        display: true,
-                        text: 'Сравнение основных параметров'
-                    },
-                    legend: {
-                        position: 'top',
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true
-                    }
-                }
-            }
-        });
-
-        differenceChart = new Chart(differenceCtx, {
-            type: 'bar',
-            data: {
-                labels: ['Теплота сгорания', 'Зольность', 'Плотность', 'Время горения'],
-                datasets: [{
-                    label: 'Разница в %',
-                    data: [2.7, -20, 2.1, -5.6],
-                    backgroundColor: [
-                        'rgba(75, 192, 192, 0.8)',
-                        'rgba(255, 159, 64, 0.8)',
-                        'rgba(153, 102, 255, 0.8)',
-                        'rgba(201, 203, 207, 0.8)'
-                    ],
-                    borderColor: [
-                        'rgb(75, 192, 192)',
-                        'rgb(255, 159, 64)',
-                        'rgb(153, 102, 255)',
-                        'rgb(201, 203, 207)'
-                    ],
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    title: {
-                        display: true,
-                        text: 'Различия между составами (%)'
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true
-                    }
-                }
-            }
-        });
     }
 
     function showCompositionScores(data) {

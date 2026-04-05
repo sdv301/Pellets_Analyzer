@@ -1,0 +1,97 @@
+# ============================================================
+# Pellets Analyzer — Docker Compose
+# ============================================================
+# Для запуска: docker-compose up -d
+# Для остановки: docker-compose down
+# Для просмотра логов: docker-compose logs -f
+# ============================================================
+
+services:
+  # Основное приложение
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pellets-analyzer
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - SECRET_KEY=${SECRET_KEY:-change-me-to-random-string}
+      - FLASK_ENV=production
+      - DATABASE_URL=sqlite:////app/data/pellets_data.db
+      - MAIL_SERVER=${MAIL_SERVER:-smtp.gmail.com}
+      - MAIL_PORT=${MAIL_PORT:-587}
+      - MAIL_USE_TLS=${MAIL_USE_TLS:-true}
+      - MAIL_USERNAME=${MAIL_USERNAME:-}
+      - MAIL_PASSWORD=${MAIL_PASSWORD:-}
+      - MAIL_DEFAULT_SENDER=${MAIL_DEFAULT_SENDER:-Pellets Analyzer <noreply@pellets-analyzer.com>}
+    volumes:
+      # Сохранение данных между перезапусками
+      - app_data:/app/data
+      - uploads:/app/Uploads
+      - sessions:/app/sessions
+      # Монтирование конфигов (опционально)
+      - ./mail_config.json:/app/mail_config.json:ro
+      - ./db_config.json:/app/db_config.json:ro
+    networks:
+      - pellets-net
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:5000/', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  # Nginx — обратный прокси (опционально, раскомментируйте для продакшена)
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: pellets-nginx
+  #   restart: unless-stopped
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./nginx.conf:/etc/nginx/nginx.conf:ro
+  #     - ./ssl:/etc/nginx/ssl:ro
+  #   depends_on:
+  #     - web
+  #   networks:
+  #     - pellets-net
+
+  # PostgreSQL (опционально, раскомментируйте для продакшена вместо SQLite)
+  # postgres:
+  #   image: postgres:16-alpine
+  #   container_name: pellets-postgres
+  #   restart: unless-stopped
+  #   environment:
+  #     - POSTGRES_DB=pellets
+  #     - POSTGRES_USER=pellets_user
+  #     - POSTGRES_PASSWORD=${DB_PASSWORD:-change-me}
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   networks:
+  #     - pellets-net
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U pellets_user"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+
+volumes:
+  app_data:
+  uploads:
+  sessions:
+  # postgres_data:
+
+networks:
+  pellets-net:
+    driver: bridge

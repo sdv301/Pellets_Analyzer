@@ -1,10 +1,11 @@
 # main.py - основное приложение со всеми роутами
-from flask import Flask, render_template, request, jsonify, session, flash
+from flask import Flask, render_template, request, jsonify, session, flash, redirect, url_for
 from flask_session import Session
 import pandas as pd
 import os
 import numpy as np
 import secrets
+import sqlite3
 from data_processor import process_data_source
 from database import query_db, insert_data, init_db
 from ai_ml_integration import AIMLAnalyzer
@@ -12,6 +13,20 @@ from gui import *
 import json
 import logging
 import traceback
+
+# ============================================================
+# АУТЕНТИФИКАЦИЯ И АВТОРИЗАЦИЯ
+# ============================================================
+from auth import (
+    init_auth_tables, init_mail, mail,
+    create_user, verify_user, authenticate_user,
+    get_user_by_id, get_user_by_email, update_user_profile, change_password as auth_change_password,
+    request_password_reset, reset_password,
+    get_activity_logs, get_user_stats, get_user_uploads, get_user_ml_models,
+    log_activity, log_upload,
+    login_required, admin_required,
+    send_verification_email, send_reset_email,
+)
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'Uploads'
@@ -72,9 +87,302 @@ db_path = 'pellets_data.db'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['SESSION_FILE_DIR'], exist_ok=True)
 init_db(db_path)  # Инициализация базы данных
+init_auth_tables(db_path)  # Инициализация таблиц аутентификации
+init_mail(app)  # Инициализация email
+
+# ============================================================
+# РОУТЫ АУТЕНТИФИКАЦИИ
+# ============================================================
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    """Вход в систему."""
+    if request.method == 'POST':
+        email_or_username = request.form.get('email_or_username', '').strip()
+        password = request.form.get('password', '')
+        remember = request.form.get('remember') == 'on'
+
+        result = authenticate_user(db_path, email_or_username, password)
+
+        if result['success']:
+            user = result['user']
+            session['user_id'] = user['id']
+            session['username'] = user['username']
+            session['email'] = user['email']
+            session['role_name'] = user['role_name']
+            session['full_name'] = user.get('full_name', '')
+            session.permanent = remember
+
+            log_activity(db_path, user['id'], 'login', f'Вход: {user["email"]}')
+            flash(f'Добро пожаловать, {user["username"]}!', 'success')
+            return redirect(url_for('dashboard'))
+        else:
+            flash(result['error'], 'danger')
+
+    return render_template('auth/login.html')
+
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    """Регистрация нового пользователя."""
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        email = request.form.get('email', '').strip()
+        password = request.form.get('password', '')
+        confirm_password = request.form.get('confirm_password', '')
+        full_name = request.form.get('full_name', '').strip()
+        company = request.form.get('company', '').strip()
+
+        if password != confirm_password:
+            flash('Пароли не совпадают!', 'danger')
+            return render_template('auth/register.html')
+
+        if len(password) < 6:
+            flash('Пароль должен быть минимум 6 символов!', 'danger')
+            return render_template('auth/register.html')
+
+        result = create_user(db_path, username, email, password, full_name=full_name or username)
+
+        if result['success']:
+            # Отправляем email подтверждения
+            base_url = request.url_root.rstrip('/')
+            send_verification_email(email, result['verification_token'], base_url)
+
+            flash('Регистрация успешна! Проверьте email для подтверждения.', 'success')
+            return redirect(url_for('login'))
+        else:
+            flash(result['error'], 'danger')
+
+    return render_template('auth/register.html')
+
+
+@app.route('/verify/<token>')
+def verify_email(token):
+    """Подтверждение email."""
+    result = verify_user(db_path, token)
+    if result['success']:
+        flash('Email подтверждён! Теперь войдите в систему.', 'success')
+    else:
+        flash(result['error'], 'danger')
+    return redirect(url_for('login'))
+
+
+@app.route('/logout')
+def logout():
+    """Выход из системы."""
+    user_id = session.get('user_id')
+    if user_id:
+        log_activity(db_path, user_id, 'logout', 'Выход из системы')
+    session.clear()
+    flash('Вы вышли из системы.', 'info')
+    return redirect(url_for('login'))
+
+
+@app.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    """Запрос сброса пароля."""
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip()
+        result = request_password_reset(db_path, email)
+
+        if result['success'] and 'reset_token' in result:
+            base_url = request.url_root.rstrip('/')
+            send_reset_email(email, result['reset_token'], base_url)
+
+        flash(result.get('message', 'Если email существует, мы отправили ссылку для сброса.'), 'info')
+        return redirect(url_for('login'))
+
+    return render_template('auth/forgot_password.html')
+
+
+@app.route('/reset-password/<token>', methods=['GET', 'POST'])
+def reset_password_route(token):
+    """Сброс пароля по токену."""
+    if request.method == 'POST':
+        password = request.form.get('password', '')
+        confirm_password = request.form.get('confirm_password', '')
+
+        if password != confirm_password:
+            flash('Пароли не совпадают!', 'danger')
+            return render_template('auth/reset_password.html', token=token)
+
+        result = reset_password(db_path, token, password)
+        if result['success']:
+            flash('Пароль успешно изменён! Войдите в систему.', 'success')
+            return redirect(url_for('login'))
+        else:
+            flash(result['error'], 'danger')
+
+    return render_template('auth/reset_password.html', token=token)
+
+
+@app.route('/profile')
+@login_required
+def profile():
+    """Страница профиля пользователя."""
+    user_id = session.get('user_id')
+    user = get_user_by_id(db_path, user_id)
+    if not user:
+        session.clear()
+        return redirect(url_for('login'))
+
+    uploads = get_user_uploads(db_path, user_id)
+    ml_models = get_user_ml_models(db_path, user_id)
+
+    # Админ-данные
+    admin_stats = None
+    activity_logs = []
+    if user['role_name'] == 'admin':
+        admin_stats = get_user_stats(db_path)
+        activity_logs = get_activity_logs(db_path, limit=50)
+
+    return render_template('Admin/profile.html',
+                          user=user,
+                          uploads=uploads,
+                          ml_models=ml_models,
+                          admin_stats=admin_stats,
+                          activity_logs=activity_logs)
+
+
+@app.route('/profile/update', methods=['POST'])
+@login_required
+def profile_update():
+    """Обновление профиля."""
+    user_id = session.get('user_id')
+    full_name = request.form.get('full_name', '').strip()
+    company = request.form.get('company', '').strip()
+    phone = request.form.get('phone', '').strip()
+
+    result = update_user_profile(db_path, user_id,
+                                 full_name=full_name or None,
+                                 company=company or None,
+                                 phone=phone or None)
+    if result['success']:
+        flash('Профиль обновлён!', 'success')
+    else:
+        flash(result['error'], 'danger')
+    return redirect(url_for('profile'))
+
+
+@app.route('/profile/change-password', methods=['POST'])
+@login_required
+def change_password():
+    """Смена пароля."""
+    user_id = session.get('user_id')
+    old_password = request.form.get('old_password', '')
+    new_password = request.form.get('new_password', '')
+    confirm_password = request.form.get('confirm_password', '')
+
+    if new_password != confirm_password:
+        flash('Новые пароли не совпадают!', 'danger')
+        return redirect(url_for('profile'))
+
+    result = auth_change_password(db_path, user_id, old_password, new_password)
+    if result['success']:
+        flash('Пароль успешно изменён!', 'success')
+    else:
+        flash(result['error'], 'danger')
+    return redirect(url_for('profile'))
+
+
+@app.route('/admin/dashboard')
+@admin_required
+def admin_dashboard():
+    """Админ-панель."""
+    stats = get_user_stats(db_path)
+    activity_logs = get_activity_logs(db_path, limit=100)
+
+    # Получаем всех пользователей
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT u.*, r.name as role_name
+        FROM users u
+        LEFT JOIN roles r ON u.role_id = r.id
+        ORDER BY u.created_at DESC
+    ''')
+    all_users = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+
+    return render_template('Admin/admin_dashboard.html',
+                          stats=stats,
+                          all_users=all_users,
+                          activity_logs=activity_logs)
+
+
+@app.route('/admin/toggle_user/<int:user_id>', methods=['POST'])
+@admin_required
+def admin_toggle_user(user_id):
+    """Активировать/деактивировать пользователя."""
+    if user_id == session.get('user_id'):
+        return jsonify({'success': False, 'error': 'Нельзя деактивировать себя'})
+
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    try:
+        cursor.execute('SELECT is_active FROM users WHERE id = ?', (user_id,))
+        row = cursor.fetchone()
+        if row:
+            new_status = 0 if row[0] else 1
+            cursor.execute('UPDATE users SET is_active = ? WHERE id = ?', (new_status, user_id))
+            conn.commit()
+            log_activity(db_path, session['user_id'], 'toggle_user',
+                        f'Пользователь {user_id} {"деактивирован" if new_status == 0 else "активирован"}')
+            return jsonify({'success': True})
+        return jsonify({'success': False, 'error': 'Пользователь не найден'})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'success': False, 'error': str(e)})
+    finally:
+        conn.close()
+
+
+@app.route('/admin/clear_cache', methods=['POST'])
+@admin_required
+def admin_clear_cache():
+    """Очистка кэша и сессий."""
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM user_sessions')
+        conn.commit()
+        conn.close()
+        log_activity(db_path, session['user_id'], 'clear_cache', 'Очистка сессий')
+        return jsonify({'success': True, 'message': 'Сессии очищены'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+# ============================================================
+# КОНТЕКСТНЫЙ ПРОЦЕССОР — пользователь доступен во всех шаблонах
+# ============================================================
+@app.context_processor
+def inject_user():
+    """Делает текущего пользователя доступным в шаблонах."""
+    if 'user_id' in session:
+        return {
+            'current_user': {
+                'id': session.get('user_id'),
+                'username': session.get('username'),
+                'email': session.get('email'),
+                'role_name': session.get('role_name'),
+                'full_name': session.get('full_name'),
+                'is_authenticated': True,
+            }
+        }
+    return {'current_user': {'is_authenticated': False}}
 
 @app.route('/')
+@app.route('/landing')
 def index():
+    """Лендинг-визитка — доступна без авторизации."""
+    return render_template('landing.html')
+
+
+@app.route('/dashboard')
+@login_required
+def dashboard():
     uploaded_files = get_uploaded_files()
     show_data = session.get('show_data', False)
     
@@ -132,6 +440,7 @@ def index():
     )
 
 @app.route('/', methods=['POST'])
+@login_required
 def upload_file():
     uploaded_files = get_uploaded_files()
     if 'file' not in request.files:
@@ -204,6 +513,7 @@ def upload_file():
     })
 
 @app.route('/load_file', methods=['POST'])
+@login_required
 def load_file():
     selected_file = request.form.get('selected_file')
     uploaded_files = get_uploaded_files()
@@ -260,6 +570,7 @@ def load_file():
         })
 
 @app.route('/search', methods=['POST'])
+@login_required
 def search():
     try:
         # Получаем данные из формы
@@ -385,6 +696,7 @@ def search():
         return jsonify({'success': False, 'message': f'Ошибка поиска: {str(e)}'})
 
 @app.route('/global_search', methods=['GET'])
+@login_required
 def global_search():
     query = request.args.get('q', '').strip()
     if not query or len(query) < 2:
@@ -413,6 +725,7 @@ def global_search():
         return jsonify({'success': False, 'message': str(e)})
 
 @app.route('/add_data', methods=['POST'])
+@login_required
 def add_data():
     try:
         data = {
@@ -470,6 +783,7 @@ def add_data():
         })
 
 @app.route('/tables')
+@login_required
 def tables():
     uploaded_files = get_uploaded_files()
     page = int(request.args.get('page', 1))
@@ -556,6 +870,7 @@ def tables():
     )
 
 @app.route('/clear_search', methods=['POST'])
+@login_required
 def clear_search():
     session.pop('search_results', None)
     session.pop('search_performed', None)
@@ -565,6 +880,7 @@ def clear_search():
     })
 
 @app.route('/compare')
+@login_required
 def compare():
     uploaded_files = get_uploaded_files()
     measured_data = query_db(db_path, "measured_parameters")
@@ -572,6 +888,7 @@ def compare():
     return render_template('compare.html', segment='Сравнительная таблица',uploaded_files=uploaded_files, compositions=compositions)
 
 @app.route('/compare', methods=['POST'])
+@login_required
 def compare_data():
     try:
         # Получаем все выбранные составы
@@ -762,12 +1079,14 @@ def filter_parameters_with_criteria(data, param_group, show_diff_only=False, sel
     return filtered_data
 
 @app.route('/ai_analysis')
+@login_required
 def ai_analysis():
     """Страница интеллектуального ML анализа"""
     uploaded_files = get_uploaded_files()
     return render_template('ai_analysis.html', segment='ИИ-анализ', uploaded_files=uploaded_files)
 
 @app.route('/ai_ml_system_status')
+@login_required
 def ai_ml_system_status():
     """Возвращает статус системы"""
     try:
@@ -786,6 +1105,7 @@ def ai_ml_system_status():
         })
 
 @app.route('/ai_ml_analysis', methods=['POST'])
+@login_required
 def perform_ai_ml_analysis():
     """Выполняет интеллектуальный ML анализ"""
     try:
@@ -813,12 +1133,14 @@ def perform_ai_ml_analysis():
         })
 
 @app.route('/economics')
+@login_required
 def economics():
     """Страница экономической оценки"""
     uploaded_files = get_uploaded_files()
     return render_template('economics.html', segment='Экономическая часть', uploaded_files=uploaded_files)
 
 @app.route('/create_graph', methods=['GET', 'POST'])
+@login_required
 def create_graph():
     uploaded_files = get_uploaded_files()
     measured_data = query_db(db_path, "measured_parameters")
@@ -934,11 +1256,41 @@ def create_graph():
     graph, message, compositions = generate_graph(measured_data)  # Теперь распаковываем 3 значения
     stats = get_data_statistics(measured_data)
     
+    # Словарь русских названий параметров для отображения в форме
+    param_labels = {
+        'composition': 'Составы',
+        'density': 'Плотность, кг/м³',
+        'kf': 'Ударопрочность, %',
+        'kt': 'Устойчивость к колебательным нагрузкам, %',
+        'h': 'Гигроскопичность, %',
+        'mass_loss': 'Потеря массы, %',
+        'tign': 'Температура зажигания, °С',
+        'tb': 'Температура выгорания, °С',
+        'tau_d1': 'Задержка газофазного зажигания, с',
+        'tau_d2': 'Задержка гетерогенного зажигания, с',
+        'tau_b': 'Время горения, с',
+        'co2': 'Концентрация CO₂, %',
+        'co': 'Концентрация CO, %',
+        'so2': 'Концентрация SO₂, ppm',
+        'nox': 'Концентрация NOx, ppm',
+        'q': 'Теплота сгорания, МДж/кг',
+        'ad': 'Содержание золы на сухую массу, %',
+        'war': 'Влажность на аналитическую массу, %',
+        'vd': 'Содержание летучих на сухую массу, %',
+        'cd': 'Содержание углерода на сухую массу, %',
+        'hd': 'Содержание водорода на сухую массу, %',
+        'nd': 'Содержание азота на сухую массу, %',
+        'sd': 'Содержание серы на сухую массу, %',
+        'od': 'Содержание кислорода на сухую массу, %',
+        'component': 'Компоненты',
+    }
+    
     return render_template(
         'create_graph.html',
         segment='Создание графика',
         uploaded_files=uploaded_files,
         parameters=parameters,
+        param_labels=param_labels,
         graphs=graphs,
         viz_types=VIZ_TYPES,
         selected_viz_type=selected_viz_type,
@@ -947,16 +1299,12 @@ def create_graph():
         stats=stats
     )
 
-@app.route('/profile')
-def profile():
-    """Страница профиля и настроек пользователя"""
-    return render_template('profile.html', segment='Профиль')
-
 @app.route('/<path:path>.map')
 def ignore_map_files(path):
     return '', 204
 
 @app.route('/ml_dashboard')
+@login_required
 def ml_dashboard():
     try:
         uploaded_files = get_uploaded_files()
@@ -997,6 +1345,7 @@ def ml_dashboard():
         return f"<h2 style='color:red;'>Внимание, найдена ошибка в коде Python:</h2><pre style='background:#f4f4f4; padding:20px; font-size:16px; border-left: 5px solid red;'>{err}</pre>", 200
 
 @app.route('/ml_system_train', methods=['POST'])
+@login_required
 def ml_system_train():
     """Обучает всю ML систему"""
     try:
@@ -1055,6 +1404,7 @@ def ml_system_train():
         })
 
 @app.route('/ml_augment_database', methods=['POST'])
+@login_required
 def ml_augment_database():
     """Масштабирует базу данных и переобучает систему"""
     try:
@@ -1088,6 +1438,7 @@ def ml_augment_database():
         })
 
 @app.route('/ml_optimize', methods=['POST'])
+@login_required
 def ml_optimize():
     try:
         from ml_optimizer import get_ml_system
@@ -1136,6 +1487,7 @@ def ml_optimize():
         })
 
 @app.route('/ml_predict', methods=['POST'])
+@login_required
 def ml_predict():
     """Предсказывает свойства для заданного состава"""
     try:
@@ -1169,6 +1521,7 @@ def ml_predict():
         })
 
 @app.route('/ml_system_status')
+@login_required
 def ml_system_status():
     """Возвращает полный статус ML системы"""
     try:
@@ -1188,6 +1541,7 @@ def ml_system_status():
         })
 
 @app.route('/api/predict_composition', methods=['POST'])
+@login_required
 def api_predict_composition():
     """API для мгновенного предсказания (песочница)"""
     try:
@@ -1220,6 +1574,7 @@ def api_predict_composition():
         return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/ml_history')
+@login_required
 def ml_history():
     """Страница истории ML оптимизаций"""
     uploaded_files = get_uploaded_files()
@@ -1236,6 +1591,7 @@ def ml_history():
     )
 
 @app.route('/ml_saved_models')
+@login_required
 def ml_saved_models():
     """Страница сохраненных ML моделей"""
     uploaded_files = get_uploaded_files()
@@ -1252,6 +1608,7 @@ def ml_saved_models():
     )
 
 @app.route('/ml_verify_optimization', methods=['POST'])
+@login_required
 def ml_verify_optimization():
     """Добавляет реальные измерения для ML оптимизации"""
     try:
@@ -1284,6 +1641,7 @@ def ml_verify_optimization():
         return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/ml_auto_retrain', methods=['POST'])
+@login_required
 def ml_auto_retrain():
     """Автоматическое переобучение на новых данных"""
     try:
@@ -1297,6 +1655,7 @@ def ml_auto_retrain():
         return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/ai_ml_recommendations')
+@login_required
 def ai_ml_recommendations():
     """Возвращает рекомендации по улучшению системы"""
     try:
@@ -1313,6 +1672,7 @@ def ai_ml_recommendations():
         })
 
 @app.route('/ai_ml_history')
+@login_required
 def ai_ml_history():
     """Возвращает историю анализов"""
     try:
@@ -1346,6 +1706,7 @@ COMPONENTS_DATA = {
 }
 
 @app.route('/api/get_components_economics')
+@login_required
 def get_components_economics():
     """Возвращает список компонентов с их экономическими параметрами"""
     try:
@@ -1403,6 +1764,7 @@ from flask import send_file
 import io
 
 @app.route('/api/download_economics', methods=['GET'])
+@login_required
 def download_economics():
     """Генерирует Excel-файл с новым стандартом колонок"""
     try:
@@ -1442,6 +1804,7 @@ def download_economics():
         return jsonify({'success': False, 'error': f'Ошибка при формировании файла: {str(e)}'})
 
 @app.route('/api/upload_economics', methods=['POST'])
+@login_required
 def upload_economics():
     """Загружает новый формат Excel и обновляет базу данных"""
     import sqlite3
@@ -1509,6 +1872,7 @@ def upload_economics():
         conn.close()
 
 @app.route('/api/calculate_economics', methods=['POST'])
+@login_required
 def calculate_economics():
     """Рассчитывает экономические показатели по формулам из методики (Пример расчета по эксельке.docx)"""
     try:
@@ -1651,6 +2015,46 @@ def calculate_economics():
         import traceback
         print(f"Error calculating economics: {traceback.format_exc()}")
         return jsonify({'success': False, 'error': f'Ошибка расчета: {str(e)}'})
+
+
+# ============================================================
+# ML МОДЕЛИ ПОЛЬЗОВАТЕЛЯ
+# ============================================================
+
+@app.route('/ml/saved_models')
+@login_required
+def user_ml_saved_models():
+    """Страница сохранённых ML моделей пользователя."""
+    user_id = session.get('user_id')
+    models = get_user_ml_models(db_path, user_id)
+    return render_template('Admin/ml_saved_models.html',
+                          segment='ML Модели',
+                          saved_models=pd.DataFrame(models) if models else pd.DataFrame())
+
+
+# ============================================================
+# ЛОГИРОВАНИЕ ЗАГРУЗОК (обёртка над upload_file)
+# ============================================================
+
+@app.route('/upload_with_log', methods=['POST'])
+@login_required
+def upload_file_with_logging():
+    """Обработка загрузки с логированием для авторизованных пользователей."""
+    user_id = session.get('user_id')
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'message': 'Файл не предоставлен'})
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'success': False, 'message': 'Файл не выбран'})
+    if file and (file.filename.endswith('.csv') or file.filename.endswith('.xlsx')):
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
+        file.save(file_path)
+        file_size = os.path.getsize(file_path) if os.path.exists(file_path) else 0
+        file_type = file.filename.split('.')[-1] if '.' in file.filename else ''
+        log_upload(db_path, user_id, file.filename, file_size, file_type)
+        return jsonify({'success': True, 'message': 'Файл загружен и залогирован'})
+    return jsonify({'success': False, 'message': 'Недопустимый формат'})
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True)

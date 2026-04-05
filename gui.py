@@ -352,13 +352,13 @@ def generate_plotly_graph(data, x_param='ad', y_param='q', graph_type='scatter',
                 
                 # Если x_param числовой и имеет много уникальных значений, выполняем биннинг
                 if pd.api.types.is_numeric_dtype(filtered_data[x_param]) and len(filtered_data[x_param].unique()) > 20:
-                    data = filtered_data[x_param].dropna()
-                    if data.empty:
+                    x_data = filtered_data[x_param].dropna()
+                    if x_data.empty:
                         return None, f"Нет данных для параметра X ({x_param}) после удаления NaN", available_compositions
                     
                     # Автоматическое определение количества бинов
-                    data_min, data_max = data.min(), data.max()
-                    bins = min(10, max(5, len(data) // 10))
+                    data_min, data_max = x_data.min(), x_data.max()
+                    bins = min(10, max(5, len(x_data) // 10))
                     bin_edges = np.linspace(data_min, data_max, bins + 1)
                     
                     # Создаем категории на основе диапазонов
@@ -477,23 +477,23 @@ def generate_plotly_graph(data, x_param='ad', y_param='q', graph_type='scatter',
             elif graph_type == 'pie':
                 try:
                     if pd.api.types.is_numeric_dtype(filtered_data[x_param]):
-                        data = filtered_data[x_param].dropna()
-                        if data.empty:
+                        pie_values = filtered_data[x_param].dropna()
+                        if pie_values.empty:
                             return None, "Нет данных для построения круговой диаграммы", available_compositions
                         
-                        data_min, data_max = data.min(), data.max()
-                        bins = min(10, max(5, len(data) // 10))
-                        bin_edges = np.linspace(data_min, data_max, bins + 1)
+                        pie_min, pie_max = pie_values.min(), pie_values.max()
+                        pie_bins = min(10, max(5, len(pie_values) // 10))
+                        pie_bin_edges = np.linspace(pie_min, pie_max, pie_bins + 1)
                         
-                        category_counts = {}
-                        for i in range(len(bin_edges) - 1):
-                            lower, upper = bin_edges[i], bin_edges[i + 1]
-                            count = ((data >= lower) & (data < upper)).sum() if i < len(bin_edges) - 2 else ((data >= lower) & (data <= upper)).sum()
-                            category_counts[f"{lower:.2f}-{upper:.2f}"] = count
+                        pie_category_counts = {}
+                        for i in range(len(pie_bin_edges) - 1):
+                            lower, upper = pie_bin_edges[i], pie_bin_edges[i + 1]
+                            count = ((pie_values >= lower) & (pie_values < upper)).sum() if i < len(pie_bin_edges) - 2 else ((pie_values >= lower) & (pie_values <= upper)).sum()
+                            pie_category_counts[f"{lower:.2f}-{upper:.2f}"] = count
                         
                         pie_data = pd.DataFrame({
-                            'category': list(category_counts.keys()),
-                            'count': list(category_counts.values())
+                            'category': list(pie_category_counts.keys()),
+                            'count': list(pie_category_counts.values())
                         })
                     else:
                         pie_data = filtered_data[x_param].value_counts().reset_index()
@@ -681,13 +681,21 @@ def generate_plotly_graph(data, x_param='ad', y_param='q', graph_type='scatter',
 
 def create_animated_scatter(data, x_param, y_param, animation_param, template, title, color_param=None, size_param=None):
     """Создает анимированный scatter plot"""
+    hover_col = 'composition' if 'composition' in data.columns else None
     fig = px.scatter(data, x=x_param, y=y_param,
                    animation_frame=animation_param,
-                   color=color_param if color_param and color_param in data.columns else None,
+                   color=color_param if color_param and color_param in data.columns else hover_col,
                    size=size_param if size_param and size_param in data.columns else None,
-                   hover_name=data.index if hasattr(data, 'index') else None,
+                   hover_name=hover_col,
                    title=title or f"Анимированный график по {get_param_display_name(animation_param)}",
                    template=template)
+    
+    # Устанавливаем фиксированные оси для анимации
+    if fig and len(fig.data) > 0:
+        x_range = [data[x_param].min() * 0.9, data[x_param].max() * 1.1]
+        y_range = [data[y_param].min() * 0.9, data[y_param].max() * 1.1]
+        fig.update_xaxes(range=x_range)
+        fig.update_yaxes(range=y_range)
     
     return fig
 
@@ -708,10 +716,10 @@ def generate_seaborn_plot(data, x_param='ad', y_param='q', plot_type='scatter',
                 return None, "Нет данных для выбранных составов", available_compositions
     
     try:
-        # Применяем тему Seaborn
+        # Применяем тему Seaborn (локально, без глобального состояния)
         sns.set_theme(style=get_seaborn_style(theme))
         
-        plt.figure(figsize=(12, 8))
+        fig, ax = plt.subplots(figsize=(12, 8))
         
         # АВТОМАТИЧЕСКИ ИСПОЛЬЗУЕМ СОСТАВ ДЛЯ ЦВЕТА ЕСЛИ НЕ УКАЗАН color_param
         use_composition_color = ('composition' in filtered_data.columns and 
@@ -719,82 +727,83 @@ def generate_seaborn_plot(data, x_param='ad', y_param='q', plot_type='scatter',
         
         if plot_type == 'scatter':
             if use_composition_color:
-                sns.scatterplot(data=filtered_data, x=x_param, y=y_param, 
-                               hue='composition', palette='viridis', s=50)
+                sns.scatterplot(data=filtered_data, x=x_param, y=y_param,
+                               hue='composition', palette='viridis', s=50, ax=ax)
             elif color_param and color_param in filtered_data.columns:
-                sns.scatterplot(data=filtered_data, x=x_param, y=y_param, 
-                               hue=color_param, palette='viridis', s=50)
+                sns.scatterplot(data=filtered_data, x=x_param, y=y_param,
+                               hue=color_param, palette='viridis', s=50, ax=ax)
             else:
-                sns.scatterplot(data=filtered_data, x=x_param, y=y_param, s=50)
+                sns.scatterplot(data=filtered_data, x=x_param, y=y_param, s=50, ax=ax)
             
         elif plot_type == 'line':
             # ДЛЯ ЛИНЕЙНОГО ГРАФИКА - важно сортировать по X
             sorted_data = filtered_data.sort_values(by=x_param)
             if use_composition_color:
-                sns.lineplot(data=sorted_data, x=x_param, y=y_param, 
-                            hue='composition', palette='viridis', marker='o')
+                sns.lineplot(data=sorted_data, x=x_param, y=y_param,
+                            hue='composition', palette='viridis', marker='o', ax=ax)
             elif color_param and color_param in filtered_data.columns:
-                sns.lineplot(data=sorted_data, x=x_param, y=y_param, 
-                            hue=color_param, palette='viridis', marker='o')
+                sns.lineplot(data=sorted_data, x=x_param, y=y_param,
+                            hue=color_param, palette='viridis', marker='o', ax=ax)
             else:
-                sns.lineplot(data=sorted_data, x=x_param, y=y_param, marker='o')
+                sns.lineplot(data=sorted_data, x=x_param, y=y_param, marker='o', ax=ax)
             
         elif plot_type == 'violin':
             if use_composition_color:
-                sns.violinplot(data=filtered_data, x=x_param, y=y_param, 
-                              hue='composition', palette='viridis')
+                sns.violinplot(data=filtered_data, x=x_param, y=y_param,
+                              hue='composition', palette='viridis', ax=ax)
             elif color_param and color_param in filtered_data.columns:
-                sns.violinplot(data=filtered_data, x=x_param, y=y_param, 
-                              hue=color_param, palette='viridis')
+                sns.violinplot(data=filtered_data, x=x_param, y=y_param,
+                              hue=color_param, palette='viridis', ax=ax)
             else:
-                sns.violinplot(data=filtered_data, x=x_param, y=y_param)
+                sns.violinplot(data=filtered_data, x=x_param, y=y_param, ax=ax)
             
         elif plot_type == 'box':
             if use_composition_color:
-                sns.boxplot(data=filtered_data, x=x_param, y=y_param, 
-                           hue='composition', palette='viridis')
+                sns.boxplot(data=filtered_data, x=x_param, y=y_param,
+                           hue='composition', palette='viridis', ax=ax)
             elif color_param and color_param in filtered_data.columns:
-                sns.boxplot(data=filtered_data, x=x_param, y=y_param, 
-                           hue=color_param, palette='viridis')
+                sns.boxplot(data=filtered_data, x=x_param, y=y_param,
+                           hue=color_param, palette='viridis', ax=ax)
             else:
-                sns.boxplot(data=filtered_data, x=x_param, y=y_param)
+                sns.boxplot(data=filtered_data, x=x_param, y=y_param, ax=ax)
             
         elif plot_type == 'histogram':
             if use_composition_color:
-                sns.histplot(data=filtered_data, x=x_param, hue='composition', 
-                            kde=True, palette='viridis', multiple="layer")
+                sns.histplot(data=filtered_data, x=x_param, hue='composition',
+                            kde=True, palette='viridis', multiple="layer", ax=ax)
             elif color_param and color_param in filtered_data.columns:
-                sns.histplot(data=filtered_data, x=x_param, hue=color_param, 
-                            kde=True, palette='viridis', multiple="layer")
+                sns.histplot(data=filtered_data, x=x_param, hue=color_param,
+                            kde=True, palette='viridis', multiple="layer", ax=ax)
             else:
-                sns.histplot(data=filtered_data, x=x_param, kde=True)
+                sns.histplot(data=filtered_data, x=x_param, kde=True, ax=ax)
             
         elif plot_type == 'bar':
             if filtered_data[x_param].dtype == 'object' or len(filtered_data[x_param].unique()) <= 20:
                 if use_composition_color:
-                    sns.barplot(data=filtered_data, x=x_param, y=y_param, 
-                               hue='composition', palette='viridis')
+                    sns.barplot(data=filtered_data, x=x_param, y=y_param,
+                               hue='composition', palette='viridis', ax=ax)
                 elif color_param and color_param in filtered_data.columns:
-                    sns.barplot(data=filtered_data, x=x_param, y=y_param, 
-                               hue=color_param, palette='viridis')
+                    sns.barplot(data=filtered_data, x=x_param, y=y_param,
+                               hue=color_param, palette='viridis', ax=ax)
                 else:
-                    sns.barplot(data=filtered_data, x=x_param, y=y_param, palette='viridis')
+                    sns.barplot(data=filtered_data, x=x_param, y=y_param, palette='viridis', ax=ax)
             else:
                 if use_composition_color:
-                    sns.histplot(data=filtered_data, x=x_param, hue='composition', 
-                                kde=True, palette='viridis')
+                    sns.histplot(data=filtered_data, x=x_param, hue='composition',
+                                kde=True, palette='viridis', ax=ax)
                 elif color_param and color_param in filtered_data.columns:
-                    sns.histplot(data=filtered_data, x=x_param, hue=color_param, 
-                                kde=True, palette='viridis')
+                    sns.histplot(data=filtered_data, x=x_param, hue=color_param,
+                                kde=True, palette='viridis', ax=ax)
                 else:
-                    sns.histplot(data=filtered_data, x=x_param, kde=True)
+                    sns.histplot(data=filtered_data, x=x_param, kde=True, ax=ax)
                 
         elif plot_type == 'heatmap':
             numeric_data = filtered_data.select_dtypes(include=[np.number])
             if len(numeric_data.columns) >= 2:
                 corr_matrix = numeric_data.corr()
-                sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', center=0, fmt='.2f')
+                sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', center=0, fmt='.2f', ax=ax)
             else:
+                plt.close(fig)
                 return None, "Для тепловой карты нужно как минимум 2 числовых параметра", available_compositions
         
         elif plot_type == 'pie':
@@ -833,21 +842,21 @@ def generate_seaborn_plot(data, x_param='ad', y_param='q', plot_type='scatter',
         
         # Улучшаем легенду для составов
         if use_composition_color and plot_type not in ['pie', 'heatmap']:
-            plt.legend(title='Составы', bbox_to_anchor=(1.05, 1), loc='upper left', fontsize='small')
+            ax.legend(title='Составы', bbox_to_anchor=(1.05, 1), loc='upper left', fontsize='small')
         
-        plt.tight_layout()
+        fig.tight_layout()
         
         # Сохраняем в base64
         buf = io.BytesIO()
-        plt.savefig(buf, format='png', dpi=100, bbox_inches='tight')
+        fig.savefig(buf, format='png', dpi=100, bbox_inches='tight')
         buf.seek(0)
         graph = base64.b64encode(buf.getvalue()).decode('utf-8')
-        plt.close()
+        plt.close(fig)
         
         return graph, "Seaborn график создан успешно", available_compositions
         
     except Exception as e:
-        plt.close()
+        plt.close('all')
         import traceback
         traceback.print_exc()
         return None, f"Ошибка при создании Seaborn графика: {str(e)}", available_compositions
@@ -928,14 +937,21 @@ def get_seaborn_style(theme):
 
 def apply_theme(theme):
     """Применяет тему к графику"""
-    plt.style.use('default')  # Сбрасываем стиль
-    if theme == 'dark':
-        plt.style.use('dark_background')
-    elif theme == 'seaborn':
-        plt.style.use('seaborn-v0_8')
-    elif theme == 'ggplot':
-        plt.style.use('ggplot')
-    else:
+    try:
+        plt.style.use('default')  # Сбрасываем стиль
+        if theme == 'dark':
+            plt.style.use('dark_background')
+        elif theme == 'seaborn':
+            # Пробуем новый стиль, fallback на default
+            try:
+                plt.style.use('seaborn-v0_8')
+            except OSError:
+                plt.style.use('default')
+        elif theme == 'ggplot':
+            plt.style.use('ggplot')
+        else:
+            plt.style.use('default')
+    except Exception:
         plt.style.use('default')
 
 def generate_animated_graph(data, x_param, y_param, animation_param, theme, title, selected_compositions=None):
@@ -988,7 +1004,7 @@ def generate_animated_graph(data, x_param, y_param, animation_param, theme, titl
         return graph, "Анимированный график создан успешно", available_compositions
         
     except Exception as e:
-        plt.close()
+        plt.close('all')
         return None, f"Ошибка при создании анимированного графика: {str(e)}", available_compositions
 
 def generate_graph(data, x_param='ad', y_param='q', graph_type='scatter', 
@@ -1235,7 +1251,7 @@ def generate_graph(data, x_param='ad', y_param='q', graph_type='scatter',
         return graph, "График создан успешно", available_compositions
         
     except Exception as e:
-        plt.close()
+        plt.close('all')
         import traceback
         traceback.print_exc()
         return None, f"Ошибка при создании графика: {str(e)}", available_compositions

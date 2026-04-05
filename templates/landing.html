@@ -1,0 +1,1373 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pellets Analyzer — Аналитика топливных составов</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* ===== RESET & BASE ===== */
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #08080a;
+            color: #e8e8ed;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        a { text-decoration: none; color: inherit; }
+        button { font-family: inherit; cursor: pointer; border: none; }
+
+        /* ===== ANIMATED BACKGROUND ===== */
+        #particles-canvas {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 0;
+            pointer-events: none;
+        }
+        .bg-gradient {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            z-index: -1;
+            background: 
+                radial-gradient(ellipse 80% 60% at 50% 0%, rgba(88, 80, 236, 0.12) 0%, transparent 70%),
+                radial-gradient(ellipse 60% 40% at 80% 40%, rgba(59, 130, 246, 0.06) 0%, transparent 60%),
+                radial-gradient(ellipse 50% 50% at 10% 70%, rgba(139, 92, 246, 0.06) 0%, transparent 60%),
+                #08080a;
+        }
+
+        /* ===== NAVBAR ===== */
+        .navbar {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 1000;
+            padding: 0 24px;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(8, 8, 10, 0.6);
+            backdrop-filter: blur(24px) saturate(180%);
+            -webkit-backdrop-filter: blur(24px) saturate(180%);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            transition: all 0.3s ease;
+        }
+        .navbar.scrolled {
+            background: rgba(8, 8, 10, 0.9);
+            border-bottom-color: rgba(255, 255, 255, 0.08);
+        }
+        .navbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 15px;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: -0.01em;
+        }
+        .navbar-brand .logo-icon {
+            width: 30px; height: 30px;
+            background: linear-gradient(135deg, #5850ec, #3b82f6);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            box-shadow: 0 0 20px rgba(88, 80, 236, 0.3);
+        }
+        .navbar-links {
+            display: flex;
+            align-items: center;
+            gap: 32px;
+            list-style: none;
+        }
+        .navbar-links a {
+            font-size: 13px;
+            color: #8a8a8a;
+            transition: color 0.2s;
+            font-weight: 500;
+            letter-spacing: -0.01em;
+        }
+        .navbar-links a:hover { color: #fff; }
+        .navbar-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-ghost {
+            background: none;
+            color: #8a8a8a;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            transition: color 0.2s, background 0.2s;
+            letter-spacing: -0.01em;
+        }
+        .btn-ghost:hover { color: #fff; background: rgba(255,255,255,0.06); }
+        .btn-nav-primary {
+            background: #5850ec;
+            color: #fff;
+            padding: 8px 18px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.2s;
+            letter-spacing: -0.01em;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .btn-nav-primary:hover { 
+            background: #635bf0; 
+            transform: translateY(-1px);
+            box-shadow: 0 4px 16px rgba(88, 80, 236, 0.3);
+        }
+
+        /* ===== HERO ===== */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 140px 24px 80px;
+            position: relative;
+            z-index: 1;
+        }
+        .hero-glow {
+            position: absolute;
+            top: -200px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 800px;
+            height: 800px;
+            background: radial-gradient(circle, rgba(88, 80, 236, 0.15) 0%, transparent 60%);
+            pointer-events: none;
+            animation: glowPulse 4s ease-in-out infinite;
+        }
+        @keyframes glowPulse {
+            0%, 100% { opacity: 0.6; transform: translateX(-50%) scale(1); }
+            50% { opacity: 1; transform: translateX(-50%) scale(1.1); }
+        }
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 5px 5px 12px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 100px;
+            font-size: 13px;
+            color: #a0a0b0;
+            font-weight: 500;
+            margin-bottom: 32px;
+            animation: fadeInUp 0.8s ease-out;
+            letter-spacing: -0.01em;
+        }
+        .hero-badge .badge-tag {
+            padding: 3px 10px;
+            background: linear-gradient(135deg, #5850ec, #3b82f6);
+            border-radius: 100px;
+            font-size: 11px;
+            color: #fff;
+            font-weight: 600;
+        }
+        .hero h1 {
+            font-size: clamp(44px, 7.5vw, 88px);
+            font-weight: 800;
+            line-height: 1;
+            letter-spacing: -0.04em;
+            color: #fff;
+            margin-bottom: 24px;
+            animation: fadeInUp 0.8s ease-out 0.1s both;
+        }
+        .hero h1 .gradient-text {
+            background: linear-gradient(135deg, #5850ec 0%, #3b82f6 50%, #8b5cf6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .hero p {
+            font-size: clamp(16px, 2vw, 19px);
+            color: #6b6b7b;
+            max-width: 560px;
+            line-height: 1.7;
+            margin-bottom: 48px;
+            animation: fadeInUp 0.8s ease-out 0.2s both;
+            letter-spacing: -0.01em;
+        }
+        .hero-actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            justify-content: center;
+            animation: fadeInUp 0.8s ease-out 0.3s both;
+        }
+        .btn-hero {
+            padding: 14px 28px;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            transition: all 0.25s;
+            letter-spacing: -0.01em;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-hero-primary {
+            background: linear-gradient(135deg, #5850ec, #3b82f6);
+            color: #fff;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 4px 24px rgba(88, 80, 236, 0.25), inset 0 1px 0 rgba(255,255,255,0.1);
+        }
+        .btn-hero-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 40px rgba(88, 80, 236, 0.35), inset 0 1px 0 rgba(255,255,255,0.15);
+        }
+        .btn-hero-secondary {
+            background: rgba(255,255,255,0.04);
+            color: #a0a0b0;
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+        .btn-hero-secondary:hover {
+            background: rgba(255,255,255,0.08);
+            color: #fff;
+            transform: translateY(-2px);
+            border-color: rgba(255,255,255,0.12);
+        }
+
+        /* ===== HERO VISUAL ===== */
+        .hero-visual {
+            margin-top: 80px;
+            width: 100%;
+            max-width: 1100px;
+            animation: fadeInUp 1s ease-out 0.5s both;
+            position: relative;
+        }
+        .hero-visual::before {
+            content: '';
+            position: absolute;
+            top: -40px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80%;
+            height: 200px;
+            background: radial-gradient(ellipse, rgba(88, 80, 236, 0.15) 0%, transparent 70%);
+            pointer-events: none;
+        }
+        .hero-visual .mockup {
+            width: 100%;
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(255,255,255,0.02);
+            backdrop-filter: blur(20px);
+            overflow: hidden;
+            box-shadow: 
+                0 40px 80px rgba(0,0,0,0.5),
+                0 0 0 1px rgba(255,255,255,0.05),
+                0 0 100px rgba(88, 80, 236, 0.08);
+        }
+        .mockup-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 16px;
+            background: rgba(255,255,255,0.03);
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .mockup-dot {
+            width: 12px; height: 12px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.08);
+        }
+        .mockup-dot:nth-child(1) { background: #ff5f57; }
+        .mockup-dot:nth-child(2) { background: #febc2e; }
+        .mockup-dot:nth-child(3) { background: #28c840; }
+        .mockup-content {
+            padding: 16px;
+            min-height: 220px;
+            display: flex;
+            flex-direction: column;
+        }
+        .mockup-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+        .mockup-stat {
+            padding: 20px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.06);
+            transition: all 0.3s;
+        }
+        .mockup-stat:hover {
+            border-color: rgba(88, 80, 236, 0.2);
+            background: rgba(88, 80, 236, 0.04);
+        }
+        .mockup-stat .label { font-size: 12px; color: #555; margin-bottom: 6px; font-weight: 500; }
+        .mockup-stat .value { font-size: 28px; font-weight: 800; color: #fff; letter-spacing: -0.03em; }
+        .mockup-chart-canvas {
+            flex: 1;
+            width: 100%;
+            min-height: 180px;
+            border-radius: 8px;
+        }
+
+        /* ===== LOGOS / TRUST ===== */
+        .logos-section {
+            padding: 60px 24px;
+            text-align: center;
+            position: relative;
+            z-index: 1;
+            border-top: 1px solid rgba(255,255,255,0.04);
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+        }
+        .logos-section p {
+            font-size: 13px;
+            color: #444;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-weight: 600;
+            margin-bottom: 32px;
+        }
+        .logos-grid {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 48px;
+            flex-wrap: wrap;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .logo-item {
+            font-size: 18px;
+            font-weight: 700;
+            color: #333;
+            letter-spacing: -0.02em;
+            transition: color 0.3s;
+        }
+        .logo-item:hover { color: #666; }
+
+        /* ===== FEATURES ===== */
+        .features {
+            padding: 140px 24px;
+            max-width: 1200px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+        .section-label {
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #5850ec;
+            text-align: center;
+            margin-bottom: 16px;
+        }
+        .section-title {
+            font-size: clamp(32px, 4.5vw, 52px);
+            font-weight: 800;
+            text-align: center;
+            color: #fff;
+            letter-spacing: -0.03em;
+            line-height: 1.1;
+            margin-bottom: 20px;
+        }
+        .section-desc {
+            font-size: 17px;
+            color: #555;
+            text-align: center;
+            max-width: 560px;
+            margin: 0 auto 72px;
+            line-height: 1.7;
+            letter-spacing: -0.01em;
+        }
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1px;
+            background: rgba(255,255,255,0.04);
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.06);
+        }
+        .feature-card {
+            padding: 40px 32px;
+            background: rgba(8, 8, 10, 0.8);
+            transition: all 0.4s;
+            position: relative;
+        }
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(88, 80, 236, 0.4), transparent);
+            opacity: 0;
+            transition: opacity 0.4s;
+        }
+        .feature-card:hover {
+            background: rgba(20, 20, 25, 0.9);
+        }
+        .feature-card:hover::before { opacity: 1; }
+        .feature-icon {
+            width: 44px; height: 44px;
+            border-radius: 12px;
+            background: rgba(88, 80, 236, 0.08);
+            border: 1px solid rgba(88, 80, 236, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            color: #5850ec;
+            margin-bottom: 24px;
+            transition: all 0.3s;
+        }
+        .feature-card:hover .feature-icon {
+            background: rgba(88, 80, 236, 0.12);
+            border-color: rgba(88, 80, 236, 0.25);
+            box-shadow: 0 0 24px rgba(88, 80, 236, 0.15);
+        }
+        .feature-card h3 {
+            font-size: 17px;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 10px;
+            letter-spacing: -0.02em;
+        }
+        .feature-card p {
+            font-size: 14px;
+            color: #555;
+            line-height: 1.65;
+            letter-spacing: -0.01em;
+        }
+
+        /* ===== METRICS ===== */
+        .metrics {
+            padding: 100px 24px;
+            position: relative;
+            z-index: 1;
+        }
+        .metrics::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: radial-gradient(ellipse at center, rgba(88, 80, 236, 0.04) 0%, transparent 70%);
+        }
+        .metrics-grid {
+            max-width: 1000px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 48px;
+            text-align: center;
+            position: relative;
+        }
+        .metric-item .number {
+            font-size: 52px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #5850ec, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 8px;
+            letter-spacing: -0.03em;
+        }
+        .metric-item .label {
+            font-size: 14px;
+            color: #555;
+            font-weight: 500;
+            letter-spacing: -0.01em;
+        }
+
+        /* ===== HOW IT WORKS ===== */
+        .how-it-works {
+            padding: 140px 24px;
+            max-width: 900px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+        .steps {
+            display: flex;
+            flex-direction: column;
+            gap: 64px;
+            margin-top: 72px;
+        }
+        .step {
+            display: flex;
+            gap: 32px;
+            align-items: flex-start;
+            padding: 32px;
+            border-radius: 16px;
+            border: 1px solid transparent;
+            transition: all 0.3s;
+        }
+        .step:hover {
+            background: rgba(255,255,255,0.02);
+            border-color: rgba(255,255,255,0.06);
+        }
+        .step-number {
+            width: 48px; height: 48px;
+            min-width: 48px;
+            border-radius: 12px;
+            background: rgba(88, 80, 236, 0.08);
+            border: 1px solid rgba(88, 80, 236, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 700;
+            color: #5850ec;
+        }
+        .step-content h3 {
+            font-size: 20px;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 10px;
+            letter-spacing: -0.02em;
+        }
+        .step-content p {
+            font-size: 15px;
+            color: #555;
+            line-height: 1.7;
+            letter-spacing: -0.01em;
+        }
+
+        /* ===== CTA ===== */
+        .cta {
+            padding: 140px 24px;
+            text-align: center;
+            position: relative;
+            z-index: 1;
+        }
+        .cta-box {
+            max-width: 680px;
+            margin: 0 auto;
+            padding: 72px 48px;
+            background: linear-gradient(135deg, rgba(88, 80, 236, 0.06), rgba(59, 130, 246, 0.04));
+            border: 1px solid rgba(88, 80, 236, 0.12);
+            border-radius: 24px;
+            position: relative;
+            overflow: hidden;
+        }
+        .cta-box::before {
+            content: '';
+            position: absolute;
+            top: -100px; left: 50%;
+            transform: translateX(-50%);
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(88, 80, 236, 0.1), transparent 60%);
+            animation: rotateBg 20s linear infinite;
+        }
+        @keyframes rotateBg {
+            from { transform: translateX(-50%) rotate(0deg); }
+            to { transform: translateX(-50%) rotate(360deg); }
+        }
+        .cta-box h2 {
+            font-size: clamp(28px, 4vw, 40px);
+            font-weight: 800;
+            color: #fff;
+            margin-bottom: 16px;
+            position: relative;
+            z-index: 1;
+            letter-spacing: -0.03em;
+        }
+        .cta-box p {
+            font-size: 16px;
+            color: #555;
+            margin-bottom: 36px;
+            position: relative;
+            z-index: 1;
+            letter-spacing: -0.01em;
+        }
+        .cta-box .btn-hero { position: relative; z-index: 1; }
+
+        /* ===== FOOTER ===== */
+        .footer {
+            padding: 64px 24px 32px;
+            border-top: 1px solid rgba(255,255,255,0.06);
+            position: relative;
+            z-index: 1;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .footer-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+            gap: 48px;
+            margin-bottom: 48px;
+        }
+        .footer-brand .footer-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 16px;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 16px;
+        }
+        .footer-brand .footer-logo .logo-icon {
+            width: 32px; height: 32px;
+            background: linear-gradient(135deg, #5850ec, #3b82f6);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+        .footer-desc {
+            font-size: 14px;
+            color: #555;
+            line-height: 1.6;
+            max-width: 300px;
+        }
+        .footer-col h4 {
+            font-size: 13px;
+            font-weight: 600;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 16px;
+        }
+        .footer-col a {
+            display: block;
+            font-size: 14px;
+            color: #555;
+            padding: 6px 0;
+            transition: color 0.2s;
+        }
+        .footer-col a:hover { color: #fff; }
+        .footer-bottom {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 32px;
+            border-top: 1px solid rgba(255,255,255,0.06);
+        }
+        .footer-bottom p {
+            font-size: 13px;
+            color: #333;
+        }
+        .footer-socials {
+            display: flex;
+            gap: 16px;
+        }
+        .footer-socials a {
+            color: #444;
+            font-size: 18px;
+            transition: color 0.2s;
+        }
+        .footer-socials a:hover { color: #5850ec; }
+        @media (max-width: 768px) {
+            .footer-grid {
+                grid-template-columns: 1fr 1fr;
+                gap: 32px;
+            }
+            .footer-col:first-child {
+                grid-column: 1 / -1;
+            }
+            .footer-bottom {
+                flex-direction: column;
+                gap: 16px;
+                text-align: center;
+            }
+        }
+
+        /* ===== ANIMATIONS ===== */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes growBar {
+            from { height: 0; }
+        }
+
+        /* ===== SCROLL ANIMATIONS ===== */
+        .reveal {
+            opacity: 0;
+            transform: translateY(40px);
+            transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .reveal.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 1024px) {
+            .features-grid { grid-template-columns: repeat(2, 1fr); }
+            .metrics-grid { grid-template-columns: repeat(2, 1fr); gap: 32px; }
+        }
+        @media (max-width: 768px) {
+            .navbar-links { display: none; }
+            .hero { padding: 100px 20px 60px; }
+            .features-grid { grid-template-columns: 1fr; }
+            .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+            .step { flex-direction: column; gap: 16px; }
+            .mockup-stats { grid-template-columns: 1fr; }
+            .cta-box { padding: 48px 24px; }
+            .mockup-content { padding: 20px; min-height: 280px; }
+        }
+        @media (max-width: 480px) {
+            .metrics-grid { grid-template-columns: 1fr; gap: 24px; }
+            .hero-actions { flex-direction: column; align-items: center; }
+            .btn-hero { width: 100%; justify-content: center; }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="particles-canvas"></canvas>
+    <div class="bg-gradient"></div>
+
+    <!-- NAVBAR -->
+    <nav class="navbar">
+        <a href="#" class="navbar-brand">
+            <div class="logo-icon"><i class="fas fa-flask"></i></div>
+            Pellets Analyzer
+        </a>
+        <ul class="navbar-links">
+            <li><a href="#features">Возможности</a></li>
+            <li><a href="#how-it-works">Как работает</a></li>
+            <li><a href="#metrics">Статистика</a></li>
+        </ul>
+        <div class="navbar-actions">
+            <a href="{{ url_for('login') }}" class="btn-ghost">Войти</a>
+            <a href="{{ url_for('register') }}" class="btn-nav-primary">Начать</a>
+        </div>
+    </nav>
+
+    <!-- HERO -->
+    <section class="hero">
+        <div class="hero-glow"></div>
+        <div class="hero-badge">
+            <span class="badge-tag">Новое</span>
+            Версия 2.0 — ML-анализ и ИИ-рекомендации
+        </div>
+        <h1>
+            Аналитика<br>
+            <span class="gradient-text">топливных составов</span>
+        </h1>
+        <p>
+            Загружайте данные, стройте интерактивные графики, получайте ML-прогнозы
+            и оптимизируйте составы пеллет с помощью искусственного интеллекта.
+        </p>
+        <div class="hero-actions">
+            <a href="{{ url_for('register') }}" class="btn-hero btn-hero-primary">
+                Начать бесплатно <i class="fas fa-arrow-right"></i>
+            </a>
+            <a href="#features" class="btn-hero btn-hero-secondary">
+                <i class="fas fa-play"></i> Узнать больше
+            </a>
+        </div>
+
+        <!-- MOCKUP -->
+        <div class="hero-visual">
+            <div class="mockup">
+                <div class="mockup-bar">
+                    <div class="mockup-dot"></div>
+                    <div class="mockup-dot"></div>
+                    <div class="mockup-dot"></div>
+                </div>
+                <div class="mockup-content">
+                    <canvas id="landingChart" class="mockup-chart-canvas"></canvas>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FEATURES -->
+    <section class="features" id="features">
+        <div class="reveal">
+            <div class="section-label">Возможности</div>
+            <h2 class="section-title">Всё для анализа пеллет</h2>
+            <p class="section-desc">
+                Полный набор инструментов от загрузки данных до ML-прогнозов
+            </p>
+        </div>
+        <div class="features-grid">
+            <div class="feature-card reveal">
+                <div class="feature-icon"><i class="fas fa-upload"></i></div>
+                <h3>Загрузка данных</h3>
+                <p>Поддержка CSV и Excel файлов. Автоматическое распознавание параметров: зольность, теплота сгорания, плотность, температуры.</p>
+            </div>
+            <div class="feature-card reveal">
+                <div class="feature-icon"><i class="fas fa-chart-line"></i></div>
+                <h3>Интерактивные графики</h3>
+                <p>Plotly, Matplotlib и Seaborn — 13 типов визуализаций. Scatter, line, bar, heatmap, 3D и анимированные графики.</p>
+            </div>
+            <div class="feature-card reveal">
+                <div class="feature-icon"><i class="fas fa-table"></i></div>
+                <h3>Таблицы и сравнения</h3>
+                <p>Просмотр, фильтрация и сравнение составов. Сравнивайте несколько образцов с расчётом отклонений.</p>
+            </div>
+            <div class="feature-card reveal">
+                <div class="feature-icon"><i class="fas fa-brain"></i></div>
+                <h3>ML-анализ</h3>
+                <p>Обучение моделей для прогнозирования свойств пеллет. Random Forest, Gradient Boosting и другие алгоритмы.</p>
+            </div>
+            <div class="feature-card reveal">
+                <div class="feature-icon"><i class="fas fa-robot"></i></div>
+                <h3>ИИ-рекомендации</h3>
+                <p>Автоматический анализ данных и рекомендации по оптимизации состава для целевых характеристик.</p>
+            </div>
+            <div class="feature-card reveal">
+                <div class="feature-icon"><i class="fas fa-coins"></i></div>
+                <h3>Экономический анализ</h3>
+                <p>Расчёт стоимости, эффективности и рентабельности различных составов топливных гранул.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- METRICS -->
+    <section class="metrics" id="metrics">
+        <div class="metrics-grid reveal">
+            <div class="metric-item">
+                <div class="number">15+</div>
+                <div class="label">Параметров анализа</div>
+            </div>
+            <div class="metric-item">
+                <div class="number">13</div>
+                <div class="label">Типов визуализаций</div>
+            </div>
+            <div class="metric-item">
+                <div class="number">5+</div>
+                <div class="label">ML-алгоритмов</div>
+            </div>
+            <div class="metric-item">
+                <div class="number">∞</div>
+                <div class="label">Возможностей</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- HOW IT WORKS -->
+    <section class="how-it-works" id="how-it-works">
+        <div class="reveal">
+            <div class="section-label">Как это работает</div>
+            <h2 class="section-title">Три шага к результату</h2>
+            <p class="section-desc">
+                От сырых данных до готовых выводов за несколько минут
+            </p>
+        </div>
+        <div class="steps">
+            <div class="step reveal">
+                <div class="step-number">1</div>
+                <div class="step-content">
+                    <h3>Загрузите данные</h3>
+                    <p>Импортируйте CSV или Excel файл с результатами испытаний. Система автоматически распознает параметры: зольность, теплоту сгорания, плотность, температуры и другие физико-химические свойства.</p>
+                </div>
+            </div>
+            <div class="step reveal">
+                <div class="step-number">2</div>
+                <div class="step-content">
+                    <h3>Исследуйте и визуализируйте</h3>
+                    <p>Стройте интерактивные графики, сравнивайте составы, анализируйте корреляции. Выбирайте из 13 типов визуализаций — от простых scatter-plot до анимированных 3D-графиков.</p>
+                </div>
+            </div>
+            <div class="step reveal">
+                <div class="step-number">3</div>
+                <div class="step-content">
+                    <h3>Получайте ML-прогнозы</h3>
+                    <p>Обучите модель машинного обучения для прогнозирования свойств новых составов. Получите ИИ-рекомендации по оптимизации для достижения целевых характеристик.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="cta">
+        <div class="cta-box reveal">
+            <h2>Готовы начать анализ?</h2>
+            <p>Зарегистрируйтесь и получите доступ ко всем инструментам аналитики</p>
+            <a href="{{ url_for('register') }}" class="btn-hero btn-hero-primary">
+                Создать аккаунт <i class="fas fa-arrow-right"></i>
+            </a>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+        <div class="footer-grid">
+            <div class="footer-col">
+                <div class="footer-brand">
+                    <div class="footer-logo">
+                        <div class="logo-icon"><i class="fas fa-flask"></i></div>
+                        <span>Pellets Analyzer</span>
+                    </div>
+                    <p class="footer-desc">Платформа для анализа физико-химических свойств топливных гранул с ML-прогнозированием.</p>
+                </div>
+            </div>
+            <div class="footer-col">
+                <h4>Продукт</h4>
+                <a href="#features">Возможности</a>
+                <a href="#how-it-works">Как работает</a>
+                <a href="#metrics">Статистика</a>
+            </div>
+            <div class="footer-col">
+                <h4>Аккаунт</h4>
+                <a href="{{ url_for('login') }}">Вход</a>
+                <a href="{{ url_for('register') }}">Регистрация</a>
+                <a href="{{ url_for('dashboard') }}">Дашборд</a>
+            </div>
+            <div class="footer-col">
+                <h4>Технологии</h4>
+                <a href="#">Python / Flask</a>
+                <a href="#">Plotly / Matplotlib</a>
+                <a href="#">Scikit-learn</a>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2025 Pellets Analyzer. Все права защищены.</p>
+            <div class="footer-socials">
+                <a href="#" title="GitHub"><i class="fab fa-github"></i></a>
+                <a href="#" title="Telegram"><i class="fab fa-telegram"></i></a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // ===== PARTICLES ANIMATION =====
+        (function() {
+            const canvas = document.getElementById('particles-canvas');
+            const ctx = canvas.getContext('2d');
+            let particles = [];
+            let mouse = { x: null, y: null };
+            const PARTICLE_COUNT = 60;
+            const MAX_DISTANCE = 150;
+
+            function resize() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+            resize();
+            window.addEventListener('resize', resize);
+
+            window.addEventListener('mousemove', (e) => {
+                mouse.x = e.clientX;
+                mouse.y = e.clientY;
+            });
+
+            class Particle {
+                constructor() {
+                    this.x = Math.random() * canvas.width;
+                    this.y = Math.random() * canvas.height;
+                    this.vx = (Math.random() - 0.5) * 0.4;
+                    this.vy = (Math.random() - 0.5) * 0.4;
+                    this.radius = Math.random() * 1.5 + 0.5;
+                    this.opacity = Math.random() * 0.4 + 0.1;
+                }
+                update() {
+                    this.x += this.vx;
+                    this.y += this.vy;
+                    if (this.x < 0 || this.x > canvas.width) this.vx *= -1;
+                    if (this.y < 0 || this.y > canvas.height) this.vy *= -1;
+                }
+                draw() {
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(88, 80, 236, ${this.opacity})`;
+                    ctx.fill();
+                }
+            }
+
+            for (let i = 0; i < PARTICLE_COUNT; i++) {
+                particles.push(new Particle());
+            }
+
+            function drawLines() {
+                for (let i = 0; i < particles.length; i++) {
+                    for (let j = i + 1; j < particles.length; j++) {
+                        const dx = particles[i].x - particles[j].x;
+                        const dy = particles[i].y - particles[j].y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        if (dist < MAX_DISTANCE) {
+                            const opacity = (1 - dist / MAX_DISTANCE) * 0.15;
+                            ctx.beginPath();
+                            ctx.moveTo(particles[i].x, particles[i].y);
+                            ctx.lineTo(particles[j].x, particles[j].y);
+                            ctx.strokeStyle = `rgba(88, 80, 236, ${opacity})`;
+                            ctx.lineWidth = 0.5;
+                            ctx.stroke();
+                        }
+                    }
+                    // Mouse interaction
+                    if (mouse.x !== null) {
+                        const dx = particles[i].x - mouse.x;
+                        const dy = particles[i].y - mouse.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        if (dist < 200) {
+                            const opacity = (1 - dist / 200) * 0.3;
+                            ctx.beginPath();
+                            ctx.moveTo(particles[i].x, particles[i].y);
+                            ctx.lineTo(mouse.x, mouse.y);
+                            ctx.strokeStyle = `rgba(59, 130, 246, ${opacity})`;
+                            ctx.lineWidth = 0.8;
+                            ctx.stroke();
+                        }
+                    }
+                }
+            }
+
+            function animate() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                particles.forEach(p => {
+                    p.update();
+                    p.draw();
+                });
+                drawLines();
+                requestAnimationFrame(animate);
+            }
+            animate();
+        })();
+
+        // ===== ANIMATED LANDING CHART =====
+        (function() {
+            const canvas = document.getElementById('landingChart');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            let chartType = 0;
+            let animProgress = 0;
+            const chartLabels = [
+                'Столбчатая — сравнение составов',
+                'Линейная — динамика параметров',
+                'Площадная — распределение данных'
+            ];
+            const dataSets = [
+                [35, 55, 45, 70, 50, 85, 65, 75, 60, 90, 70, 80],
+                [20, 40, 30, 60, 45, 75, 55, 65, 50, 80, 60, 70],
+                [50, 30, 65, 40, 80, 55, 90, 45, 70, 35, 85, 60],
+            ];
+            const colors = [
+                { from: 'rgba(88, 80, 236, 0.15)', to: 'rgba(59, 130, 246, 0.6)' },
+                { from: 'rgba(34, 197, 94, 0.15)', to: 'rgba(16, 185, 129, 0.6)' },
+                { from: 'rgba(245, 158, 11, 0.15)', to: 'rgba(249, 115, 22, 0.6)' },
+            ];
+
+            function resize() {
+                const rect = canvas.parentElement.getBoundingClientRect();
+                canvas.width = rect.width * 2;
+                canvas.height = rect.height * 2;
+                canvas.style.width = rect.width + 'px';
+                canvas.style.height = rect.height + 'px';
+            }
+            resize();
+            window.addEventListener('resize', resize);
+
+            function drawChart() {
+                const w = canvas.width;
+                const h = canvas.height;
+                const data = dataSets[chartType];
+                const color = colors[chartType];
+                const padding = 16;
+                const bottomPadding = 32;
+                const barWidth = (w - padding * 2) / data.length;
+                const maxVal = 100;
+
+                ctx.clearRect(0, 0, w, h);
+
+                // Subtle grid
+                ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+                ctx.lineWidth = 1;
+                for (let i = 0; i <= 3; i++) {
+                    const y = padding + (h - padding - bottomPadding) * (i / 3);
+                    ctx.beginPath();
+                    ctx.moveTo(padding, y);
+                    ctx.lineTo(w - padding, y);
+                    ctx.stroke();
+                }
+
+                const eased = 1 - Math.pow(1 - animProgress, 4); // slower ease
+
+                const chartH = h - padding - bottomPadding;
+
+                if (chartType === 0) {
+                    // Bar chart with animated value labels
+                    const fontSize = Math.max(13, w * 0.014);
+                    const labelFontSize = Math.max(15, w * 0.017);
+
+                    data.forEach((val, i) => {
+                        const barH = (val / maxVal) * chartH * eased;
+                        const x = padding + i * barWidth + barWidth * 0.15;
+                        const bw = barWidth * 0.7;
+                        const y = h - bottomPadding - barH;
+
+                        // Bar gradient
+                        const grad = ctx.createLinearGradient(x, y, x, h - bottomPadding);
+                        grad.addColorStop(0, color.to);
+                        grad.addColorStop(1, color.from);
+                        ctx.fillStyle = grad;
+                        ctx.beginPath();
+                        ctx.roundRect(x, y, bw, barH, [4, 4, 0, 0]);
+                        ctx.fill();
+
+                        // Bar glow effect
+                        ctx.shadowColor = color.to;
+                        ctx.shadowBlur = 8 * eased;
+                        ctx.fill();
+                        ctx.shadowBlur = 0;
+
+                        // Animated value label with pill background
+                        if (animProgress > 0.4) {
+                            const labelAlpha = Math.min(1, (animProgress - 0.4) * 1.67);
+                            const labelY = y - 10 - (1 - labelAlpha) * 8; // float up effect
+
+                            ctx.font = `700 ${labelFontSize}px Inter, sans-serif`;
+                            const text = val.toString();
+                            const textMetrics = ctx.measureText(text);
+                            const textW = textMetrics.width;
+                            const pillPaddingX = 8;
+                            const pillPaddingY = 4;
+                            const pillW = textW + pillPaddingX * 2;
+                            const pillH = labelFontSize + pillPaddingY * 2;
+                            const pillX = x + bw / 2 - pillW / 2;
+                            const pillY = labelY - labelFontSize - pillPaddingY;
+
+                            // Pill background
+                            ctx.fillStyle = `rgba(255,255,255,${labelAlpha * 0.12})`;
+                            ctx.beginPath();
+                            ctx.roundRect(pillX, pillY, pillW, pillH, pillH / 2);
+                            ctx.fill();
+
+                            // Pill border
+                            ctx.strokeStyle = `rgba(255,255,255,${labelAlpha * 0.2})`;
+                            ctx.lineWidth = 1;
+                            ctx.beginPath();
+                            ctx.roundRect(pillX, pillY, pillW, pillH, pillH / 2);
+                            ctx.stroke();
+
+                            // Text
+                            ctx.fillStyle = `rgba(255,255,255,${labelAlpha})`;
+                            ctx.font = `700 ${labelFontSize}px Inter, sans-serif`;
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+                            ctx.fillText(text, x + bw / 2, pillY + pillH / 2);
+                        }
+                    });
+                } else if (chartType === 1) {
+                    // Line chart
+                    const points = data.map((val, i) => ({
+                        x: padding + i * barWidth + barWidth / 2,
+                        y: h - bottomPadding - (val / maxVal) * chartH * eased
+                    }));
+
+                    // Area fill
+                    ctx.beginPath();
+                    ctx.moveTo(points[0].x, h - bottomPadding);
+                    points.forEach(p => ctx.lineTo(p.x, p.y));
+                    ctx.lineTo(points[points.length - 1].x, h - bottomPadding);
+                    ctx.closePath();
+                    const areaGrad = ctx.createLinearGradient(0, padding, 0, h - bottomPadding);
+                    areaGrad.addColorStop(0, color.to.replace('0.6', '0.15'));
+                    areaGrad.addColorStop(1, 'rgba(8, 8, 10, 0)');
+                    ctx.fillStyle = areaGrad;
+                    ctx.fill();
+
+                    // Line
+                    ctx.beginPath();
+                    ctx.strokeStyle = color.to;
+                    ctx.lineWidth = 2.5;
+                    ctx.lineJoin = 'round';
+                    points.forEach((p, i) => {
+                        if (i === 0) ctx.moveTo(p.x, p.y);
+                        else ctx.lineTo(p.x, p.y);
+                    });
+                    ctx.stroke();
+
+                    // Dots
+                    points.forEach(p => {
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+                        ctx.fillStyle = '#08080a';
+                        ctx.fill();
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, 2.5, 0, Math.PI * 2);
+                        ctx.fillStyle = color.to;
+                        ctx.fill();
+                    });
+
+                    // Animated value labels above dots
+                    if (animProgress > 0.4) {
+                        const labelAlpha = Math.min(1, (animProgress - 0.4) * 1.67);
+                        const labelFontSize = Math.max(14, w * 0.016);
+                        ctx.font = `700 ${labelFontSize}px Inter, sans-serif`;
+
+                        data.forEach((val, i) => {
+                            const p = points[i];
+                            const text = val.toString();
+                            const textMetrics = ctx.measureText(text);
+                            const textW = textMetrics.width;
+                            const pillPaddingX = 7;
+                            const pillPaddingY = 3;
+                            const pillW = textW + pillPaddingX * 2;
+                            const pillH = labelFontSize + pillPaddingY * 2;
+                            const pillX = p.x - pillW / 2;
+                            const pillY = p.y - pillH - 8 - (1 - labelAlpha) * 6;
+
+                            // Pill background
+                            ctx.fillStyle = `rgba(255,255,255,${labelAlpha * 0.12})`;
+                            ctx.beginPath();
+                            ctx.roundRect(pillX, pillY, pillW, pillH, pillH / 2);
+                            ctx.fill();
+
+                            // Pill border
+                            ctx.strokeStyle = `rgba(255,255,255,${labelAlpha * 0.2})`;
+                            ctx.lineWidth = 1;
+                            ctx.beginPath();
+                            ctx.roundRect(pillX, pillY, pillW, pillH, pillH / 2);
+                            ctx.stroke();
+
+                            // Text
+                            ctx.fillStyle = `rgba(255,255,255,${labelAlpha})`;
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+                            ctx.fillText(text, p.x, pillY + pillH / 2);
+                        });
+                    }
+                } else {
+                    // Area chart
+                    const points = data.map((val, i) => ({
+                        x: padding + i * barWidth + barWidth / 2,
+                        y: h - bottomPadding - (val / maxVal) * chartH * eased
+                    }));
+
+                    // Area
+                    ctx.beginPath();
+                    ctx.moveTo(points[0].x, h - bottomPadding);
+                    for (let i = 0; i < points.length - 1; i++) {
+                        const xc = (points[i].x + points[i + 1].x) / 2;
+                        const yc = (points[i].y + points[i + 1].y) / 2;
+                        ctx.quadraticCurveTo(points[i].x, points[i].y, xc, yc);
+                    }
+                    ctx.lineTo(points[points.length - 1].x, points[points.length - 1].y);
+                    ctx.lineTo(points[points.length - 1].x, h - bottomPadding);
+                    ctx.closePath();
+                    const areaGrad = ctx.createLinearGradient(0, padding, 0, h - bottomPadding);
+                    areaGrad.addColorStop(0, color.to.replace('0.6', '0.2'));
+                    areaGrad.addColorStop(1, 'rgba(8, 8, 10, 0)');
+                    ctx.fillStyle = areaGrad;
+                    ctx.fill();
+
+                    // Line
+                    ctx.beginPath();
+                    ctx.strokeStyle = color.to;
+                    ctx.lineWidth = 2.5;
+                    ctx.lineJoin = 'round';
+                    for (let i = 0; i < points.length - 1; i++) {
+                        const xc = (points[i].x + points[i + 1].x) / 2;
+                        const yc = (points[i].y + points[i + 1].y) / 2;
+                        if (i === 0) ctx.moveTo(points[i].x, points[i].y);
+                        ctx.quadraticCurveTo(points[i].x, points[i].y, xc, yc);
+                    }
+                    ctx.stroke();
+
+                    // Animated value labels above points
+                    if (animProgress > 0.4) {
+                        const labelAlpha = Math.min(1, (animProgress - 0.4) * 1.67);
+                        const labelFontSize = Math.max(14, w * 0.016);
+                        ctx.font = `700 ${labelFontSize}px Inter, sans-serif`;
+
+                        data.forEach((val, i) => {
+                            const p = points[i];
+                            const text = val.toString();
+                            const textMetrics = ctx.measureText(text);
+                            const textW = textMetrics.width;
+                            const pillPaddingX = 7;
+                            const pillPaddingY = 3;
+                            const pillW = textW + pillPaddingX * 2;
+                            const pillH = labelFontSize + pillPaddingY * 2;
+                            const pillX = p.x - pillW / 2;
+                            const pillY = p.y - pillH - 8 - (1 - labelAlpha) * 6;
+
+                            // Pill background
+                            ctx.fillStyle = `rgba(255,255,255,${labelAlpha * 0.12})`;
+                            ctx.beginPath();
+                            ctx.roundRect(pillX, pillY, pillW, pillH, pillH / 2);
+                            ctx.fill();
+
+                            // Pill border
+                            ctx.strokeStyle = `rgba(255,255,255,${labelAlpha * 0.2})`;
+                            ctx.lineWidth = 1;
+                            ctx.beginPath();
+                            ctx.roundRect(pillX, pillY, pillW, pillH, pillH / 2);
+                            ctx.stroke();
+
+                            // Text
+                            ctx.fillStyle = `rgba(255,255,255,${labelAlpha})`;
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+                            ctx.fillText(text, p.x, pillY + pillH / 2);
+                        });
+                    }
+                }
+
+            }
+
+            let lastTime = 0;
+            let switchTimer = 0;
+            const SWITCH_INTERVAL = 5000; // 5 seconds - slower
+            const ANIM_DURATION = 1500; // 1.5s - smoother
+
+            function animate(time) {
+                if (!lastTime) lastTime = time;
+                const delta = time - lastTime;
+                lastTime = time;
+                switchTimer += delta;
+
+                if (animProgress < 1) {
+                    animProgress = Math.min(1, animProgress + delta / ANIM_DURATION);
+                }
+
+                if (switchTimer > SWITCH_INTERVAL) {
+                    chartType = (chartType + 1) % 3;
+                    animProgress = 0;
+                    switchTimer = 0;
+                }
+
+                drawChart();
+                requestAnimationFrame(animate);
+            }
+            requestAnimationFrame(animate);
+        })();
+
+        // ===== SCROLL REVEAL =====
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+
+        document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+        // ===== SMOOTH SCROLL =====
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function(e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+
+        // ===== NAVBAR SCROLL =====
+        const navbar = document.querySelector('.navbar');
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 50) {
+                navbar.classList.add('scrolled');
+            } else {
+                navbar.classList.remove('scrolled');
+            }
+        });
+    </script>
+</body>
+</html>

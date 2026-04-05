@@ -1,0 +1,303 @@
+{% extends 'base.html' %}
+
+{% block title %}Админ-панель — Pellets Analyzer{% endblock %}
+
+{% block extrastyle %}
+<style>
+    .admin-header {
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        border-radius: 20px; padding: 2rem; color: white; margin-bottom: 2rem;
+        box-shadow: 0 10px 30px rgba(220,53,69,0.2);
+    }
+    .admin-stat {
+        border: none; border-radius: 16px; background: white;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05); transition: transform 0.3s;
+    }
+    .admin-stat:hover { transform: translateY(-3px); }
+    .admin-stat-icon {
+        width: 56px; height: 56px; border-radius: 14px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.5rem; color: white;
+    }
+    .admin-card {
+        border: none; border-radius: 16px; background: white;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    }
+    .table-admin th { font-weight: 600; color: #6c757d; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; }
+    .table-admin td { vertical-align: middle; }
+    .user-status { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+    .user-status.active { background: #28a745; }
+    .user-status.inactive { background: #dc3545; }
+    .action-badge { font-size: 0.7rem; padding: 0.25em 0.5em; border-radius: 6px; }
+    .quick-action-btn {
+        border: 2px dashed #dee2e6; border-radius: 16px; padding: 1.5rem;
+        text-align: center; transition: all 0.3s; background: white; cursor: pointer;
+        text-decoration: none; color: #6c757d; display: block;
+    }
+    .quick-action-btn:hover { border-color: #2d60ff; color: #2d60ff; background: rgba(45,96,255,0.03); }
+    .quick-action-btn i { font-size: 2rem; display: block; margin-bottom: 0.5rem; }
+</style>
+{% endblock extrastyle %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+    <!-- Header -->
+    <div class="admin-header d-flex justify-content-between align-items-center">
+        <div>
+            <h2 class="mb-1 fw-bold"><i class="fas fa-shield-alt me-2"></i>Админ-панель</h2>
+            <p class="mb-0 opacity-75">Управление пользователями и мониторинг системы</p>
+        </div>
+        <a href="{{ url_for('profile') }}" class="btn btn-outline-light btn-sm">
+            <i class="fas fa-arrow-left me-1"></i>Назад к профилю
+        </a>
+    </div>
+
+    <!-- Статистика -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="admin-stat p-4">
+                <div class="d-flex align-items-center">
+                    <div class="admin-stat-icon bg-primary me-3"><i class="fas fa-users"></i></div>
+                    <div>
+                        <p class="text-muted mb-0 small text-uppercase fw-semibold">Всего пользователей</p>
+                        <h3 class="mb-0 fw-bold">{{ stats.total_users }}</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="admin-stat p-4">
+                <div class="d-flex align-items-center">
+                    <div class="admin-stat-icon bg-success me-3"><i class="fas fa-user-check"></i></div>
+                    <div>
+                        <p class="text-muted mb-0 small text-uppercase fw-semibold">Активных</p>
+                        <h3 class="mb-0 fw-bold">{{ stats.active_users }}</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="admin-stat p-4">
+                <div class="d-flex align-items-center">
+                    <div class="admin-stat-icon bg-info me-3"><i class="fas fa-envelope-open"></i></div>
+                    <div>
+                        <p class="text-muted mb-0 small text-uppercase fw-semibold">Верифицированных</p>
+                        <h3 class="mb-0 fw-bold">{{ stats.verified_users }}</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="admin-stat p-4">
+                <div class="d-flex align-items-center">
+                    <div class="admin-stat-icon bg-warning me-3"><i class="fas fa-bolt"></i></div>
+                    <div>
+                        <p class="text-muted mb-0 small text-uppercase fw-semibold">Действий сегодня</p>
+                        <h3 class="mb-0 fw-bold">{{ stats.today_actions }}</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Пользователи -->
+        <div class="col-lg-8 mb-4">
+            <div class="admin-card p-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold mb-0"><i class="fas fa-users me-2 text-primary"></i>Пользователи</h5>
+                    <div class="input-group w-auto">
+                        <input type="text" class="form-control form-control-sm" placeholder="Поиск..." id="userSearch">
+                        <button class="btn btn-outline-primary btn-sm" type="button"><i class="fas fa-search"></i></button>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-admin table-hover" id="usersTable">
+                        <thead>
+                            <tr>
+                                <th>Статус</th>
+                                <th>Имя</th>
+                                <th>Email</th>
+                                <th>Роль</th>
+                                <th>Входов</th>
+                                <th>Последний вход</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in all_users %}
+                            <tr>
+                                <td><span class="user-status {{ 'active' if user.is_active else 'inactive' }}"></span></td>
+                                <td class="fw-semibold">{{ user.full_name or user.username }}</td>
+                                <td>{{ user.email }}</td>
+                                <td>
+                                    {% if user.role_name == 'admin' %}
+                                    <span class="badge bg-danger action-badge">admin</span>
+                                    {% elif user.role_name == 'moderator' %}
+                                    <span class="badge bg-warning action-badge">moderator</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary action-badge">user</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ user.login_count or 0 }}</td>
+                                <td class="text-muted small">{{ user.last_login or '—' }}</td>
+                                <td>
+                                    {% if user.id != session.get('user_id') %}
+                                    <button class="btn btn-sm btn-outline-danger" onclick="toggleUserStatus({{ user.id }}, {{ user.is_active }})" title="Активировать/Деактивировать">
+                                        <i class="fas fa-{{ 'ban' if user.is_active else 'check' }}"></i>
+                                    </button>
+                                    {% else %}
+                                    <span class="text-muted small">Вы</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Быстрые действия -->
+        <div class="col-lg-4 mb-4">
+            <div class="admin-card p-4">
+                <h5 class="fw-bold mb-3"><i class="fas fa-rocket me-2 text-success"></i>Быстрые действия</h5>
+                <div class="row g-3">
+                    <div class="col-12">
+                        <a href="{{ url_for('tables') }}" class="quick-action-btn">
+                            <i class="fas fa-database text-primary"></i>
+                            <span class="fw-semibold">Открыть базу данных</span>
+                            <br><small class="text-muted">Просмотр таблиц</small>
+                        </a>
+                    </div>
+                    <div class="col-12">
+                        <a href="{{ url_for('ml_dashboard') }}" class="quick-action-btn">
+                            <i class="fas fa-brain text-success"></i>
+                            <span class="fw-semibold">ML панель</span>
+                            <br><small class="text-muted">Машинное обучение</small>
+                        </a>
+                    </div>
+                    <div class="col-12">
+                        <a href="{{ url_for('ai_analysis') }}" class="quick-action-btn">
+                            <i class="fas fa-robot text-info"></i>
+                            <span class="fw-semibold">ИИ-анализ</span>
+                            <br><small class="text-muted">Анализ данных</small>
+                        </a>
+                    </div>
+                    <div class="col-12">
+                        <a href="javascript:void(0)" onclick="clearAllCache()" class="quick-action-btn">
+                            <i class="fas fa-broom text-warning"></i>
+                            <span class="fw-semibold">Очистить кэш</span>
+                            <br><small class="text-muted">Сброс сессий</small>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Последние регистрации -->
+            <div class="admin-card p-4 mt-3">
+                <h5 class="fw-bold mb-3"><i class="fas fa-user-plus me-2 text-info"></i>Новые пользователи</h5>
+                {% if stats.recent_users %}
+                {% for u in stats.recent_users[:5] %}
+                <div class="d-flex align-items-center mb-2 pb-2 border-bottom">
+                    <div class="flex-grow-1">
+                        <p class="mb-0 fw-semibold small">{{ u.username }}</p>
+                        <p class="mb-0 text-muted smaller">{{ u.email }}</p>
+                    </div>
+                    <small class="text-muted">{{ u.last_login or 'Новый' }}</small>
+                </div>
+                {% endfor %}
+                {% else %}
+                <p class="text-muted small">Нет новых пользователей</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Логи активности -->
+    <div class="row">
+        <div class="col-12">
+            <div class="admin-card p-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold mb-0"><i class="fas fa-history me-2 text-info"></i>Логи активности</h5>
+                    <div class="d-flex gap-2">
+                        <select class="form-select form-select-sm" id="logFilter" style="width: auto;">
+                            <option value="">Все действия</option>
+                            <option value="login">Входы</option>
+                            <option value="register">Регистрации</option>
+                            <option value="upload">Загрузки</option>
+                            <option value="change_password">Смена пароля</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-admin table-hover" id="logsTable">
+                        <thead>
+                            <tr><th>Пользователь</th><th>Email</th><th>Действие</th><th>Детали</th><th>IP</th><th>Время</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for log in activity_logs %}
+                            <tr>
+                                <td class="fw-semibold">{{ log.username or 'Система' }}</td>
+                                <td class="text-muted small">{{ log.email or '—' }}</td>
+                                <td><span class="badge bg-light text-dark action-badge">{{ log.action }}</span></td>
+                                <td class="text-muted small">{{ log.details }}</td>
+                                <td class="text-muted small font-monospace">{{ log.ip_address }}</td>
+                                <td class="text-muted small">{{ log.created_at }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% if not activity_logs %}
+                <p class="text-muted text-center py-4">Нет записей активности</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}
+
+{% block extra_js %}
+<script>
+// Поиск пользователей
+document.getElementById('userSearch')?.addEventListener('input', function() {
+    const filter = this.value.toLowerCase();
+    const rows = document.querySelectorAll('#usersTable tbody tr');
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(filter) ? '' : 'none';
+    });
+});
+
+// Фильтр логов
+document.getElementById('logFilter')?.addEventListener('change', function() {
+    const filter = this.value;
+    const rows = document.querySelectorAll('#logsTable tbody tr');
+    rows.forEach(row => {
+        if (!filter) { row.style.display = ''; return; }
+        const badge = row.querySelector('.badge');
+        row.style.display = badge && badge.textContent === filter ? '' : 'none';
+    });
+});
+
+function toggleUserStatus(userId, currentStatus) {
+    if (!confirm(currentStatus ? 'Деактивировать пользователя?' : 'Активировать пользователя?')) return;
+    fetch(`/admin/toggle_user/${userId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    }).then(r => r.json()).then(data => {
+        if (data.success) location.reload();
+        else alert(data.error || 'Ошибка');
+    });
+}
+
+function clearAllCache() {
+    if (!confirm('Очистить все сессии и кэш?')) return;
+    fetch('/admin/clear_cache', { method: 'POST' })
+        .then(r => r.json())
+        .then(data => alert(data.message || 'Кэш очищен'));
+}
+</script>
+{% endblock extra_js %}
