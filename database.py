@@ -391,11 +391,16 @@ def insert_data(db_path, table, data):
     cursor = conn.cursor()
 
     if table == "measured_parameters":
-        expected_columns = ['composition', 'density', 'kf', 'kt', 'h', 'mass_loss', 
-                          'tign', 'tb', 'tau_d1', 'tau_d2', 'tau_b', 
+        expected_columns = ['composition', 'density', 'kf', 'kt', 'h', 'mass_loss',
+                          'tign', 'tb', 'tau_d1', 'tau_d2', 'tau_b',
                           'co2', 'co', 'so2', 'nox', 'q', 'ad']
         
-        data = data[expected_columns] if all(col in data.columns for col in expected_columns) else data
+        # Добавляем недостающие колонки как None
+        for col in expected_columns:
+            if col not in data.columns:
+                data[col] = None
+        
+        data = data[expected_columns]
         
         query = '''
         INSERT OR REPLACE INTO measured_parameters VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)

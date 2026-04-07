@@ -678,20 +678,23 @@
     // --- СТАТУС СИСТЕМЫ ---
     function updateSystemStats() {
         fetch('/ml_system_status').then(r => r.json()).then(data => {
-            if (data.success) {
-                document.getElementById('dataCount').textContent = data.system_status.training_data_size;
-                document.getElementById('activeModels').textContent = data.system_status.trained_models.length;
+            if (data.success && data.system_status) {
+                const el = (id) => document.getElementById(id);
+                if (el('dataCount')) el('dataCount').textContent = data.system_status.training_data_size || 0;
+                if (el('activeModels')) el('activeModels').textContent = (data.system_status.trained_models || []).length;
                 let totalR2 = 0; let count = 0;
-                Object.values(data.system_status.model_metrics).forEach(m => { if (m.training_metrics && m.training_metrics.r2_score) { totalR2 += m.training_metrics.r2_score; count++; } });
-                document.getElementById('avgAccuracy').textContent = count > 0 ? (totalR2 / count * 100).toFixed(1) + '%' : "0%";
+                const metrics = data.system_status.model_metrics || {};
+                Object.values(metrics).forEach(m => { if (m.training_metrics && m.training_metrics.r2_score) { totalR2 += m.training_metrics.r2_score; count++; } });
+                if (el('avgAccuracy')) el('avgAccuracy').textContent = count > 0 ? (totalR2 / count * 100).toFixed(1) + '%' : "0%";
             }
-        });
+        }).catch(err => console.warn('⚠️ Ошибка обновления статистики:', err));
     }
 
     function loadMLStatus() {
         fetch('/ml_system_status').then(r => r.json()).then(data => {
             const c = document.getElementById('mlSystemStatus');
-            if (data.success && data.system_status.trained_models.length > 0) {
+            if (!c) return;
+            if (data.success && data.system_status && data.system_status.trained_models && data.system_status.trained_models.length > 0) {
                 let html = '<h6 class="mb-3 mt-2">Обученные нейросети:</h6><div class="row g-3">';
                 for (const [prop, metrics] of Object.entries(data.system_status.model_metrics)) {
                     const r2 = metrics.training_metrics ? (metrics.training_metrics.r2_score * 100).toFixed(1) : 'N/A';
@@ -715,7 +718,7 @@
                 }
                 c.innerHTML = html + '</div>';
             } else { c.innerHTML = ''; }
-        });
+        }).catch(err => console.warn('⚠️ Ошибка загрузки статуса ML:', err));
     }
 
     // --- ПОДГРУЗКА КОМПОНЕНТОВ ИЗ БАЗЫ ДАННЫХ (БЕЗ НАЕЗДОВ И ОШИБОК ПРОБЕЛОВ) ---
@@ -947,9 +950,10 @@
     function initSandbox() {
         fetch('/ml_system_status').then(r => r.json()).then(data => {
             const container = document.getElementById('sandboxSlidersContainer');
+            if (!container) return;
             container.innerHTML = '';
 
-            if (data.success && data.system_status.available_components && data.system_status.available_components.length > 0) {
+            if (data.success && data.system_status && data.system_status.available_components && data.system_status.available_components.length > 0) {
                 const components = data.system_status.available_components;
 
                 let initial = Math.floor((100 / components.length) * 10) / 10;
@@ -983,6 +987,10 @@
             } else {
                 container.innerHTML = '<div class="text-center text-muted py-4"><i class="fas fa-info-circle mb-2 fa-2x"></i><br>Нет компонентов для песочницы</div>';
             }
+        }).catch(err => {
+            console.warn('⚠️ Ошибка инициализации песочницы:', err);
+            const container = document.getElementById('sandboxSlidersContainer');
+            if (container) container.innerHTML = '<div class="text-center text-muted py-4"><i class="fas fa-exclamation-triangle mb-2 fa-2x text-danger"></i><br>Ошибка загрузки</div>';
         });
     }
 
@@ -1068,6 +1076,12 @@
         const comp = {};
         document.querySelectorAll('.sandbox-slider').forEach(s => comp[s.getAttribute('data-comp')] = parseFloat(s.value));
 
+        if (Object.keys(comp).length === 0) {
+            const badgeC = document.getElementById('sandboxPredictionBadges');
+            if (badgeC) badgeC.innerHTML = '<div class="col-12 text-center py-4 text-muted"><i class="fas fa-info-circle fa-2x mb-3"></i><p>Нет данных для прогноза</p></div>';
+            return;
+        }
+
         fetch('/api/predict_composition', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1075,14 +1089,16 @@
         })
             .then(r => r.json())
             .then(data => {
+                const alertEl = document.getElementById('sandboxNotReadyAlert');
+                const badgeC = document.getElementById('sandboxPredictionBadges');
                 if (data.success) {
                     // Скрываем предупреждение если ИИ обучен
-                    document.getElementById('sandboxNotReadyAlert').classList.add('d-none');
+                    if (alertEl) alertEl.classList.add('d-none');
                     renderSandboxCards(data.results);
                 } else {
                     // Показываем предупреждение если ИИ не обучен
-                    document.getElementById('sandboxNotReadyAlert').classList.remove('d-none');
-                    document.getElementById('sandboxPredictionBadges').innerHTML = `
+                    if (alertEl) alertEl.classList.remove('d-none');
+                    if (badgeC) badgeC.innerHTML = `
                     <div class="col-12 text-center py-4">
                         <div class="alert alert-danger border-0 shadow-sm mb-3">
                             <i class="fas fa-exclamation-triangle me-2"></i> ИИ еще не обучен! Прогноз невозможен.
@@ -1097,8 +1113,10 @@
             })
             .catch(error => {
                 console.error('Ошибка прогноза:', error);
-                document.getElementById('sandboxNotReadyAlert').classList.remove('d-none');
-                document.getElementById('sandboxPredictionBadges').innerHTML = `
+                const alertEl = document.getElementById('sandboxNotReadyAlert');
+                const badgeC = document.getElementById('sandboxPredictionBadges');
+                if (alertEl) alertEl.classList.remove('d-none');
+                if (badgeC) badgeC.innerHTML = `
                     <div class="col-12 text-center py-4">
                         <div class="alert alert-danger border-0 shadow-sm mb-3">
                             <i class="fas fa-plug me-2"></i> Ошибка соединения с сервером

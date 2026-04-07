@@ -1045,7 +1045,7 @@ class PelletMLSystem:
             ci = confidence_interval / 100.0
             prop_ci = max(0.01, ci / 2)
             synthetic_rows = []
-            all_props = ['density', 'kf', 'kt', 'h', 'mass_loss', 'tign', 'tb', 'tau_b', 'co2', 'q', 'ad']
+            all_props = ['density', 'kf', 'kt', 'h', 'mass_loss', 'tign', 'tb', 'tau_d1', 'tau_d2', 'tau_b', 'co2', 'co', 'so2', 'nox', 'q', 'ad']
             
             for _, row in measured_data.iterrows():
                 comp_text = row.get('composition')

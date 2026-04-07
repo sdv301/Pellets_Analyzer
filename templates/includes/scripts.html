@@ -4,6 +4,22 @@
 <script src="{{ url_for('static', filename='assets/js/plugins/perfect-scrollbar.min.js') }}"></script>
 <script src="{{ url_for('static', filename='assets/js/plugins/smooth-scrollbar.min.js') }}"></script>
 
+<!-- ЗАЩИТНЫЙ ПАТЧ: предотвращает ошибку removeChild в soft-ui-dashboard.min.js -->
+<script>
+    // Патчим Element.prototype.removeChild чтобы не падал на null
+    (function() {
+        var origRemoveChild = Element.prototype.removeChild;
+        Element.prototype.removeChild = function(child) {
+            if (child === null || child === undefined) return null;
+            try {
+                return origRemoveChild.call(this, child);
+            } catch(e) {
+                return null;
+            }
+        };
+    })();
+</script>
+
 <script>
     var win = navigator.platform.indexOf('Win') > -1;
     if (win && document.querySelector('#sidenav-scrollbar')) {
