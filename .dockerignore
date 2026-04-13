@@ -66,11 +66,11 @@ nginx.prod.conf
 *.example.json
 .env.example
 
-# ML models (загружаются отдельно)
+# ML models (загружаются отдельно, только в корне)
 *.joblib
 *.pkl
 *.h5
-models/
+/models/
 
 # Test files
 test_*.py
