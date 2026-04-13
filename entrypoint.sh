@@ -11,4 +11,4 @@ mkdir -p /app/data /app/Uploads /app/sessions /app/app/services/models
 chown -R appuser:appuser /app/data /app/Uploads /app/sessions /app/app/services/models
 
 # Drop privileges and run the main command
-exec su-exec appuser "$@"
+exec gosu appuser "$@"

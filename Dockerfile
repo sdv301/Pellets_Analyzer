@@ -16,14 +16,14 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # Рабочая директория
 WORKDIR /app
 
-# Системные зависимости (для scipy, numpy, paramiko, su-exec)
+# Системные зависимости (для scipy, numpy, paramiko, gosu)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     g++ \
     libffi-dev \
     libssl-dev \
     pkg-config \
-    su-exec \
+    gosu \
     && rm -rf /var/lib/apt/lists/*
 
 # Копирование зависимостей
