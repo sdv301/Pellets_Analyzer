@@ -13,6 +13,9 @@ import sqlite3
 import os
 import secrets
 import logging
+import smtplib
+import socket
+import time
 from datetime import datetime, timedelta
 from functools import wraps
 from typing import Optional, Dict, Any, List
@@ -754,233 +757,287 @@ def moderator_required(f):
 # ============================================================
 
 def send_verification_email(email: str, token: str, base_url: str, username: str = ''):
-    """Отправляет email с подтверждением регистрации."""
+    """Отправляет email с подтверждением регистрации с retry-логикой."""
     if not SMTP_CONFIGURED:
         logger.warning("SMTP не настроен — email подтверждения не отправлен. Регистрация успешна.")
         return True  # Graceful degradation: регистрация проходит без email
 
     verify_url = f"{base_url}/verify/{token}"
     display_name = username or 'Пользователь'
-    try:
-        msg = Message(
-            subject='Подтверждение регистрации — Pellets Analyzer',
-            recipients=[email],
-            html=f'''
-            <!DOCTYPE html>
-            <html lang="ru">
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <meta http-equiv="X-UA-Compatible" content="IE=edge">
-                <title>Подтверждение регистрации</title>
-            </head>
-            <body style="margin: 0; padding: 0; background-color: #f4f4f7; font-family: Arial, Helvetica, sans-serif;">
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f4f7;">
-                    <tr>
-                        <td align="center" style="padding: 30px 15px;">
-                            <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width: 600px; width: 100%;">
-                                <!-- Header -->
-                                <tr>
-                                    <td style="background: linear-gradient(135deg, #5850ec 0%, #3b82f6 100%); border-radius: 16px 16px 0 0; padding: 40px 30px; text-align: center;">
-                                        <table role="presentation" cellpadding="0" cellspacing="0" align="center">
-                                            <tr>
-                                                <td style="background-color: rgba(255,255,255,0.2); border-radius: 12px; padding: 12px; text-align: center;">
-                                                    <span style="font-size: 32px; color: #ffffff;">&#128300;</span>
-                                                </td>
-                                            </tr>
-                                        </table>
-                                        <h1 style="color: #ffffff; font-size: 26px; margin: 20px 0 8px; font-weight: 700; letter-spacing: -0.5px;">Pellets Analyzer</h1>
-                                        <p style="color: rgba(255,255,255,0.85); font-size: 14px; margin: 0;">Лаборатория анализа топливных пеллет</p>
-                                    </td>
-                                </tr>
-                                <!-- Body -->
-                                <tr>
-                                    <td style="background-color: #ffffff; padding: 40px 30px;">
-                                        <h2 style="color: #1a1a2e; font-size: 22px; margin: 0 0 16px; font-weight: 600;">Добро пожаловать, {display_name}!</h2>
-                                        <p style="color: #555555; font-size: 15px; line-height: 1.6; margin: 0 0 24px;">
-                                            Спасибо за регистрацию в <strong>Pellets Analyzer</strong>. Для завершения создания аккаунта и доступа ко всем функциям системы подтвердите свой email, нажав кнопку ниже:
-                                        </p>
-                                        <!-- CTA Button -->
-                                        <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 30px 0;">
-                                            <tr>
-                                                <td style="background: linear-gradient(135deg, #5850ec 0%, #3b82f6 100%); border-radius: 10px; text-align: center;">
-                                                    <a href="{verify_url}" target="_blank" style="display: inline-block; padding: 16px 40px; color: #ffffff; font-size: 16px; font-weight: 600; text-decoration: none; border-radius: 10px;">
-                                                        &#9989; Подтвердить email
-                                                    </a>
-                                                </td>
-                                            </tr>
-                                        </table>
-                                        <!-- Fallback Link -->
-                                        <p style="color: #888888; font-size: 13px; line-height: 1.6; margin: 0 0 8px;">
-                                            Если кнопка не работает, скопируйте ссылку в браузер:
-                                        </p>
-                                        <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 0 24px;">
-                                            <tr>
-                                                <td style="background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; padding: 12px 16px;">
-                                                    <code style="color: #5850ec; font-size: 12px; word-break: break-all;">{verify_url}</code>
-                                                </td>
-                                            </tr>
-                                        </table>
-                                        <p style="color: #888888; font-size: 13px; line-height: 1.6; margin: 0;">
-                                            <strong>Ссылка действительна в течение 24 часов.</strong>
-                                        </p>
-                                    </td>
-                                </tr>
-                                <!-- Info Section -->
-                                <tr>
-                                    <td style="background-color: #f8f9fa; padding: 24px 30px; border-top: 1px solid #e9ecef;">
-                                        <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
-                                            <tr>
-                                                <td style="color: #666666; font-size: 13px; line-height: 1.6;">
-                                                    <strong style="color: #333333;">Что вы получите после подтверждения:</strong>
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td style="color: #666666; font-size: 13px; line-height: 1.8; padding-top: 8px;">
-                                                    &#10003; Загрузку и анализ данных о пеллетах<br>
-                                                    &#10003; Построение графиков и сравнительных таблиц<br>
-                                                    &#10003; ML-оптимизацию состава топлива<br>
-                                                    &#10003; Экономический расчёт производства
-                                                </td>
-                                            </tr>
-                                        </table>
-                                    </td>
-                                </tr>
-                                <!-- Footer -->
-                                <tr>
-                                    <td style="background-color: #1a1a2e; padding: 24px 30px; border-radius: 0 0 16px 16px; text-align: center;">
-                                        <p style="color: #888888; font-size: 12px; line-height: 1.6; margin: 0 0 8px;">
-                                            Вы получили это письмо, потому что зарегистрировались на <strong style="color: #aaaaaa;">Pellets Analyzer</strong>.
-                                        </p>
-                                        <p style="color: #666666; font-size: 12px; margin: 0;">
-                                            Если вы не регистрировались, просто проигнорируйте это письмо.
-                                        </p>
-                                        <p style="color: #555555; font-size: 11px; margin: 16px 0 0;">
-                                            &copy; 2025 Pellets Analyzer. Все права защищены.
-                                        </p>
-                                    </td>
-                                </tr>
-                            </table>
-                        </td>
-                    </tr>
-                </table>
-            </body>
-            </html>
-            '''
-        )
-        mail.send(msg)
-        logger.info(f"Email подтверждения отправлен: {email}")
-        return True
-    except Exception as e:
-        logger.error(f"Ошибка отправки email: {e}")
-        return False
+
+    html_content = f'''
+    <!DOCTYPE html>
+    <html lang="ru">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <title>Подтверждение регистрации</title>
+    </head>
+    <body style="margin: 0; padding: 0; background-color: #f4f4f7; font-family: Arial, Helvetica, sans-serif;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f4f7;">
+            <tr>
+                <td align="center" style="padding: 30px 15px;">
+                    <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width: 600px; width: 100%;">
+                        <!-- Header -->
+                        <tr>
+                            <td style="background: linear-gradient(135deg, #5850ec 0%, #3b82f6 100%); border-radius: 16px 16px 0 0; padding: 40px 30px; text-align: center;">
+                                <table role="presentation" cellpadding="0" cellspacing="0" align="center">
+                                    <tr>
+                                        <td style="background-color: rgba(255,255,255,0.2); border-radius: 12px; padding: 12px; text-align: center;">
+                                            <span style="font-size: 32px; color: #ffffff;">&#128300;</span>
+                                        </td>
+                                    </tr>
+                                </table>
+                                <h1 style="color: #ffffff; font-size: 26px; margin: 20px 0 8px; font-weight: 700; letter-spacing: -0.5px;">Pellets Analyzer</h1>
+                                <p style="color: rgba(255,255,255,0.85); font-size: 14px; margin: 0;">Лаборатория анализа топливных пеллет</p>
+                            </td>
+                        </tr>
+                        <!-- Body -->
+                        <tr>
+                            <td style="background-color: #ffffff; padding: 40px 30px;">
+                                <h2 style="color: #1a1a2e; font-size: 22px; margin: 0 0 16px; font-weight: 600;">Добро пожаловать, {display_name}!</h2>
+                                <p style="color: #555555; font-size: 15px; line-height: 1.6; margin: 0 0 24px;">
+                                    Спасибо за регистрацию в <strong>Pellets Analyzer</strong>. Для завершения создания аккаунта и доступа ко всем функциям системы подтвердите свой email, нажав кнопку ниже:
+                                </p>
+                                <!-- CTA Button -->
+                                <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 30px 0;">
+                                    <tr>
+                                        <td style="background: linear-gradient(135deg, #5850ec 0%, #3b82f6 100%); border-radius: 10px; text-align: center;">
+                                            <a href="{verify_url}" target="_blank" style="display: inline-block; padding: 16px 40px; color: #ffffff; font-size: 16px; font-weight: 600; text-decoration: none; border-radius: 10px;">
+                                                &#9989; Подтвердить email
+                                            </a>
+                                        </td>
+                                    </tr>
+                                </table>
+                                <!-- Fallback Link -->
+                                <p style="color: #888888; font-size: 13px; line-height: 1.6; margin: 0 0 8px;">
+                                    Если кнопка не работает, скопируйте ссылку в браузер:
+                                </p>
+                                <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 0 24px;">
+                                    <tr>
+                                        <td style="background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; padding: 12px 16px;">
+                                            <code style="color: #5850ec; font-size: 12px; word-break: break-all;">{verify_url}</code>
+                                        </td>
+                                    </tr>
+                                </table>
+                                <p style="color: #888888; font-size: 13px; line-height: 1.6; margin: 0;">
+                                    <strong>Ссылка действительна в течение 24 часов.</strong>
+                                </p>
+                            </td>
+                        </tr>
+                        <!-- Info Section -->
+                        <tr>
+                            <td style="background-color: #f8f9fa; padding: 24px 30px; border-top: 1px solid #e9ecef;">
+                                <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+                                    <tr>
+                                        <td style="color: #666666; font-size: 13px; line-height: 1.6;">
+                                            <strong style="color: #333333;">Что вы получите после подтверждения:</strong>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td style="color: #666666; font-size: 13px; line-height: 1.8; padding-top: 8px;">
+                                            &#10003; Загрузку и анализ данных о пеллетах<br>
+                                            &#10003; Построение графиков и сравнительных таблиц<br>
+                                            &#10003; ML-оптимизацию состава топлива<br>
+                                            &#10003; Экономический расчёт производства
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                        <!-- Footer -->
+                        <tr>
+                            <td style="background-color: #1a1a2e; padding: 24px 30px; border-radius: 0 0 16px 16px; text-align: center;">
+                                <p style="color: #888888; font-size: 12px; line-height: 1.6; margin: 0 0 8px;">
+                                    Вы получили это письмо, потому что зарегистрировались на <strong style="color: #aaaaaa;">Pellets Analyzer</strong>.
+                                </p>
+                                <p style="color: #666666; font-size: 12px; margin: 0;">
+                                    Если вы не регистрировались, просто проигнорируйте это письмо.
+                                </p>
+                                <p style="color: #555555; font-size: 11px; margin: 16px 0 0;">
+                                    &copy; 2025 Pellets Analyzer. Все права защищены.
+                                </p>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    '''
+
+    max_retries = 3
+    retry_delay = 2  # секунды между попытками
+
+    for attempt in range(max_retries):
+        try:
+            logger.info(f"Отправка email подтверждения на {email} (попытка {attempt + 1}/{max_retries})")
+            msg = Message(
+                subject='Подтверждение регистрации — Pellets Analyzer',
+                recipients=[email],
+                html=html_content
+            )
+            mail.send(msg)
+            logger.info(f"Email подтверждения успешно отправлен: {email}")
+            return True
+        except smtplib.SMTPAuthenticationError as e:
+            logger.error(f"SMTP Authentication Error при отправке на {email}: {e}")
+            return False  # Не retry — проблема с учётными данными
+        except smtplib.SMTPRecipientsRefused as e:
+            logger.error(f"SMTP Recipients Refused для {email}: {e}")
+            return False  # Не retry — email отклонён
+        except (smtplib.SMTPServerDisconnected, smtplib.SMTPSenderRefused,
+                socket.timeout, socket.error, ConnectionRefusedError) as e:
+            logger.warning(f"SMTP ошибка (попытка {attempt + 1}/{max_retries}) для {email}: {e}")
+            if attempt < max_retries - 1:
+                time.sleep(retry_delay * (attempt + 1))  # Экспоненциальная задержка
+            else:
+                logger.error(f"Не удалось отправить email после {max_retries} попыток: {email}")
+                return False
+        except Exception as e:
+            logger.error(f"Неизвестная ошибка отправки email на {email} (попытка {attempt + 1}): {type(e).__name__}: {e}")
+            if attempt < max_retries - 1:
+                time.sleep(retry_delay)
+            else:
+                return False
+
+    return False
 
 
 def send_reset_email(email: str, token: str, base_url: str):
-    """Отправляет email для сброса пароля."""
+    """Отправляет email для сброса пароля с retry-логикой."""
     if not SMTP_CONFIGURED:
         logger.warning("SMTP не настроен — email сброса пароля не отправлен.")
         return False
 
     reset_url = f"{base_url}/reset-password/{token}"
-    try:
-        msg = Message(
-            subject='Сброс пароля — Pellets Analyzer',
-            recipients=[email],
-            html=f'''
-            <!DOCTYPE html>
-            <html lang="ru">
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <meta http-equiv="X-UA-Compatible" content="IE=edge">
-                <title>Сброс пароля</title>
-            </head>
-            <body style="margin: 0; padding: 0; background-color: #f4f4f7; font-family: Arial, Helvetica, sans-serif;">
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f4f7;">
-                    <tr>
-                        <td align="center" style="padding: 30px 15px;">
-                            <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width: 600px; width: 100%;">
-                                <!-- Header -->
-                                <tr>
-                                    <td style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); border-radius: 16px 16px 0 0; padding: 40px 30px; text-align: center;">
-                                        <table role="presentation" cellpadding="0" cellspacing="0" align="center">
-                                            <tr>
-                                                <td style="background-color: rgba(255,255,255,0.2); border-radius: 12px; padding: 12px; text-align: center;">
-                                                    <span style="font-size: 32px; color: #ffffff;">&#128274;</span>
-                                                </td>
-                                            </tr>
-                                        </table>
-                                        <h1 style="color: #ffffff; font-size: 26px; margin: 20px 0 8px; font-weight: 700; letter-spacing: -0.5px;">Сброс пароля</h1>
-                                        <p style="color: rgba(255,255,255,0.85); font-size: 14px; margin: 0;">Pellets Analyzer — Восстановление доступа</p>
-                                    </td>
-                                </tr>
-                                <!-- Body -->
-                                <tr>
-                                    <td style="background-color: #ffffff; padding: 40px 30px;">
-                                        <h2 style="color: #1a1a2e; font-size: 22px; margin: 0 0 16px; font-weight: 600;">Здравствуйте!</h2>
-                                        <p style="color: #555555; font-size: 15px; line-height: 1.6; margin: 0 0 24px;">
-                                            Мы получили запрос на сброс пароля для вашего аккаунта. Нажмите кнопку ниже, чтобы создать новый пароль:
-                                        </p>
-                                        <!-- CTA Button -->
-                                        <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 30px 0;">
-                                            <tr>
-                                                <td style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); border-radius: 10px; text-align: center;">
-                                                    <a href="{reset_url}" target="_blank" style="display: inline-block; padding: 16px 40px; color: #ffffff; font-size: 16px; font-weight: 600; text-decoration: none; border-radius: 10px;">
-                                                        &#128273; Сбросить пароль
-                                                    </a>
-                                                </td>
-                                            </tr>
-                                        </table>
-                                        <!-- Fallback Link -->
-                                        <p style="color: #888888; font-size: 13px; line-height: 1.6; margin: 0 0 8px;">
-                                            Если кнопка не работает, скопируйте ссылку в браузер:
-                                        </p>
-                                        <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 0 24px;">
-                                            <tr>
-                                                <td style="background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; padding: 12px 16px;">
-                                                    <code style="color: #dc3545; font-size: 12px; word-break: break-all;">{reset_url}</code>
-                                                </td>
-                                            </tr>
-                                        </table>
-                                        <p style="color: #888888; font-size: 13px; line-height: 1.6; margin: 0;">
-                                            <strong>Ссылка действительна в течение 1 часа.</strong>
-                                        </p>
-                                    </td>
-                                </tr>
-                                <!-- Warning Section -->
-                                <tr>
-                                    <td style="background-color: #fff3cd; padding: 20px 30px; border-top: 1px solid #ffc107;">
-                                        <p style="color: #856404; font-size: 13px; line-height: 1.6; margin: 0;">
-                                            &#9888; <strong>Важно:</strong> Если вы не запрашивали сброс пароля, проигнорируйте это письмо. Ваш аккаунт останется в безопасности.
-                                        </p>
-                                    </td>
-                                </tr>
-                                <!-- Footer -->
-                                <tr>
-                                    <td style="background-color: #1a1a2e; padding: 24px 30px; border-radius: 0 0 16px 16px; text-align: center;">
-                                        <p style="color: #888888; font-size: 12px; line-height: 1.6; margin: 0 0 8px;">
-                                            Это автоматическое письмо, пожалуйста, не отвечайте на него.
-                                        </p>
-                                        <p style="color: #555555; font-size: 11px; margin: 16px 0 0;">
-                                            &copy; 2025 Pellets Analyzer. Все права защищены.
-                                        </p>
-                                    </td>
-                                </tr>
-                            </table>
-                        </td>
-                    </tr>
-                </table>
-            </body>
-            </html>
-            '''
-        )
-        mail.send(msg)
-        logger.info(f"Email сброса пароля отправлен: {email}")
-        return True
-    except Exception as e:
-        logger.error(f"Ошибка отправки email сброса: {e}")
-        return False
+
+    html_content = f'''
+    <!DOCTYPE html>
+    <html lang="ru">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <title>Сброс пароля</title>
+    </head>
+    <body style="margin: 0; padding: 0; background-color: #f4f4f7; font-family: Arial, Helvetica, sans-serif;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f4f7;">
+            <tr>
+                <td align="center" style="padding: 30px 15px;">
+                    <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width: 600px; width: 100%;">
+                        <!-- Header -->
+                        <tr>
+                            <td style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); border-radius: 16px 16px 0 0; padding: 40px 30px; text-align: center;">
+                                <table role="presentation" cellpadding="0" cellspacing="0" align="center">
+                                    <tr>
+                                        <td style="background-color: rgba(255,255,255,0.2); border-radius: 12px; padding: 12px; text-align: center;">
+                                            <span style="font-size: 32px; color: #ffffff;">&#128274;</span>
+                                        </td>
+                                    </tr>
+                                </table>
+                                <h1 style="color: #ffffff; font-size: 26px; margin: 20px 0 8px; font-weight: 700; letter-spacing: -0.5px;">Сброс пароля</h1>
+                                <p style="color: rgba(255,255,255,0.85); font-size: 14px; margin: 0;">Pellets Analyzer — Восстановление доступа</p>
+                            </td>
+                        </tr>
+                        <!-- Body -->
+                        <tr>
+                            <td style="background-color: #ffffff; padding: 40px 30px;">
+                                <h2 style="color: #1a1a2e; font-size: 22px; margin: 0 0 16px; font-weight: 600;">Здравствуйте!</h2>
+                                <p style="color: #555555; font-size: 15px; line-height: 1.6; margin: 0 0 24px;">
+                                    Мы получили запрос на сброс пароля для вашего аккаунта. Нажмите кнопку ниже, чтобы создать новый пароль:
+                                </p>
+                                <!-- CTA Button -->
+                                <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 30px 0;">
+                                    <tr>
+                                        <td style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); border-radius: 10px; text-align: center;">
+                                            <a href="{reset_url}" target="_blank" style="display: inline-block; padding: 16px 40px; color: #ffffff; font-size: 16px; font-weight: 600; text-decoration: none; border-radius: 10px;">
+                                                &#128273; Сбросить пароль
+                                            </a>
+                                        </td>
+                                    </tr>
+                                </table>
+                                <!-- Fallback Link -->
+                                <p style="color: #888888; font-size: 13px; line-height: 1.6; margin: 0 0 8px;">
+                                    Если кнопка не работает, скопируйте ссылку в браузер:
+                                </p>
+                                <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 0 24px;">
+                                    <tr>
+                                        <td style="background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; padding: 12px 16px;">
+                                            <code style="color: #dc3545; font-size: 12px; word-break: break-all;">{reset_url}</code>
+                                        </td>
+                                    </tr>
+                                </table>
+                                <p style="color: #888888; font-size: 13px; line-height: 1.6; margin: 0;">
+                                    <strong>Ссылка действительна в течение 1 часа.</strong>
+                                </p>
+                            </td>
+                        </tr>
+                        <!-- Warning Section -->
+                        <tr>
+                            <td style="background-color: #fff3cd; padding: 20px 30px; border-top: 1px solid #ffc107;">
+                                <p style="color: #856404; font-size: 13px; line-height: 1.6; margin: 0;">
+                                    &#9888; <strong>Важно:</strong> Если вы не запрашивали сброс пароля, проигнорируйте это письмо. Ваш аккаунт останется в безопасности.
+                                </p>
+                            </td>
+                        </tr>
+                        <!-- Footer -->
+                        <tr>
+                            <td style="background-color: #1a1a2e; padding: 24px 30px; border-radius: 0 0 16px 16px; text-align: center;">
+                                <p style="color: #888888; font-size: 12px; line-height: 1.6; margin: 0 0 8px;">
+                                    Это автоматическое письмо, пожалуйста, не отвечайте на него.
+                                </p>
+                                <p style="color: #555555; font-size: 11px; margin: 16px 0 0;">
+                                    &copy; 2025 Pellets Analyzer. Все права защищены.
+                                </p>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    '''
+
+    max_retries = 3
+    retry_delay = 2
+
+    for attempt in range(max_retries):
+        try:
+            logger.info(f"Отправка email сброса пароля на {email} (попытка {attempt + 1}/{max_retries})")
+            msg = Message(
+                subject='Сброс пароля — Pellets Analyzer',
+                recipients=[email],
+                html=html_content
+            )
+            mail.send(msg)
+            logger.info(f"Email сброса пароля успешно отправлен: {email}")
+            return True
+        except smtplib.SMTPAuthenticationError as e:
+            logger.error(f"SMTP Authentication Error при сбросе пароля для {email}: {e}")
+            return False
+        except smtplib.SMTPRecipientsRefused as e:
+            logger.error(f"SMTP Recipients Refused для {email}: {e}")
+            return False
+        except (smtplib.SMTPServerDisconnected, smtplib.SMTPSenderRefused,
+                socket.timeout, socket.error, ConnectionRefusedError) as e:
+            logger.warning(f"SMTP ошибка сброса пароля (попытка {attempt + 1}/{max_retries}) для {email}: {e}")
+            if attempt < max_retries - 1:
+                time.sleep(retry_delay * (attempt + 1))
+            else:
+                logger.error(f"Не удалось отправить email сброса после {max_retries} попыток: {email}")
+                return False
+        except Exception as e:
+            logger.error(f"Неизвестная ошибка отправки email сброса на {email} (попытка {attempt + 1}): {type(e).__name__}: {e}")
+            if attempt < max_retries - 1:
+                time.sleep(retry_delay)
+            else:
+                return False
+
+    return False
 
 
 def resend_verification_email(email: str, db_path: str, base_url: str) -> Dict[str, Any]:
