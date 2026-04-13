@@ -13,10 +13,10 @@
                     <p class="text-sm text-muted mb-0">Ключевые показатели и графики топливных пеллет</p>
                 </div>
                 <div class="d-flex gap-2">
-                    <a href="{{ url_for('tables') }}" class="btn btn-primary px-3 py-2">
+                    <a href="{{ url_for('main.tables') }}" class="btn btn-primary px-3 py-2">
                         <i class="fas fa-database me-1"></i> База Данных
                     </a>
-                    <a href="{{ url_for('ai_analysis') }}" class="btn btn-outline-premium px-3 py-2">
+                    <a href="{{ url_for('main.ai_analysis') }}" class="btn btn-outline-premium px-3 py-2">
                         <i class="fas fa-robot me-1"></i> ИИ-Ассистент
                     </a>
                 </div>
@@ -52,7 +52,7 @@
                 <div class="col-lg-4">
                     <div class="row">
                         <div class="col-12 mb-4">
-                            <a href="{{ url_for('ml_dashboard') }}" class="text-decoration-none w-100">
+                            <a href="{{ url_for('ml.ml_dashboard') }}" class="text-decoration-none w-100">
                                 <div class="card shadow-sm border-0 hover-lift animate-on-scroll stagger-2">
                                     <div class="card-body p-4 d-flex align-items-center">
                                         <div class="icon icon-shape bg-gradient-primary shadow-sm text-center border-radius-md me-3 d-flex align-items-center justify-content-center"
@@ -68,7 +68,7 @@
                             </a>
                         </div>
                         <div class="col-12 mb-4">
-                            <a href="{{ url_for('create_graph') }}" class="text-decoration-none w-100">
+                            <a href="{{ url_for('graphs.create_graph') }}" class="text-decoration-none w-100">
                                 <div class="card shadow-sm border-0 hover-lift animate-on-scroll stagger-3">
                                     <div class="card-body p-4 d-flex align-items-center">
                                         <div class="icon icon-shape bg-gradient-info shadow-sm text-center border-radius-md me-3 d-flex align-items-center justify-content-center"
@@ -84,7 +84,7 @@
                             </a>
                         </div>
                         <div class="col-12">
-                            <a href="{{ url_for('economics') }}" class="text-decoration-none w-100">
+                            <a href="{{ url_for('main.economics') }}" class="text-decoration-none w-100">
                                 <div class="card shadow-sm border-0 hover-lift animate-on-scroll stagger-4">
                                     <div class="card-body p-4 d-flex align-items-center">
                                         <div class="icon icon-shape bg-gradient-success shadow-sm text-center border-radius-md me-3 d-flex align-items-center justify-content-center"
@@ -206,18 +206,20 @@
             <div class="row mt-2">
                 <div class="col-12 text-center animate-on-scroll stagger-4">
                     <p class="text-muted">Подробные данные и управление записями доступны в <a
-                            href="{{ url_for('tables') }}" class="font-weight-bold text-primary">разделе "Таблицы" <i
+                            href="{{ url_for('main.tables') }}" class="font-weight-bold text-primary">разделе "Таблицы" <i
                                 class="fas fa-arrow-right text-sm"></i></a></p>
                 </div>
             </div>
 
-            <!-- Сообщения -->
-            {% for message in get_flashed_messages(with_categories=true) %}
-            <div class="alert alert-{{ message[0] }} alert-dismissible fade show" role="alert">
-                {{ message[1] }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            <!-- Сообщения (Top Toasts) -->
+            <div class="position-fixed top-0 start-50 translate-middle-x p-3" style="z-index: 9999; margin-top: 15px;">
+                {% for message in get_flashed_messages(with_categories=true) %}
+                <div class="alert alert-{{ message[0] }} alert-dismissible fade show mb-2 shadow-sm text-white auto-hide-alert" role="alert" style="min-width: 300px; text-align: center;">
+                    {{ message[1] }}
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                {% endfor %}
             </div>
-            {% endfor %}
         </div>
     </div>
 </div>
@@ -321,6 +323,15 @@ document.addEventListener('DOMContentLoaded', function () {
     
     // === Взаимное исключение: файл или выбор из базы ===
     initMutualExclusion();
+
+    // === Авто-скрытие уведомлений ===
+    setTimeout(function() {
+        const alerts = document.querySelectorAll('.auto-hide-alert');
+        alerts.forEach(function(alert) {
+            const bsAlert = new bootstrap.Alert(alert);
+            bsAlert.close();
+        });
+    }, 3500);
 });
 
 /**

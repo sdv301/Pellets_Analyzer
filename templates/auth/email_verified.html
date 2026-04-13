@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email подтверждён — Pellets Analyzer</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #08080a;
+            color: #e8e8ed;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            position: relative;
+            overflow: hidden;
+        }
+        body::before {
+            content: '';
+            position: absolute;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background: radial-gradient(ellipse at 30% 20%, rgba(34, 197, 94, 0.08) 0%, transparent 50%),
+                        radial-gradient(ellipse at 70% 80%, rgba(59, 130, 246, 0.06) 0%, transparent 50%);
+            animation: bgShift 20s ease-in-out infinite;
+        }
+        @keyframes bgShift {
+            0%, 100% { transform: translate(0, 0); }
+            50% { transform: translate(-5%, -3%); }
+        }
+        .verified-container {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 520px;
+        }
+        .verified-card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 20px;
+            padding: 48px 36px;
+            backdrop-filter: blur(20px);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.04);
+            text-align: center;
+            animation: fadeInUp 0.6s ease-out;
+        }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .success-icon {
+            width: 80px; height: 80px;
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 24px;
+            box-shadow: 0 0 40px rgba(34, 197, 94, 0.3);
+            animation: pulse 2s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 40px rgba(34, 197, 94, 0.3); }
+            50% { box-shadow: 0 0 60px rgba(34, 197, 94, 0.5); }
+        }
+        .success-icon i { font-size: 36px; color: #fff; }
+        .verified-title {
+            font-size: 26px; font-weight: 700; color: #fff;
+            margin-bottom: 12px; letter-spacing: -0.02em;
+        }
+        .verified-subtitle {
+            font-size: 15px; color: #888; line-height: 1.6; margin-bottom: 32px;
+        }
+        .features {
+            text-align: left;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 12px;
+            padding: 20px 24px;
+            margin-bottom: 32px;
+        }
+        .features h3 {
+            font-size: 14px; font-weight: 600; color: #aaa;
+            margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.05em;
+        }
+        .features ul { list-style: none; }
+        .features li {
+            display: flex; align-items: center; gap: 10px;
+            padding: 8px 0; font-size: 14px; color: #ccc;
+        }
+        .features li i { color: #22c55e; font-size: 12px; }
+        .btn-login {
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+            width: 100%; padding: 14px;
+            background: linear-gradient(135deg, #5850ec, #3b82f6);
+            color: #fff; border: 1px solid rgba(255,255,255,0.1); border-radius: 10px;
+            font-size: 15px; font-weight: 600; font-family: inherit;
+            text-decoration: none; cursor: pointer;
+            transition: all 0.25s;
+            box-shadow: 0 4px 16px rgba(88, 80, 236, 0.2);
+        }
+        .btn-login:hover { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(88, 80, 236, 0.3); }
+        .back-link {
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+            margin-top: 24px; color: #555; font-size: 13px; text-decoration: none; transition: color 0.2s;
+        }
+        .back-link:hover { color: #888; }
+    </style>
+</head>
+<body>
+    <div class="verified-container">
+        <div class="verified-card">
+            <div class="success-icon">
+                <i class="fas fa-check"></i>
+            </div>
+            <h1 class="verified-title">Email подтверждён!</h1>
+            <p class="verified-subtitle">
+                Ваш аккаунт успешно активирован. Теперь вам доступны все функции системы Pellets Analyzer.
+            </p>
+
+            <div class="features">
+                <h3>Доступные функции:</h3>
+                <ul>
+                    <li><i class="fas fa-check-circle"></i> Загрузка и анализ данных о пеллетах</li>
+                    <li><i class="fas fa-check-circle"></i> Построение графиков и сравнительных таблиц</li>
+                    <li><i class="fas fa-check-circle"></i> ML-оптимизация состава топлива</li>
+                    <li><i class="fas fa-check-circle"></i> Экономический расчёт производства</li>
+                    <li><i class="fas fa-check-circle"></i> ИИ-анализ и рекомендации</li>
+                </ul>
+            </div>
+
+            <a href="{{ url_for('auth.login') }}" class="btn-login">
+                <i class="fas fa-sign-in-alt"></i> Войти в систему
+            </a>
+
+            <a href="{{ url_for('main.index') }}" class="back-link">
+                <i class="fas fa-home"></i> На главную
+            </a>
+        </div>
+    </div>
+</body>
+</html>

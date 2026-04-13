@@ -424,7 +424,7 @@
                 list.innerHTML = data.recommendations.map(rec => `
                     <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-white rounded">
                         <span class="text-dark"><i class="fas fa-circle text-${rec.priority === 'high' ? 'danger' : 'warning'} me-2" style="font-size: 8px;"></i>${rec.message}</span>
-                        <a href="/ml_dashboard" class="btn btn-sm btn-outline-warning mb-0">К действию</a>
+                        <a href="{{ url_for('ml.ml_dashboard') }}" class="btn btn-sm btn-outline-warning mb-0">К действию</a>
                     </div>
                 `).join('');
 
@@ -484,7 +484,7 @@
                     <h6 class="text-muted"><i class="fas fa-crosshairs me-2"></i>Доступные Действия</h6>
                     <div class="d-flex gap-2 mt-3">
                         ${data.actions.map(action => `
-                            <a href="/ml_dashboard" class="btn btn-outline-primary shadow-sm"><i class="fas fa-arrow-right me-1"></i>${action}</a>
+                            <a href="{{ url_for('ml.ml_dashboard') }}" class="btn btn-outline-primary shadow-sm"><i class="fas fa-arrow-right me-1"></i>${action}</a>
                         `).join('')}
                     </div>
                 </div>

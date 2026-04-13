@@ -220,22 +220,27 @@
 
             <!-- Боковая панель результатов (Легенда, Статистика) -->
             <div class="col-lg-3 h-100 d-flex flex-column ps-lg-2 mt-4 mt-lg-0">
-                <!-- Управление составами -->
+                <!-- Управление составами — ПЕРЕРАБОТАННАЯ ПАНЕЛЬ -->
                 <div class="card bank-card mb-3 flex-shrink-0" id="compositionControlsCard" style="display: none;">
-                    <div class="card-header bg-white border-bottom py-3">
-                        <h6 class="mb-0 text-dark">
-                            <i class="fas fa-layer-group text-primary me-2"></i>Отображаемые составы
-                            <span class="badge bg-primary rounded-pill float-end" id="compositionCounter">0</span>
+                    <div class="card-header bg-white border-bottom py-2 d-flex align-items-center justify-content-between">
+                        <h6 class="mb-0 text-dark d-flex align-items-center">
+                            <i class="fas fa-layer-group text-primary me-2"></i>
+                            <span>Составы</span>
                         </h6>
+                        <span class="badge bg-primary rounded-pill" id="compositionCounter">0/0</span>
                     </div>
-                    <div class="card-body p-3" style="max-height: 250px; overflow-y: auto;">
-                        <div class="d-flex justify-content-between mb-3">
-                            <button class="btn btn-xs btn-outline-primary" id="selectAllCompositions">Выбрать
-                                все</button>
-                            <button class="btn btn-xs btn-outline-secondary"
-                                id="deselectAllCompositions">Сбросить</button>
+                    <div class="card-body p-0">
+                        <!-- Кнопки управления -->
+                        <div class="d-flex border-bottom py-2 px-2 gap-1">
+                            <button class="btn btn-sm btn-outline-primary flex-fill" id="selectAllCompositions" title="Выбрать все">
+                                <i class="fas fa-check-double me-1"></i>Все
+                            </button>
+                            <button class="btn btn-sm btn-outline-secondary flex-fill" id="deselectAllCompositions" title="Снять все">
+                                <i class="fas fa-times me-1"></i>Ничего
+                            </button>
                         </div>
-                        <div id="compositionControls" class="d-flex flex-column gap-2">
+                        <!-- Список составов -->
+                        <div id="compositionControls" class="composition-list" style="max-height: 280px; overflow-y: auto;">
                             <!-- JS генерирует чекбоксы здесь -->
                         </div>
                     </div>
@@ -556,201 +561,93 @@
         margin-top: 0.5rem !important;
     }
 
-    /* УПРАВЛЕНИЕ СОСТАВАМИ */
-    #compositionControlsCard {
-        max-height: 300px !important;
-        /* УВЕЛИЧИЛИ высоту */
-        height: auto !important;
-        min-height: 200px !important;
-        /* УВЕЛИЧИЛИ минимальную высоту */
-        margin-top: 12px !important;
-        display: flex !important;
-        flex-direction: column !important;
+    /* ============================================
+       ПЕРЕРАБОТАННАЯ ПАНЕЛЬ СОСТАВОВ
+       ============================================ */
+    .composition-list {
+        padding: 0;
     }
-
-    #compositionControlsCard .card-body {
-        flex: 1 !important;
-        display: flex !important;
-        flex-direction: column !important;
-        padding: 12px !important;
-        /* УВЕЛИЧИЛИ отступы */
-        min-height: 150px !important;
-        /* УВЕЛИЧИЛИ минимальную высоту */
-        overflow: hidden !important;
-        /* Убираем скролл у body */
+    .composition-item {
+        display: flex;
+        align-items: center;
+        padding: 8px 12px;
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        user-select: none;
     }
-
-    #compositionControlsCard .card-header {
-        padding: 0.6rem 0.75rem !important;
-        /* УВЕЛИЧИЛИ отступы */
-        flex: 0 0 auto !important;
+    .composition-item:last-child {
+        border-bottom: none;
     }
-
-    #compositionControlsCard .card-header h6 {
-        font-size: 0.9rem !important;
-        /* УВЕЛИЧИЛИ шрифт */
-        margin: 0 !important;
+    .composition-item:hover {
+        background-color: rgba(45, 96, 255, 0.04);
     }
-
-    #compositionControls {
-        flex: 1 !important;
-        max-height: none !important;
-        min-height: 120px !important;
-        /* УВЕЛИЧИЛИ минимальную высоту */
-        overflow-y: auto !important;
-        /* ОСТАВЛЯЕМ ТОЛЬКО ОДИН СКРОЛЛБАР */
-        gap: 4px !important;
-        /* УВЕЛИЧИЛИ расстояние между элементами */
-        padding: 4px !important;
-        /* УВЕЛИЧИЛИ отступы */
-        scrollbar-width: thin !important;
-        scrollbar-color: #adb5bd #f8f9fa !important;
+    .composition-item.composition-active {
+        background-color: rgba(40, 167, 69, 0.08);
+        border-left: 3px solid #28a745;
+        padding-left: 9px;
     }
-
-
-    /* Стили для Webkit браузеров (Chrome, Safari, Edge) */
-    #compositionControls::-webkit-scrollbar {
-        width: 8px !important;
+    .composition-item.composition-inactive {
+        background-color: transparent;
+        border-left: 3px solid transparent;
+        opacity: 0.7;
     }
-
-    #compositionControls::-webkit-scrollbar-track {
-        background: #f8f9fa !important;
-        border-radius: 4px !important;
-        border: 1px solid #e9ecef !important;
+    .composition-item.composition-inactive:hover {
+        opacity: 1;
+        background-color: rgba(108, 117, 125, 0.05);
     }
-
-    #compositionControls::-webkit-scrollbar-thumb {
-        background: #adb5bd !important;
-        border-radius: 4px !important;
-        border: 2px solid #f8f9fa !important;
-        /* УВЕЛИЧИЛИ границу */
-        transition: all 0.3s ease !important;
-    }
-
-    #compositionControls::-webkit-scrollbar-thumb:hover {
-        background: #6c757d !important;
-        border: 1px solid #f8f9fa !important;
-        /* Уменьшаем границу при hover */
-    }
-
-    #compositionControls::-webkit-scrollbar-thumb:active {
-        background: #495057 !important;
-    }
-
-    /* Компактные чекбоксы */
     .composition-checkbox {
-        transform: scale(1) !important;
-        /* ВОЗВРАЩАЕМ нормальный размер */
-        margin-right: 6px !important;
-        /* УВЕЛИЧИЛИ отступ */
-        transition: transform 0.1s ease !important;
+        width: 18px;
+        height: 18px;
+        margin-right: 10px;
+        flex-shrink: 0;
+        cursor: pointer;
+        accent-color: #2d60ff;
+    }
+    .composition-item-label {
+        flex: 1;
+        font-size: 0.82rem;
+        line-height: 1.3;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        cursor: pointer;
+    }
+    .composition-item.composition-active .composition-item-label {
+        color: #28a745;
+        font-weight: 500;
+    }
+    .composition-item.composition-inactive .composition-item-label {
+        color: #6c757d;
+    }
+    .composition-item-icon {
+        font-size: 0.85rem;
+        flex-shrink: 0;
+        margin-left: 6px;
+    }
+    .composition-item.composition-active .composition-item-icon {
+        color: #28a745;
+    }
+    .composition-item.composition-inactive .composition-item-icon {
+        color: #adb5bd;
     }
 
-    .composition-checkbox:checked {
-        transform: scale(1.1) !important;
-        /* Легкое увеличение при выборе */
+    /* Dark theme for composition panel */
+    [data-theme="dark"] .composition-item {
+        border-bottom-color: rgba(255,255,255,0.05);
     }
-
-    .form-check-label {
-        font-size: 0.8rem !important;
-        /* УВЕЛИЧИЛИ шрифт */
-        padding: 4px 6px !important;
-        /* УВЕЛИЧИЛИ отступы */
-        line-height: 1.3 !important;
+    [data-theme="dark"] .composition-item:hover {
+        background-color: rgba(94, 106, 210, 0.08);
     }
-
-    .form-check-label:hover {
-        background-color: rgba(0, 123, 255, 0.05) !important;
+    [data-theme="dark"] .composition-item.composition-active {
+        background-color: rgba(77, 170, 87, 0.12);
+        border-left-color: var(--success, #4daa57);
     }
-
-    /* Анимации для плавного переключения */
-    .composition-active,
-    .composition-inactive {
-        transition: all 0.2s ease-in-out !important;
+    [data-theme="dark"] .composition-item.composition-inactive:hover {
+        background-color: rgba(255,255,255,0.03);
     }
-
-    /* Улучшаем отображение состояний */
-    .composition-active {
-        background-color: rgba(40, 167, 69, 0.12) !important;
-        /* УВЕЛИЧИЛИ прозрачность */
-        border-left: 4px solid #28a745 !important;
-        /* УВЕЛИЧИЛИ границу */
-        border-radius: 4px !important;
-        /* Добавили скругление */
-    }
-
-    .composition-inactive {
-        background-color: rgba(108, 117, 125, 0.08) !important;
-        /* УВЕЛИЧИЛИ прозрачность */
-        border-left: 4px solid #6c757d !important;
-        /* УВЕЛИЧИЛИ границу */
-        border-radius: 4px !important;
-        /* Добавили скругление */
-        opacity: 0.8;
-    }
-
-    .composition-active .form-check-label {
-        color: #28a745 !important;
-        font-weight: 600 !important;
-    }
-
-    .composition-inactive .form-check-label {
-        color: #6c757d !important;
-        font-weight: 500 !important;
-    }
-
-    /* Более компактные строки */
-    #compositionControls .col-12 {
-        margin-bottom: 2px !important;
-        /* УВЕЛИЧИЛИ отступ между строками */
-        padding: 0 6px !important;
-        /* УВЕЛИЧИЛИ отступы */
-    }
-
-    #compositionControls .form-check {
-        margin-bottom: 2px !important;
-        /* УВЕЛИЧИЛИ отступ */
-        padding: 3px 4px !important;
-        /* УВЕЛИЧИЛИ отступы */
-        min-height: auto !important;
-    }
-
-    /* КНОПКИ УПРАВЛЕНИЯ */
-    #compositionControlsCard .btn-group-sm {
-        gap: 8px !important;
-    }
-
-    #compositionControlsCard .btn-group-sm .btn {
-        padding: 0.4rem 0.8rem !important;
-        /* УВЕЛИЧИЛИ размер кнопок */
-        font-size: 0.85rem !important;
-        /* УВЕЛИЧИЛИ шрифт */
-    }
-
-    #compositionControlsCard .btn-outline-primary {
-        border-color: #007bff !important;
-        color: #007bff !important;
-        background-color: transparent !important;
-    }
-
-    #compositionControlsCard .btn-outline-primary:hover {
-        background-color: #007bff !important;
-        color: white !important;
-        transform: translateY(-1px) !important;
-        box-shadow: 0 2px 4px rgba(0, 123, 255, 0.3) !important;
-    }
-
-    #compositionControlsCard .btn-outline-secondary {
-        border-color: #6c757d !important;
-        color: #6c757d !important;
-        background-color: transparent !important;
-    }
-
-    #compositionControlsCard .btn-outline-secondary:hover {
-        background-color: #6c757d !important;
-        color: white !important;
-        transform: translateY(-1px) !important;
-        box-shadow: 0 2px 4px rgba(108, 117, 125, 0.3) !important;
+    [data-theme="dark"] .composition-item.composition-inactive .composition-item-label {
+        color: #5a5e66;
     }
 
     /* АДАПТИВНОСТЬ ДЛЯ УПРАВЛЕНИЯ СОСТАВАМИ */
@@ -944,7 +841,22 @@
     }
 </style>
 
-<script src="https://cdn.plot.ly/plotly-2.27.1.min.js"></script>
+<!-- Plotly.js с fallback -->
+<script src="https://cdn.plot.ly/plotly-2.35.0.min.js" charset="utf-8"></script>
+<script>
+// Fallback если Plotly не загрузился
+window.addEventListener('load', function() {
+    if (typeof Plotly === 'undefined') {
+        console.warn('Plotly не загрузился с CDN, пробуем альтернативный CDN...');
+        var script = document.createElement('script');
+        script.src = 'https://unpkg.com/plotly.js@2.35.0/dist/plotly.min.js';
+        script.onerror = function() {
+            console.error('Plotly не удалось загрузить ни с одного CDN');
+        };
+        document.head.appendChild(script);
+    }
+});
+</script>
 
 <script>
     // Глобальные переменные
@@ -1959,6 +1871,7 @@
 
         if (!compositions || compositions.length === 0) {
             controlsCard.style.display = 'none';
+            if (controlsContainer) controlsContainer.innerHTML = '<p class="text-muted text-center small">Нет доступных составов</p>';
             return;
         }
 
@@ -1970,31 +1883,23 @@
         }
 
         let html = '';
-        compositions.forEach(composition => {
+        compositions.forEach((composition, index) => {
             const isChecked = selectedCompositions.includes(composition);
             const activeClass = isChecked ? 'composition-active' : 'composition-inactive';
-            const iconClass = isChecked ? 'fa-check-circle text-success' : 'fa-times-circle text-muted';
-
-            // Экранируем специальные символы для ID
-            const safeId = composition.replace(/[^a-zA-Z0-9]/g, '-');
+            const escapedValue = composition.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+            const escapedDisplay = composition.replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
             html += `
-            <div class="col-12">
-                <div class="form-check ${activeClass}">
-                    <input class="form-check-input composition-checkbox d-none"
-                        type="checkbox"
-                        id="comp-${safeId}"
-                        value="${composition}"
-                        ${isChecked ? 'checked' : ''}>
-                    <label class="form-check-label w-100 d-flex align-items-center cursor-pointer"
-                        for="comp-${safeId}">
-                        <!-- Одна иконка состояния (чек/не чек) -->
-                        <i class="fas ${isChecked ? 'fa-check-square text-primary' : 'fa-square text-secondary'} me-2 composition-icon"
-                        style="width: 16px;"></i>
-                        <!-- Только текст без второй иконки -->
-                        <small class="flex-grow-1 text-truncate" title="${composition}">${composition}</small>
-                    </label>
-                </div>
+            <div class="composition-item ${activeClass}" data-composition="${escapedValue}">
+                <input class="composition-checkbox"
+                    type="checkbox"
+                    id="comp-${index}"
+                    value="${escapedValue}"
+                    ${isChecked ? 'checked' : ''}>
+                <label class="composition-item-label" for="comp-${index}" title="${escapedDisplay}">
+                    ${escapedDisplay}
+                </label>
+                <i class="fas ${isChecked ? 'fa-check-circle' : 'fa-circle'} composition-item-icon"></i>
             </div>
             `;
         });
@@ -2014,11 +1919,29 @@
     // Добавление обработчиков событий для чекбоксов
     function addCheckboxEventListeners() {
         document.querySelectorAll('.composition-checkbox').forEach(checkbox => {
-            // Удаляем старые обработчики чтобы избежать дублирования
             checkbox.removeEventListener('change', handleCheckboxChange);
-            // Добавляем новый обработчик
             checkbox.addEventListener('change', handleCheckboxChange);
         });
+
+        // Также добавляем клик на весь элемент composition-item
+        document.querySelectorAll('.composition-item').forEach(item => {
+            item.removeEventListener('click', handleItemClick);
+            item.addEventListener('click', handleItemClick);
+        });
+    }
+
+    // Обработчик клика на элемент (не на чекбокс)
+    function handleItemClick(event) {
+        // Если клик был на чекбоксе — игнорируем, сработает handleCheckboxChange
+        if (event.target.classList.contains('composition-checkbox')) return;
+
+        const item = event.currentTarget;
+        const checkbox = item.querySelector('.composition-checkbox');
+        if (checkbox) {
+            checkbox.checked = !checkbox.checked;
+            // Вызываем handleCheckboxChange вручную
+            handleCheckboxChange({ target: checkbox });
+        }
     }
 
     // Обработчик изменения чекбокса
@@ -2030,26 +1953,24 @@
         console.log(`🔄 Переключение состава: ${composition} -> ${isVisible}`);
 
         // МГНОВЕННОЕ обновление визуального состояния
-        const labelContainer = checkbox.closest('.form-check');
-        const icon = labelContainer?.querySelector('.composition-icon');
+        const item = checkbox.closest('.composition-item');
+        const icon = item?.querySelector('.composition-item-icon');
 
-        if (labelContainer && icon) {
+        if (item && icon) {
             if (isVisible) {
-                labelContainer.classList.add('composition-active');
-                labelContainer.classList.remove('composition-inactive');
-                icon.classList.remove('fa-square', 'text-secondary');
-                icon.classList.add('fa-check-square', 'text-primary');
+                item.classList.add('composition-active');
+                item.classList.remove('composition-inactive');
+                icon.classList.remove('fa-circle');
+                icon.classList.add('fa-check-circle');
             } else {
-                labelContainer.classList.add('composition-inactive');
-                labelContainer.classList.remove('composition-active');
-                icon.classList.remove('fa-check-square', 'text-primary');
-                icon.classList.add('fa-square', 'text-secondary');
+                item.classList.add('composition-inactive');
+                item.classList.remove('composition-active');
+                icon.classList.remove('fa-check-circle');
+                icon.classList.add('fa-circle');
             }
         }
 
         toggleComposition(composition, isVisible);
-
-        // НЕ показываем сообщение при каждом клике — слишком шумно
     }
 
     // Функция переключения состава
@@ -2122,27 +2043,23 @@
         selectedCompositions = [...availableCompositions];
         console.log('✅ Выбраны все составы:', selectedCompositions);
 
-        // ОБНОВЛЯЕМ СКРЫТЫЕ ЧЕКБОКСЫ
+        // Обновляем чекбоксы
         document.querySelectorAll('.composition-checkbox').forEach(checkbox => {
             checkbox.checked = true;
         });
 
-        // ОБНОВЛЯЕМ ВИЗУАЛЬНОЕ СОСТОЯНИЕ
-        document.querySelectorAll('.composition-icon').forEach(icon => {
-            icon.classList.remove('fa-square', 'text-secondary');
-            icon.classList.add('fa-check-square', 'text-primary');
+        // Обновляем визуальное состояние
+        document.querySelectorAll('.composition-item').forEach(item => {
+            item.classList.remove('composition-inactive');
+            item.classList.add('composition-active');
+            const icon = item.querySelector('.composition-item-icon');
+            if (icon) {
+                icon.classList.remove('fa-circle');
+                icon.classList.add('fa-check-circle');
+            }
         });
 
-        // ОБНОВЛЯЕМ КЛАССЫ КОНТЕЙНЕРОВ
-        document.querySelectorAll('.form-check').forEach(container => {
-            container.classList.remove('composition-inactive');
-            container.classList.add('composition-active');
-        });
-
-        // Обновляем счетчик
         updateCompositionsCounter();
-
-        // НЕ обновляем график автоматически - пользователь сам нажмет "Создать график"
         showMessage('Все составы выбраны. Нажмите "Создать график" для обновления.', 'info', 4000);
     }
 
@@ -2154,33 +2071,24 @@
         }
 
         console.log('❌ Снимаем все галочки с составов');
-
-        // Очищаем выбранные составы
         selectedCompositions = [];
 
-        // ОБНОВЛЯЕМ СКРЫТЫЕ ЧЕКБОКСЫ
         document.querySelectorAll('.composition-checkbox').forEach(checkbox => {
             checkbox.checked = false;
         });
 
-        // ОБНОВЛЯЕМ ВИЗУАЛЬНОЕ СОСТОЯНИЕ
-        document.querySelectorAll('.composition-icon').forEach(icon => {
-            icon.classList.remove('fa-check-square', 'text-primary');
-            icon.classList.add('fa-square', 'text-secondary');
+        document.querySelectorAll('.composition-item').forEach(item => {
+            item.classList.remove('composition-active');
+            item.classList.add('composition-inactive');
+            const icon = item.querySelector('.composition-item-icon');
+            if (icon) {
+                icon.classList.remove('fa-check-circle');
+                icon.classList.add('fa-circle');
+            }
         });
 
-        // ОБНОВЛЯЕМ КЛАССЫ КОНТЕЙНЕРОВ
-        document.querySelectorAll('.form-check').forEach(container => {
-            container.classList.remove('composition-active');
-            container.classList.add('composition-inactive');
-        });
-
-        // Обновляем счетчик
         updateCompositionsCounter();
-
-        // НЕ обновляем график автоматически - оставляем пустой для выбора
         showMessage('Все составы сняты. Выберите нужные составы и нажмите "Создать график".', 'info', 4000);
-
         console.log('✅ Все галочки сняты, selectedCompositions очищен:', selectedCompositions);
     }
 
@@ -2191,30 +2099,26 @@
         document.querySelectorAll('.composition-checkbox').forEach(checkbox => {
             const composition = checkbox.value;
             const isChecked = selectedCompositions.includes(composition);
-
-            // Устанавливаем состояние чекбокса
             checkbox.checked = isChecked;
 
-            // Визуальная обратная связь
-            const labelContainer = checkbox.closest('.form-check');
-            const icon = labelContainer.querySelector('.composition-icon');
+            const item = checkbox.closest('.composition-item');
+            const icon = item?.querySelector('.composition-item-icon');
 
-            if (labelContainer && icon) {
+            if (item && icon) {
                 if (isChecked) {
-                    labelContainer.classList.add('composition-active');
-                    labelContainer.classList.remove('composition-inactive');
-                    icon.classList.remove('fa-square', 'text-secondary');
-                    icon.classList.add('fa-check-square', 'text-primary');
+                    item.classList.add('composition-active');
+                    item.classList.remove('composition-inactive');
+                    icon.classList.remove('fa-circle');
+                    icon.classList.add('fa-check-circle');
                 } else {
-                    labelContainer.classList.add('composition-inactive');
-                    labelContainer.classList.remove('composition-active');
-                    icon.classList.remove('fa-check-square', 'text-primary');
-                    icon.classList.add('fa-square', 'text-secondary');
+                    item.classList.add('composition-inactive');
+                    item.classList.remove('composition-active');
+                    icon.classList.remove('fa-check-circle');
+                    icon.classList.add('fa-circle');
                 }
             }
         });
 
-        // Обновляем счетчик выбранных составов в заголовке
         updateCompositionsCounter();
     }
 

@@ -1,220 +1,168 @@
-# ============================================================
-# Pellets Analyzer — Руководство по деплою и VPS
-# ============================================================
+# Pellets Analyzer — Деплой
 
-## 1. Email конфигурация
+## Архитектура
 
-### Как настроить почту:
+- **Web**: Flask + Gunicorn (порт 5000)
+- **Reverse Proxy**: Nginx (порт 80)
+- **База данных**: SQLite (Docker volume)
+- **Оркестрация**: Docker Compose
+
+## Файлы деплоя
+
+| Файл | Назначение |
+|------|-----------|
+| `docker-compose.prod.yml` | Production compose (web + nginx) |
+| `nginx.prod.conf` | Nginx конфиг (HTTP, rate limiting, security headers) |
+| `.env.production` | Шаблон переменных окружения |
+| `setup-server.sh` | Начальная настройка сервера (Docker, UFW, Fail2Ban) |
+| `deploy.sh` | Деплой на сервере (запуск контейнеров) |
+| `full-deploy.sh` | Полный деплой с локальной машины (настройка + код) |
+| `quick-deploy.sh` | Быстрый деплой только кода |
+| `backup.sh` | Бэкап БД, загрузок, конфигов |
+
+## Быстрый старт
+
+### 1. Первый деплой
 
 ```bash
-# 1. Скопируйте пример конфига
-cp mail_config.example.json mail_config.json
-
-# 2. Отредактируйте mail_config.json, указав свои данные
+# С локальной машины (Windows — через Git Bash или WSL):
+bash full-deploy.sh
 ```
 
-### Для Gmail:
-1. Зайдите в Google Account → Security
-2. Включите **2-Step Verification**
-3. Создайте **App Password**: Account → Security → App Passwords
-4. Вставьте полученный пароль в `MAIL_PASSWORD`
+Или вручную:
 
-### Для других провайдеров:
-| Провайдер | SMTP Server | Port | TLS |
-|-----------|-------------|------|-----|
-| Gmail | smtp.gmail.com | 587 | ✅ |
-| Yandex | smtp.yandex.ru | 587 | ✅ |
-| Mail.ru | smtp.mail.ru | 587 | ✅ |
-| Outlook | smtp-mail.outlook.com | 587 | ✅ |
+```bash
+# 1. Настройка сервера
+ssh root@<SERVER_IP>
+# На сервере:
+bash /tmp/setup-server.sh
 
----
+# 2. Копирование файлов
+rsync -avz --exclude='.git' --exclude='__pycache__' \
+    --exclude='.env' --exclude='sessions/' --exclude='data/' \
+    ./ root@<SERVER_IP>:/opt/pellets-analyzer/
 
-## 2. Характеристики VPS
+# 3. Деплой
+ssh root@<SERVER_IP>
+cd /opt/pellets-analyzer
+bash deploy.sh
+```
 
-### Минимальные требования:
-| Параметр | Значение | Почему |
-|----------|----------|--------|
-| CPU | 2 ядра | Flask + обработка данных |
-| RAM | 2 GB | ML-модели (XGBoost, scipy) |
-| SSD | 20 GB | База данных + загрузки |
-| OS | Ubuntu 22.04 LTS | Стабильность, Docker |
+### 2. Обновление кода
 
-### Рекомендуемые требования (для продакшена):
-| Параметр | Значение | Почему |
-|----------|----------|--------|
-| CPU | 4 ядра | Параллельная обработка ML |
-| RAM | 4 GB | Больше данных в памяти |
-| SSD | 40 GB | Логи, бэкапы, рост БД |
-| OS | Ubuntu 22.04 LTS | Долгосрочная поддержка |
+```bash
+bash quick-deploy.sh
+```
 
-### Рекомендуемые VPS-провайдеры:
-- **Timeweb Cloud** (Россия) — от 300₽/мес
-- **Selectel** (Россия) — от 500₽/мес
-- **DigitalOcean** — от $6/мес
-- **Hetzner** — от €4/мес
+### 3. Бэкап
 
----
-
-## 3. Docker — использовать или нет?
-
-### ✅ Преимущества Docker:
-1. **Изоляция** — все зависимости внутри контейнера
-2. **Воспроизводимость** — одинаковое окружение на любом сервере
-3. **Безопасность** — приложение работает в изолированной среде
-4. **Масштабируемость** — легко добавить реплики
-5. **Простой деплой** — одна команда `docker-compose up -d`
-
-### ❌ Когда Docker не нужен:
-- Простой сервер для 1-2 пользователей
-- Ограниченные ресурсы (Docker добавляет ~10% оверхеда)
-- Нужен прямой доступ к системным библиотекам
-
-### 🏆 Рекомендация: **Использовать Docker**
-Для вашего проекта (Flask + ML + SQLite) Docker — лучший выбор:
 ```bash
 # На сервере:
-git clone <your-repo>
-cd Pellets_Analyzer
-cp .env.example .env
-# Отредактируйте .env
-docker-compose up -d
+bash backup.sh
+
+# Автоматически (cron):
+# 0 3 * * * /opt/pellets-analyzer/backup.sh
 ```
 
----
+## Конфигурация
 
-## 4. Лицензия для сайта
-
-### Нужна ли лицензия?
-- **MIT License** (уже добавлена) — разрешает свободное использование кода
-- Для **коммерческого использования** — нужна лицензия на ПО
-- Для **сайта** — добавьте страницу с условиями использования
-
-### Что добавить на сайт:
-1. [`LICENSE`](LICENSE) — файл лицензии в корне проекта
-2. Страница `/terms` — условия использования сайта
-3. Страница `/privacy` — политика конфиденциальности
-4. Футер — ссылка на лицензию
-
-### Для коммерческой версии:
-```
-© 2025 Pellets Analyzer. Все права защищены.
-Использование без разрешения запрещено.
-```
-
----
-
-## 5. Защита от атак
-
-### Реализованная защита:
-
-| Тип атаки | Защита | Статус |
-|-----------|--------|--------|
-| **SQL Injection** | Параметризованные запросы + валидация | ✅ `security.py` |
-| **XSS** | Санитизация входных данных | ✅ `security.py` |
-| **CSRF** | Токены для POST-запросов | ✅ `security.py` |
-| **Brute Force** | Блокировка после 5 попыток | ✅ `security.py` |
-| **Rate Limiting** | Ограничение частоты запросов | ✅ `security.py` + nginx |
-| **DDoS (базовый)** | Nginx rate limiting | ✅ `nginx.conf` |
-| **Clickjacking** | X-Frame-Options | ✅ `security.py` + nginx |
-| **MIME Sniffing** | X-Content-Type-Options | ✅ `security.py` + nginx |
-| **File Upload** | Валидация расширений + размера | ✅ `security.py` |
-| **IP Blocking** | Чёрный список IP | ✅ `security.py` |
-
-### Дополнительные меры (на сервере):
+### .env (на сервере)
 
 ```bash
-# 1. Fail2Ban — блокировка подозрительных IP
-sudo apt install fail2ban
-sudo systemctl enable fail2ban
-
-# 2. UFW Firewall
-sudo ufw allow 22/tcp   # SSH
-sudo ufw allow 80/tcp   # HTTP
-sudo ufw allow 443/tcp  # HTTPS
-sudo ufw enable
-
-# 3. SSL сертификат (бесплатный Let's Encrypt)
-sudo apt install certbot python3-certbot-nginx
-sudo certbot --nginx -d your-domain.com
-
-# 4. Автоматические обновления
-sudo apt install unattended-upgrades
-sudo dpkg-reconfigure unattended-upgrades
-
-# 5. Отключение root-доступа по SSH
-sudo nano /etc/ssh/sshd_config
-# PermitRootLogin no
-sudo systemctl restart sshd
+SECRET_KEY=<сгенерированный ключ>
+FLASK_ENV=production
+DATABASE_URL=sqlite:////app/data/pellets_data.db
+MAIL_SERVER=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USE_TLS=true
+MAIL_USERNAME=your-email@gmail.com
+MAIL_PASSWORD=your-app-password
 ```
 
----
+### mail_config.json
 
-## 6. Быстрый деплой на VPS
-
-### Пошаговая инструкция:
-
-```bash
-# === 1. Подключение к серверу ===
-ssh user@your-server-ip
-
-# === 2. Установка Docker ===
-curl -fsSL https://get.docker.com | sh
-sudo usermod -aG docker $USER
-exit  # Переподключитесь
-
-# === 3. Клонирование проекта ===
-git clone https://github.com/your-username/Pellets_Analyzer.git
-cd Pellets_Analyzer
-
-# === 4. Настройка конфигурации ===
-cp .env.example .env
-nano .env  # Укажите SECRET_KEY, MAIL_PASSWORD и т.д.
-
-cp mail_config.example.json mail_config.json
-nano mail_config.json  # Укажите SMTP данные
-
-# === 5. Запуск ===
-docker-compose up -d
-
-# === 6. Проверка ===
-docker-compose ps
-docker-compose logs -f
-
-# === 7. Настройка Nginx + SSL (опционально) ===
-# Раскомментируйте nginx в docker-compose.yml
-mkdir ssl
-# Положите сертификлы в ssl/
-docker-compose up -d nginx
+```json
+{
+    "MAIL_SERVER": "smtp.gmail.com",
+    "MAIL_PORT": 587,
+    "MAIL_USE_TLS": true,
+    "MAIL_USERNAME": "your-email@gmail.com",
+    "MAIL_PASSWORD": "app-password"
+}
 ```
 
----
+## Полезные команды
 
-## 7. Мониторинг и обслуживание
-
-### Логи:
 ```bash
 # Логи приложения
-docker-compose logs -f web
-
-# Логи безопасности
-tail -f security.log
+docker-compose -f docker-compose.prod.yml logs -f web
 
 # Логи nginx
-docker-compose logs -f nginx
+docker-compose -f docker-compose.prod.yml logs -f nginx
+
+# Статус контейнеров
+docker-compose -f docker-compose.prod.yml ps
+
+# Перезапуск
+docker-compose -f docker-compose.prod.yml restart
+
+# Остановка
+docker-compose -f docker-compose.prod.yml down
+
+# Пересборка
+docker-compose -f docker-compose.prod.yml up -d --build
+
+# Очистка Docker
+docker system prune -af
 ```
 
-### Бэкапы:
-```bash
-# Бэкап базы данных
-docker-compose exec web cp /app/data/pellets_data.db /app/data/backup_$(date +%Y%m%d).db
+## SSL (Let's Encrypt)
 
-# Бэкап загрузок
-tar -czf uploads_backup_$(date +%Y%m%d).tar.gz Uploads/
+После привязки домена:
+
+```bash
+# Остановить nginx
+docker-compose -f docker-compose.prod.yml stop nginx
+
+# Получить сертификат
+certbot certonly --standalone -d your-domain.com
+
+# Скопировать сертификаты
+mkdir -p /opt/pellets-analyzer/ssl
+cp /etc/letsencrypt/live/your-domain.com/fullchain.pem /opt/pellets-analyzer/ssl/
+cp /etc/letsencrypt/live/your-domain.com/privkey.pem /opt/pellets-analyzer/ssl/
+
+# Обновить nginx.prod.conf для SSL (listen 443 + ssl_certificate)
+# Пересобрать:
+docker-compose -f docker-compose.prod.yml up -d --build
 ```
 
-### Обновление:
+## Безопасность
+
+Настроено:
+- UFW (порты 22, 80)
+- Fail2Ban
+- Nginx rate limiting
+- Security headers (X-Frame-Options, CSP, HSTS)
+- SQL injection, XSS, CSRF защита
+
+Рекомендации:
+- Сменить пароль SSH
+- Настроить SSH-ключи, отключить парольный доступ
+- Включить автоматические обновления
+
+## Решение проблем
+
 ```bash
-git pull
-docker-compose down
-docker-compose up -d --build
+# Контейнер не запускается
+docker-compose -f docker-compose.prod.yml logs web
+
+# Nginx ошибка
+docker-compose -f docker-compose.prod.yml logs nginx
+
+# Проверка nginx конфига
+docker-compose -f docker-compose.prod.yml run --rm nginx nginx -t
+
+# Порт 80 занят
+ss -tlnp | grep :80
 ```

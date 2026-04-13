@@ -1,0 +1,81 @@
+# ===========================================
+# Pellets Analyzer — Docker ignore
+# ===========================================
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+.env
+.venv
+venv/
+env/
+
+# Database
+*.db
+*.sqlite3
+data/
+
+# Uploads & sessions
+Uploads/
+sessions/
+
+# Logs
+*.log
+app_errors.log
+
+# Backups (не должны попадать в образ)
+backups/
+*.bak
+*.backup
+
+# Documentation
+*.md
+!requirements.txt
+DEPLOY.md
+README.md
+LICENSE
+
+# Deploy scripts (не нужны в контейнере)
+full-deploy.sh
+quick-deploy.sh
+setup-server.sh
+
+# Docker files (не нужны внутри контейнера)
+docker-compose.yml
+docker-compose.prod.yml
+Dockerfile
+.dockerignore
+nginx.conf
+nginx.prod.conf
+
+# Example configs (используем реальные)
+*.example.json
+.env.example
+
+# ML models (загружаются отдельно)
+*.joblib
+*.pkl
+*.h5
+models/
+
+# Test files
+test_*.py
+*_test.py
+
+# OS files
+.DS_Store
+Thumbs.db

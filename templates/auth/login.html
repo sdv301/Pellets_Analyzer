@@ -167,6 +167,16 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
+            animation: alertSlideIn 0.3s ease-out;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+        @keyframes alertSlideIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .alert.fade-out {
+            opacity: 0;
+            transform: translateY(-10px);
         }
         .alert-success { background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.2); color: #22c55e; }
         .alert-danger { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); color: #ef4444; }
@@ -206,7 +216,7 @@
 <body>
     <div class="auth-container">
         <div class="auth-card">
-            <a href="{{ url_for('index') }}" class="auth-logo">
+            <a href="{{ url_for('main.index') }}" class="auth-logo">
                 <div class="logo-icon"><i class="fas fa-flask"></i></div>
                 Pellets Analyzer
             </a>
@@ -224,7 +234,7 @@
             {% endif %}
             {% endwith %}
 
-            <form method="POST" action="{{ url_for('login') }}">
+            <form method="POST" action="{{ url_for('auth.login') }}">
                 <div class="form-group">
                     <label class="form-label">Email или имя пользователя</label>
                     <input type="text" name="email_or_username" class="form-input" placeholder="Введите email" required autofocus>
@@ -238,25 +248,41 @@
                     <label for="rememberMe">Запомнить меня</label>
                 </div>
                 <button type="submit" class="btn-submit">
-                    <i class="fas fa-sign-in-alt me-2"></i>Войти
+                    <i class="fas fa-sign-in-alt me-2"></i> Войти
                 </button>
             </form>
 
             <div class="auth-divider">или</div>
 
             <div class="auth-links">
-                <a href="{{ url_for('forgot_password') }}">Забыли пароль?</a>
+                <a href="{{ url_for('auth.forgot_password') }}">Забыли пароль?</a>
+            </div>
+
+            <div class="auth-links" style="margin-top: 16px;">
+                <span style="color: #555; font-size: 13px;">Не получили подтверждение?</span>
+                <a href="{{ url_for('auth.resend_verification') }}" style="margin-left: 4px;">Отправить повторно</a>
             </div>
 
             <div class="auth-links" style="margin-top: 16px;">
                 <span style="color: #555; font-size: 13px;">Нет аккаунта?</span>
-                <a href="{{ url_for('register') }}" style="margin-left: 4px;">Зарегистрироваться</a>
+                <a href="{{ url_for('auth.register') }}" style="margin-left: 4px;">Зарегистрироваться</a>
             </div>
 
-            <a href="{{ url_for('index') }}" class="back-link">
-                <i class="fas fa-home"></i>На главную
+            <a href="{{ url_for('main.index') }}" class="back-link">
+                <i class="fas fa-home"></i> На главную
             </a>
         </div>
     </div>
+    <script>
+        // Auto-dismiss alerts after 5 seconds
+        document.querySelectorAll('.alert').forEach(function(alert) {
+            setTimeout(function() {
+                alert.classList.add('fade-out');
+                setTimeout(function() {
+                    alert.style.display = 'none';
+                }, 300);
+            }, 5000);
+        });
+    </script>
 </body>
 </html>

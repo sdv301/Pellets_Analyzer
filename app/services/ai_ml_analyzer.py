@@ -16,7 +16,7 @@ class AIMLAnalyzer:
     def get_data_summary(self) -> Dict[str, Any]:
         """Получает сводку по данным"""
         try:
-            from database import query_db
+            from app.models.database import query_db
             
             measured_data = query_db(self.db_path, "measured_parameters")
             components_data = query_db(self.db_path, "components")
@@ -57,7 +57,7 @@ class AIMLAnalyzer:
     def get_ml_models_status(self) -> Dict[str, Any]:
         """Получает статус ML моделей"""
         try:
-            from database import get_active_ml_models, get_ml_optimizations
+            from app.models.database import get_active_ml_models, get_ml_optimizations
             
             active_models = get_active_ml_models(self.db_path)
             optimizations = get_ml_optimizations(self.db_path, limit=5)

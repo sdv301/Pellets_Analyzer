@@ -1,5 +1,382 @@
 /*!
 
-Custom SCSS
+Custom SCSS — Responsive & Adaptive Styles
 
 */
+
+/* ============================================================
+   RESPONSIVE SIDEBAR
+   ============================================================ */
+
+/* Tablet: sidebar collapses to mini */
+@media (max-width: 1199.98px) {
+    .sidenav {
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+    }
+
+    .sidenav.show {
+        transform: translateX(0);
+    }
+
+    .sidenav-overlay {
+        display: block;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 999;
+    }
+
+    .main-content {
+        margin-left: 0 !important;
+    }
+}
+
+/* Mobile: sidebar full overlay */
+@media (max-width: 767.98px) {
+    .sidenav {
+        width: 260px;
+        z-index: 1000;
+    }
+
+    .sidenav-header {
+        padding: 1rem;
+    }
+
+    .sidenav-footer {
+        margin: 0.5rem;
+    }
+}
+
+/* ============================================================
+   RESPONSIVE NAVBAR
+   ============================================================ */
+
+@media (max-width: 991.98px) {
+    .navbar {
+        padding: 0.5rem 1rem;
+    }
+
+    .navbar .navbar-brand {
+        font-size: 0.9rem;
+    }
+
+    .navbar .nav-link {
+        padding: 0.4rem 0.6rem;
+        font-size: 0.85rem;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .navbar {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .navbar .navbar-nav {
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 0.25rem;
+    }
+
+    .navbar .nav-item {
+        flex: 0 0 auto;
+    }
+}
+
+/* ============================================================
+   RESPONSIVE CARDS & TABLES
+   ============================================================ */
+
+@media (max-width: 767.98px) {
+    .card {
+        margin-bottom: 1rem;
+    }
+
+    .card .card-body {
+        padding: 0.75rem;
+    }
+
+    .table-responsive {
+        font-size: 0.8rem;
+    }
+
+    .table th,
+    .table td {
+        padding: 0.4rem 0.5rem;
+        white-space: nowrap;
+    }
+
+    /* Stack cards vertically on mobile */
+    .card-deck {
+        display: block;
+    }
+
+    .card-deck .card {
+        margin-bottom: 1rem;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .container,
+    .container-fluid {
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+    }
+
+    h1 {
+        font-size: 1.5rem;
+    }
+
+    h2 {
+        font-size: 1.3rem;
+    }
+
+    h3 {
+        font-size: 1.1rem;
+    }
+
+    .btn {
+        font-size: 0.8rem;
+        padding: 0.4rem 0.8rem;
+    }
+
+    .form-control {
+        font-size: 0.85rem;
+    }
+}
+
+/* ============================================================
+   RESPONSIVE CHARTS & GRAPHS
+   ============================================================ */
+
+@media (max-width: 991.98px) {
+    .chart-container {
+        height: 300px !important;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .chart-container {
+        height: 250px !important;
+    }
+
+    .plotly-chart {
+        width: 100% !important;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .chart-container {
+        height: 200px !important;
+    }
+}
+
+/* ============================================================
+   RESPONSIVE DASHBOARD GRID
+   ============================================================ */
+
+@media (max-width: 1199.98px) {
+    .row .col-lg-4,
+    .row .col-lg-3 {
+        flex: 0 0 50%;
+        max-width: 50%;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .row .col-lg-4,
+    .row .col-lg-3,
+    .row .col-md-6 {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+}
+
+/* ============================================================
+   RESPONSIVE ML ANALYSIS TABLES
+   ============================================================ */
+
+@media (max-width: 767.98px) {
+    .ml-table {
+        font-size: 0.75rem;
+    }
+
+    .ml-table th,
+    .ml-table td {
+        padding: 0.3rem 0.4rem;
+    }
+
+    /* Hide less important columns on mobile */
+    .ml-table th:nth-child(n+5),
+    .ml-table td:nth-child(n+5) {
+        display: none;
+    }
+}
+
+/* ============================================================
+   RESPONSIVE FOOTER
+   ============================================================ */
+
+@media (max-width: 767.98px) {
+    .footer {
+        text-align: center;
+    }
+
+    .footer .row {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+}
+
+/* ============================================================
+   RESPONSIVE MODALS
+   ============================================================ */
+
+@media (max-width: 575.98px) {
+    .modal-dialog {
+        margin: 0.5rem;
+        max-width: calc(100% - 1rem);
+    }
+
+    .modal-body {
+        padding: 1rem;
+    }
+
+    .modal-header {
+        padding: 0.75rem 1rem;
+    }
+
+    .modal-footer {
+        padding: 0.75rem 1rem;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+}
+
+/* ============================================================
+   RESPONSIVE ALERTS & NOTIFICATIONS
+   ============================================================ */
+
+@media (max-width: 767.98px) {
+    .alert {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.85rem;
+    }
+
+    .alert .close {
+        font-size: 1rem;
+    }
+}
+
+/* ============================================================
+   RESPONSIVE BUTTONS
+   ============================================================ */
+
+@media (max-width: 575.98px) {
+    .btn-group {
+        flex-direction: column;
+    }
+
+    .btn-group .btn {
+        border-radius: 4px !important;
+        margin-bottom: 0.25rem;
+    }
+
+    .btn-group .btn:last-child {
+        margin-bottom: 0;
+    }
+}
+
+/* ============================================================
+   RESPONSIVE FORMS
+   ============================================================ */
+
+@media (max-width: 767.98px) {
+    .form-group {
+        margin-bottom: 0.75rem;
+    }
+
+    .form-label {
+        font-size: 0.85rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .form-control,
+    .form-select {
+        font-size: 0.85rem;
+        padding: 0.4rem 0.6rem;
+    }
+
+    .input-group {
+        flex-wrap: wrap;
+    }
+}
+
+/* ============================================================
+   PRINT STYLES
+   ============================================================ */
+
+@media print {
+    .sidenav,
+    .navbar,
+    .footer,
+    .btn,
+    .sidenav-footer {
+        display: none !important;
+    }
+
+    .main-content {
+        margin-left: 0 !important;
+        padding: 0 !important;
+    }
+
+    body {
+        background: white !important;
+        color: black !important;
+    }
+
+    .card {
+        box-shadow: none !important;
+        border: 1px solid #ddd !important;
+    }
+
+    a[href]:after {
+        content: " (" attr(href) ")";
+    }
+}
+
+/* ============================================================
+   LARGE SCREENS (Desktop 1440px+)
+   ============================================================ */
+
+@media (min-width: 1440px) {
+    .container-xl {
+        max-width: 1320px;
+    }
+
+    .sidenav {
+        width: 250px;
+    }
+
+    .main-content {
+        padding: 1.5rem 2rem;
+    }
+}
+
+@media (min-width: 1920px) {
+    .container-xl {
+        max-width: 1600px;
+    }
+
+    .sidenav {
+        width: 280px;
+    }
+
+    body {
+        font-size: 1rem;
+    }
+}

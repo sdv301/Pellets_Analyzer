@@ -3,7 +3,7 @@
   <div class="container-fluid py-1 px-3">
     <nav aria-label="breadcrumb">
       <ol class="breadcrumb bg-transparent mb-0 pb-0 pt-1 px-0 me-sm-6 me-5">
-        <li class="breadcrumb-item text-sm"><a class="opacity-5 text-dark" href="{{ url_for('dashboard') }}">Главная</a>
+        <li class="breadcrumb-item text-sm"><a class="opacity-5 text-dark" href="{{ url_for('main.dashboard') }}">Главная</a>
         </li>
         <li class="breadcrumb-item text-sm text-dark active" aria-current="page">{{ segment|replace("_", " ") }}</li>
       </ol>
@@ -31,22 +31,22 @@
         </li>
         <li class="nav-item d-flex align-items-center">
           {% if current_user and current_user.is_authenticated %}
-          <a href="{{ url_for('profile') }}" class="nav-link text-body p-0 me-2" title="Профиль">
+          <a href="{{ url_for('auth.profile') }}" class="nav-link text-body p-0 me-2" title="Профиль">
             <i class="fas fa-user-circle" style="font-size: 1.3rem;"></i>
           </a>
           {% if current_user.role_name == 'admin' %}
-          <a href="{{ url_for('admin_dashboard') }}" class="nav-link text-body p-0 me-2" title="Админ-панель">
+          <a href="{{ url_for('admin.admin_dashboard') }}" class="nav-link text-body p-0 me-2" title="Админ-панель">
             <i class="fas fa-shield-alt" style="font-size: 1.1rem;"></i>
           </a>
           {% endif %}
-          <a href="{{ url_for('logout') }}" class="nav-link text-body p-0" title="Выйти">
+          <a href="{{ url_for('auth.logout') }}" class="nav-link text-body p-0" title="Выйти">
             <i class="fas fa-sign-out-alt" style="font-size: 1.1rem;"></i>
           </a>
           {% else %}
-          <a href="{{ url_for('login') }}" class="nav-link text-body p-0 me-2" title="Войти">
+          <a href="{{ url_for('auth.login') }}" class="nav-link text-body p-0 me-2" title="Войти">
             <i class="fas fa-sign-in-alt" style="font-size: 1.1rem;"></i>
           </a>
-          <a href="{{ url_for('register') }}" class="btn btn-sm btn-primary rounded-pill px-3">
+          <a href="{{ url_for('auth.register') }}" class="btn btn-sm btn-primary rounded-pill px-3">
             <i class="fas fa-user-plus me-1"></i>Регистрация
           </a>
           {% endif %}

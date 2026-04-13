@@ -1,7 +1,7 @@
 import pandas as pd
 import os
 import re
-from database import insert_data, init_db
+from app.models.database import insert_data, init_db
 
 def normalize_column_name(col):
     if not isinstance(col, str):

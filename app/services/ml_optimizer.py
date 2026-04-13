@@ -208,7 +208,7 @@ class PelletPropertyPredictor:
         
         self.target_properties_mapping = {
             'war': 'Влажность на аналитическую массу',
-            'ad': 'Зольность на сухую массу', 
+            'ad': 'Зольность на сухую массу',
             'vd': 'Содержание летучих на сухую массу',
             'q': 'Теплота сгорания',
             'cd': 'Содержание углерода на сухую массу',
@@ -218,7 +218,19 @@ class PelletPropertyPredictor:
             'od': 'Содержание кислорода на сухую массу',
             'density': 'Плотность',
             'kf': 'Ударопрочность',
-            'kt': 'Устойчивость к вибрациям'
+            'kt': 'Устойчивость к вибрациям',
+            # Дополнительные свойства из Excel
+            'h': 'Гигроскопичность',
+            'mass_loss': 'Потеря массы',
+            'tign': 'Температура зажигания',
+            'tb': 'Температура выгорания',
+            'td1': 'Время задержки горения 1',
+            'td2': 'Время задержки горения 2',
+            'tau_b': 'Время выгорания',
+            'co2': 'Выбросы CO2',
+            'co': 'Выбросы CO',
+            'so2': 'Выбросы SO2',
+            'nox': 'Выбросы NOx',
         }
         self.main_target_properties = list(self.target_properties_mapping.keys())
     
@@ -260,82 +272,119 @@ class PelletPropertyPredictor:
     def _train_single_property(self, prop: str, X_prop: np.ndarray, y_prop: pd.Series, algorithm: str, feature_names: List[str]) -> Tuple[str, Dict]:
         scaler = StandardScaler()
         X_scaled = scaler.fit_transform(X_prop)
+        n_samples = len(y_prop)
         
-        # ЛОГИКА ВЫБОРА АЛГОРИТМА (С учетом выбора пользователя)
+        # Определяем допустимые алгоритмы для данного размера выборки
+        # Для малых выборок (< 20) используем только простые модели
+        is_small_sample = n_samples < 20
+        is_medium_sample = 20 <= n_samples < 50
+        
+        # ЛОГИКА ВЫБОРА АЛГОРИТМА — улучшенная
         additive_properties = ['q', 'ad', 'war', 'density', 'vd', 'cd', 'hd', 'nd', 'sd', 'od']
+        combustion_properties = ['tign', 'tb', 'td1', 'td2', 'tau_b']
+        emission_properties = ['co2', 'co', 'so2', 'nox']
         
         if algorithm == 'ridge':
             base_model = Ridge(alpha=1.0)
-            param_grid = {'alpha': [0.1, 1.0, 10.0]}
+            param_grid = {'alpha': [0.01, 0.1, 1.0, 10.0, 100.0]}
             used_algo_name = "Линейная регрессия (Ridge)"
             algo_reason = "Принудительно выбрано пользователем."
         elif algorithm == 'xgboost':
-            base_model = XGBRegressor(
-                n_estimators=100,
-                max_depth=4,
-                learning_rate=0.1,
-                subsample=0.8,
-                colsample_bytree=0.8,
-                random_state=42,
-                verbosity=0
-            )
-            param_grid = {
-                'n_estimators': [50, 100, 200],
-                'max_depth': [3, 4, 5, 6],
-                'learning_rate': [0.01, 0.1, 0.2],
-                'subsample': [0.7, 0.8, 0.9],
-                'colsample_bytree': [0.7, 0.8, 0.9]
-            }
+            if is_small_sample:
+                base_model = XGBRegressor(n_estimators=50, max_depth=2, learning_rate=0.1, subsample=0.9, colsample_bytree=0.9, random_state=42, verbosity=0, reg_alpha=1.0, reg_lambda=1.0)
+                param_grid = {'n_estimators': [30, 50], 'max_depth': [2, 3], 'learning_rate': [0.05, 0.1]}
+            else:
+                base_model = XGBRegressor(n_estimators=100, max_depth=4, learning_rate=0.1, subsample=0.8, colsample_bytree=0.8, random_state=42, verbosity=0)
+                param_grid = {'n_estimators': [50, 100, 200], 'max_depth': [3, 4, 5, 6], 'learning_rate': [0.01, 0.1, 0.2], 'subsample': [0.7, 0.8, 0.9], 'colsample_bytree': [0.7, 0.8, 0.9]}
             used_algo_name = "XGBoost"
             algo_reason = "Градиентный бустинг с высокой точностью и защитой от переобучения."
         elif algorithm == 'random_forest':
             from sklearn.ensemble import RandomForestRegressor
-            base_model = RandomForestRegressor(random_state=42)
-            param_grid = {'n_estimators': [50, 100], 'max_depth': [None, 5, 10], 'min_samples_split': [2, 5]}
+            if is_small_sample:
+                base_model = RandomForestRegressor(n_estimators=50, max_depth=3, min_samples_leaf=3, random_state=42)
+                param_grid = {'n_estimators': [30, 50], 'max_depth': [2, 3, 4], 'min_samples_leaf': [2, 3]}
+            else:
+                base_model = RandomForestRegressor(random_state=42)
+                param_grid = {'n_estimators': [50, 100, 200], 'max_depth': [None, 5, 10, 15], 'min_samples_split': [2, 5, 10]}
             used_algo_name = "Случайный лес (Random Forest)"
             algo_reason = "Принудительно выбрано пользователем."
         elif algorithm == 'gradient_boosting':
             from sklearn.ensemble import GradientBoostingRegressor
-            base_model = GradientBoostingRegressor(random_state=42)
-            param_grid = {'n_estimators': [50, 100], 'learning_rate': [0.01, 0.1], 'max_depth': [3, 5]}
+            if is_small_sample:
+                base_model = GradientBoostingRegressor(n_estimators=50, max_depth=2, learning_rate=0.05, subsample=0.9, random_state=42)
+                param_grid = {'n_estimators': [30, 50], 'max_depth': [2, 3], 'learning_rate': [0.01, 0.05]}
+            else:
+                base_model = GradientBoostingRegressor(random_state=42)
+                param_grid = {'n_estimators': [50, 100, 200], 'learning_rate': [0.01, 0.1, 0.2], 'max_depth': [3, 5, 7]}
             used_algo_name = "Градиентный бустинг (GBM)"
             algo_reason = "Принудительно выбрано пользователем."
+        elif algorithm == 'svr':
+            from sklearn.svm import SVR
+            base_model = SVR(kernel='rbf', C=1.0, epsilon=0.1)
+            param_grid = {'C': [0.1, 1.0, 10.0], 'epsilon': [0.01, 0.1, 0.2], 'kernel': ['rbf', 'linear']}
+            used_algo_name = "SVR (Support Vector Regression)"
+            algo_reason = "Принудительно выбрано пользователем. Хорошо для малых выборок."
         else:
-            # УМНЫЙ (АВТОМАТИЧЕСКИЙ) ВЫБОР
-            if prop in additive_properties:
+            # УМНЫЙ (АВТОМАТИЧЕСКИЙ) ВЫБОР — улучшенная логика
+            if is_small_sample:
+                # Для малых выборок: Ridge + SVR
                 base_model = Ridge(alpha=1.0)
-                param_grid = {'alpha': [0.1, 1.0, 10.0]}
-                used_algo_name = "Линейная регрессия [Авто]"
-                algo_reason = "Умный выбор: исключает физические парадоксы смешивания."
+                param_grid = {'alpha': [0.01, 0.1, 1.0, 10.0, 100.0]}
+                used_algo_name = "Ridge (малая выборка)"
+                algo_reason = f"Авто: мало данных ({n_samples} записей). Ridge устойчив к переобучению."
+            elif is_medium_sample:
+                # Для средних: Random Forest + Ridge
+                if prop in additive_properties:
+                    base_model = Ridge(alpha=1.0)
+                    param_grid = {'alpha': [0.01, 0.1, 1.0, 10.0]}
+                    used_algo_name = "Ridge (аддитивное)"
+                    algo_reason = "Авто: аддитивное свойство, линейная модель физически обоснована."
+                else:
+                    from sklearn.ensemble import RandomForestRegressor
+                    base_model = RandomForestRegressor(n_estimators=100, max_depth=5, random_state=42)
+                    param_grid = {'n_estimators': [50, 100], 'max_depth': [3, 5, 7], 'min_samples_leaf': [2, 3]}
+                    used_algo_name = "Random Forest (средняя выборка)"
+                    algo_reason = "Авто: средняя выборка, RF хорошо обобщает."
             else:
-                base_model = XGBRegressor(
-                    n_estimators=100,
-                    max_depth=4,
-                    learning_rate=0.1,
-                    subsample=0.8,
-                    colsample_bytree=0.8,
-                    random_state=42,
-                    verbosity=0
-                )
-                param_grid = {
-                    'n_estimators': [50, 100, 200],
-                    'max_depth': [3, 4, 5, 6],
-                    'learning_rate': [0.01, 0.1, 0.2],
-                    'subsample': [0.7, 0.8, 0.9],
-                    'colsample_bytree': [0.7, 0.8, 0.9]
-                }
-                used_algo_name = "XGBoost [Авто]"
-                algo_reason = "Умный выбор: высокая точность, работа со сложными зависимостями."
+                # Для больших выборок: полный арсенал
+                if prop in additive_properties:
+                    from sklearn.ensemble import RandomForestRegressor
+                    # Пробуем и Ridge, и RF — GridSearch выберет лучший через CV
+                    base_model = Ridge(alpha=1.0)
+                    param_grid = {'alpha': [0.01, 0.1, 1.0, 10.0, 100.0]}
+                    used_algo_name = "Ridge (аддитивное)"
+                    algo_reason = "Авто: аддитивное свойство, линейная модель."
+                elif prop in combustion_properties:
+                    from sklearn.ensemble import GradientBoostingRegressor
+                    base_model = GradientBoostingRegressor(n_estimators=100, max_depth=4, learning_rate=0.1, random_state=42)
+                    param_grid = {'n_estimators': [50, 100, 200], 'max_depth': [3, 4, 5], 'learning_rate': [0.01, 0.1]}
+                    used_algo_name = "Gradient Boosting (горение)"
+                    algo_reason = "Авто: свойство горения, нелинейная зависимость."
+                elif prop in emission_properties:
+                    from sklearn.ensemble import RandomForestRegressor
+                    base_model = RandomForestRegressor(n_estimators=100, max_depth=6, random_state=42)
+                    param_grid = {'n_estimators': [50, 100, 200], 'max_depth': [4, 6, 8]}
+                    used_algo_name = "Random Forest (эмиссии)"
+                    algo_reason = "Авто: эмиссии, RF хорошо ловит нелинейности."
+                else:
+                    base_model = XGBRegressor(n_estimators=100, max_depth=4, learning_rate=0.1, subsample=0.8, colsample_bytree=0.8, random_state=42, verbosity=0)
+                    param_grid = {'n_estimators': [50, 100, 200], 'max_depth': [3, 4, 5, 6], 'learning_rate': [0.01, 0.1, 0.2]}
+                    used_algo_name = "XGBoost [Авто]"
+                    algo_reason = "Авто: универсальный алгоритм для сложных зависимостей."
         
-        n_cv = min(3, len(y_prop))
-        if n_cv < 2:
-            n_cv = 2
-            
+        # Адаптивный размер CV
+        if n_samples >= 50:
+            n_cv = 5
+        elif n_samples >= 20:
+            n_cv = 3
+        else:
+            n_cv = min(3, max(2, n_samples // 5))
+        
         grid_search = GridSearchCV(
-            base_model, 
-            param_grid, 
-            cv=n_cv, 
-            scoring='r2', 
+            base_model,
+            param_grid,
+            cv=n_cv,
+            scoring='r2',
             n_jobs=-1,
             verbose=0
         )
@@ -345,6 +394,9 @@ class PelletPropertyPredictor:
         y_pred = model.predict(X_scaled)
         r2 = float(r2_score(y_prop, y_pred))
         mae = float(mean_absolute_error(y_prop, y_pred))
+        
+        # Cross-validated R2 (более честная оценка)
+        cv_r2 = float(grid_search.best_score_)
         
         feature_importance = {}
         if hasattr(model, 'feature_importances_'):
@@ -360,9 +412,10 @@ class PelletPropertyPredictor:
             feature_importance = {k: float(v) for k, v in zip(feature_names, normalized)}
             
         metrics = {
-            'model': model, 'scaler': scaler, 'r2_score': r2, 'mae': mae, 'cv_r2': r2,
+            'model': model, 'scaler': scaler, 'r2_score': r2, 'mae': mae, 'cv_r2': cv_r2,
             'feature_importance': feature_importance,
-            'algorithm_used': used_algo_name, 'algorithm_reason': algo_reason
+            'algorithm_used': used_algo_name, 'algorithm_reason': algo_reason,
+            'n_samples': n_samples, 'n_cv_folds': n_cv
         }
         return prop, metrics
 
@@ -402,7 +455,7 @@ class PelletPropertyPredictor:
             y_prop = y[valid_mask]
             tasks.append((prop, X_prop, y_prop, algorithm, current_feature_names))
 
-        with ThreadPoolExecutor(max_workers=min(len(tasks), 4)) as executor:
+        with ThreadPoolExecutor(max_workers=max(1, min(len(tasks), 4))) as executor:
             future_to_prop = {executor.submit(self._train_single_property, *task): task[0] for task in tasks}
             for future in future_to_prop:
                 prop = future_to_prop[future]
@@ -682,7 +735,7 @@ class PelletMLSystem:
     def _connect_remote_db(self):
         """Подключается к удалённой БД через SSH-туннель."""
         try:
-            from database import DatabaseConnection
+            from app.models.database import DatabaseConnection
             self._db_connection = DatabaseConnection(
                 db_path=self.db_path,
                 use_remote=True,
@@ -763,7 +816,7 @@ class PelletMLSystem:
 
     def load_components(self) -> pd.DataFrame:
         try:
-            from database import query_db
+            from app.models.database import query_db
             components = query_db(self.db_path, "components")
             return components
         except Exception:
@@ -783,10 +836,108 @@ class PelletMLSystem:
         if total_weight > 0:
             return value * (100.0 / total_weight)
         return None
-    
+
+    def load_excel_data(self, excel_path: str = None) -> Dict:
+        """
+        Загружает данные из Excel файла в БД measured_parameters.
+        Автоматически находит файл в Uploads/ если путь не указан.
+        """
+        import glob as glob_module
+        import os as os_module
+
+        try:
+            if excel_path is None:
+                # Ищем в нескольких возможных расположениях
+                search_paths = [
+                    'Uploads/*.xlsx',
+                    '/app/Uploads/*.xlsx',
+                    os_module.path.join(os_module.path.dirname(os_module.path.abspath(__file__)), '..', '..', 'Uploads', '*.xlsx'),
+                ]
+                upload_files = []
+                for search_pattern in search_paths:
+                    found = glob_module.glob(search_pattern)
+                    if found:
+                        upload_files.extend(found)
+                
+                if not upload_files:
+                    logger.warning("Excel файл не найден в Uploads/")
+                    return {'success': False, 'error': 'Excel файл не найден в Uploads/. Загрузите файл через главную страницу.'}
+                excel_path = upload_files[0]
+
+            if not os_module.path.exists(excel_path):
+                logger.error(f"Файл не существует: {excel_path}")
+                return {'success': False, 'error': f'Файл не найден: {excel_path}'}
+
+            logger.info(f"Чтение Excel файла: {excel_path}")
+            df = pd.read_excel(excel_path)
+            
+            if df.empty:
+                logger.warning("Excel файл пуст")
+                return {'success': False, 'error': 'Excel файл не содержит данных'}
+            
+            logger.info(f"Загружено {len(df)} записей из {excel_path}")
+        except FileNotFoundError as e:
+            logger.error(f"Файл не найден: {e}")
+            return {'success': False, 'error': f'Файл не найден: {str(e)}'}
+        except ValueError as e:
+            logger.error(f"Ошибка формата Excel файла: {e}")
+            return {'success': False, 'error': f'Некорректный формат файла: {str(e)}'}
+        except Exception as e:
+            logger.error(f"Ошибка чтения Excel: {e}", exc_info=True)
+            return {'success': False, 'error': f'Ошибка чтения Excel: {str(e)}'}
+
+        try:
+            column_mapping = {
+                'Составы': 'composition',
+                'ρ, кг/м3': 'density',
+                'Kf, %': 'kf',
+                'Kt, %': 'kt',
+                'H, %': 'h',
+                'Mass loss, %': 'mass_loss',
+                'Тign, °С': 'tign',
+                'Tb, °C': 'tb',
+                'τd1, с': 'td1',
+                'τd2, с': 'td2',
+                'τb, с': 'tau_b',
+                'CO2, ': 'co2',
+                'CO,': 'co',
+                'SO2,': 'so2',
+                'NOx,': 'nox',
+                'Q, МДж/кг': 'q',
+                'Ad, %': 'ad',
+            }
+
+            df_renamed = df.rename(columns=column_mapping)
+            known_cols = ['composition'] + list(self.predictor.target_properties_mapping.keys())
+            known_cols = [c for c in known_cols if c in df_renamed.columns]
+            
+            if 'composition' not in df_renamed.columns:
+                logger.error("В Excel файле отсутствует колонка 'Составы' (composition)")
+                return {'success': False, 'error': "В Excel файле отсутствует обязательная колонка 'Составы'"}
+            
+            df_clean = df_renamed[known_cols].copy()
+            df_clean = df_clean.dropna(subset=['composition'])
+
+            if df_clean.empty:
+                return {'success': False, 'error': 'Нет записей с составами после очистки данных'}
+
+            from app.models.database import insert_data
+            insert_data(self.db_path, "measured_parameters", df_clean)
+            logger.info(f"Загружено {len(df_clean)} записей в БД из Excel")
+            self.training_data = self.load_training_data()
+            return {
+                'success': True,
+                'message': f'Загружено {len(df_clean)} записей из Excel',
+                'records_count': len(df_clean),
+                'columns_loaded': known_cols
+            }
+        except Exception as e:
+            logger.error(f"Ошибка загрузки в БД: {e}", exc_info=True)
+            return {'success': False, 'error': f'Ошибка загрузки в БД: {str(e)}'}
+
     def load_training_data(self) -> pd.DataFrame:
         try:
-            from database import query_db, get_ml_optimizations
+            from app.models.database import query_db, get_ml_optimizations
             training_data = query_db(self.db_path, "measured_parameters")
             ml_optimizations = get_ml_optimizations(self.db_path, limit=100)
             
@@ -857,7 +1008,7 @@ class PelletMLSystem:
         train_result = self.predictor.train(self.training_data, target_properties, algorithm, selected_features)
         if train_result.get('success', False):
             try:
-                from database import insert_ml_model_metrics
+                from app.models.database import insert_ml_model_metrics
                 for prop in self.predictor.models.keys():
                     metrics = self.predictor.training_metrics.get(prop, {})
                     metrics_data = {
@@ -908,7 +1059,7 @@ class PelletMLSystem:
         
         if result.get('success'):
             try:
-                from database import insert_ml_optimization, add_ml_optimization_to_training_data
+                from app.models.database import insert_ml_optimization, add_ml_optimization_to_training_data
                 optimization_data = {
                     'target_property': target_property,
                     'maximize': maximize,
@@ -1037,7 +1188,7 @@ class PelletMLSystem:
 
     def augment_database(self, variations_count: int = 3, confidence_interval: float = 5.0) -> Dict:
         try:
-            from database import query_db, insert_data
+            from app.models.database import query_db, insert_data
             measured_data = query_db(self.db_path, "measured_parameters")
             if measured_data.empty:
                 return {'success': False, 'error': 'База данных пуста'}

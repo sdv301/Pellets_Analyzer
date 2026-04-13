@@ -180,7 +180,7 @@
                     <h5 class="text-muted fw-bolder">Данные не загружены</h5>
                     <p class="text-muted text-sm">Загрузите файл на главной странице, чтобы выбрать составы для
                         сравнения.</p>
-                    <a href="{{ url_for('dashboard') }}" class="btn bg-gradient-dark mt-3">
+                    <a href="{{ url_for('main.dashboard') }}" class="btn bg-gradient-dark mt-3">
                         <i class="fas fa-upload me-2"></i>Перейти к загрузке
                     </a>
                 </div>
@@ -785,8 +785,36 @@
     }
 </style>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<!-- Chart.js с fallback -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script>
+window.addEventListener('load', function() {
+    if (typeof Chart === 'undefined') {
+        console.warn('Chart.js не загрузился, пробуем альтернативный CDN...');
+        var script = document.createElement('script');
+        script.src = 'https://unpkg.com/chart.js@4.4.4/dist/chart.umd.min.js';
+        script.onerror = function() {
+            console.error('Chart.js не удалось загрузить');
+        };
+        document.head.appendChild(script);
+    }
+});
+</script>
+<!-- html2pdf.js с fallback -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.2/html2pdf.bundle.min.js"></script>
+<script>
+window.addEventListener('load', function() {
+    if (typeof html2pdf === 'undefined') {
+        console.warn('html2pdf не загрузился, пробуем альтернативный CDN...');
+        var script = document.createElement('script');
+        script.src = 'https://unpkg.com/html2pdf.js@0.10.2/dist/html2pdf.bundle.min.js';
+        script.onerror = function() {
+            console.error('html2pdf не удалось загрузить');
+        };
+        document.head.appendChild(script);
+    }
+});
+</script>
 
 <script>
     // Глобальные переменные
@@ -2370,6 +2398,125 @@
             });
         });
         return selected;
+    }
+
+    // Демо-графики для случаев когда реальных данных нет
+    function createSmartDemoCharts(compositions, selectedCriteria) {
+        try {
+            const comparisonCtx = document.getElementById('comparisonChart');
+            const differenceCtx = document.getElementById('differenceCtx');
+
+            if (!comparisonCtx || !differenceCtx) return;
+
+            const compNames = compositions.map(c => c.name || c.toString()).slice(0, 5);
+            const criteriaNames = selectedCriteria ? selectedCriteria.map(c => c.name || c.toString()).slice(0, 6) : ['Плотность', 'Зольность', 'Влажность', 'Теплота сгорания', 'Ударопрочность'];
+
+            const colors = ['#cb0c9f', '#82d616', '#17c1e8', '#fb8c00', '#ea0606'];
+
+            // Генерируем реалистичные демо-данные
+            const datasets = compNames.map((name, idx) => ({
+                label: name,
+                data: criteriaNames.map(() => Math.round((Math.random() * 80 + 20) * 10) / 10),
+                backgroundColor: colors[idx % colors.length],
+                borderColor: colors[idx % colors.length],
+                borderWidth: 1
+            }));
+
+            comparisonChart = new Chart(comparisonCtx.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: criteriaNames,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: { display: true, text: 'Сравнительная диаграмма (демо-режим)' },
+                        legend: { position: 'top' }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, title: { display: true, text: 'Значения' } },
+                        x: { title: { display: true, text: 'Параметры' } }
+                    }
+                }
+            });
+
+            // График различий
+            const diffData = criteriaNames.map((_, paramIdx) => {
+                const values = datasets.map(ds => ds.data[paramIdx]);
+                const maxVal = Math.max(...values);
+                const minVal = Math.min(...values);
+                return maxVal > 0 ? Math.round(((maxVal - minVal) / maxVal) * 100 * 10) / 10 : 0;
+            });
+
+            differenceChart = new Chart(differenceCtx.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: criteriaNames,
+                    datasets: [{
+                        label: 'Разница между составами, %',
+                        data: diffData,
+                        backgroundColor: diffData.map(d => d > 20 ? '#ea0606' : d > 10 ? '#fb8c00' : '#82d616')
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: { display: true, text: 'Различия между составами (%) (демо)' }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, max: 100, title: { display: true, text: 'Разница, %' } }
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Ошибка создания демо-графиков:', error);
+        }
+    }
+
+    // Простые fallback-графики при полной ошибке
+    function createSimpleFallbackCharts() {
+        try {
+            const comparisonCtx = document.getElementById('comparisonChart');
+            const differenceCtx = document.getElementById('differenceChart');
+
+            if (!comparisonCtx || !differenceCtx) return;
+
+            const simpleData = {
+                labels: ['Параметр 1', 'Параметр 2', 'Параметр 3'],
+                datasets: [{
+                    label: 'Данные недоступны',
+                    data: [0, 0, 0],
+                    backgroundColor: '#e0e0e0'
+                }]
+            };
+
+            if (comparisonChart) comparisonChart.destroy();
+            comparisonChart = new Chart(comparisonCtx.getContext('2d'), {
+                type: 'bar',
+                data: simpleData,
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: { display: true, text: 'Данные временно недоступны' }
+                    }
+                }
+            });
+
+            if (differenceChart) differenceChart.destroy();
+            differenceChart = new Chart(differenceCtx.getContext('2d'), {
+                type: 'bar',
+                data: simpleData,
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: { display: true, text: 'График различий' }
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Ошибка создания fallback-графиков:', error);
+        }
     }
 
     function createVisualizationsWithCriteria(data) {

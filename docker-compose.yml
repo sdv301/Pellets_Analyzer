@@ -28,9 +28,11 @@ services:
       - MAIL_DEFAULT_SENDER=${MAIL_DEFAULT_SENDER:-Pellets Analyzer <noreply@pellets-analyzer.com>}
     volumes:
       # Сохранение данных между перезапусками
+      # Именованные volumes НЕ удаляются при docker-compose down (без --volumes)
       - app_data:/app/data
       - uploads:/app/Uploads
       - sessions:/app/sessions
+      - ml_models:/app/app/services/models
       # Монтирование конфигов (опционально)
       - ./mail_config.json:/app/mail_config.json:ro
       - ./db_config.json:/app/db_config.json:ro
@@ -45,10 +47,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '2.0'
+          cpus: '1.0'
           memory: 2G
         reservations:
-          cpus: '0.5'
+          cpus: '0.25'
           memory: 512M
 
   # Nginx — обратный прокси (опционально, раскомментируйте для продакшена)
@@ -87,9 +89,16 @@ services:
   #     retries: 5
 
 volumes:
+  # Именованные volumes — сохраняются при docker-compose down
+  # Для полного удаления: docker-compose down --volumes
   app_data:
+    name: pellets-app-data
   uploads:
+    name: pellets-uploads
   sessions:
+    name: pellets-sessions
+  ml_models:
+    name: pellets-ml-models
   # postgres_data:
 
 networks:

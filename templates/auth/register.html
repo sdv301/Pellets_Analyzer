@@ -130,7 +130,7 @@
 <body>
     <div class="auth-container">
         <div class="auth-card">
-            <a href="{{ url_for('index') }}" class="auth-logo">
+            <a href="{{ url_for('main.index') }}" class="auth-logo">
                 <div class="logo-icon"><i class="fas fa-flask"></i></div>
                 Pellets Analyzer
             </a>
@@ -148,7 +148,7 @@
             {% endif %}
             {% endwith %}
 
-            <form method="POST" action="{{ url_for('register') }}" id="registerForm">
+            <form method="POST" action="{{ url_for('auth.register') }}" id="registerForm">
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">Имя пользователя</label>
@@ -183,7 +183,7 @@
                     <label for="agreeTerms">Я согласен с <a href="#">условиями использования</a></label>
                 </div>
                 <button type="submit" class="btn-submit">
-                    <i class="fas fa-user-plus me-2"></i>Зарегистрироваться
+                    <i class="fas fa-user-plus me-2"></i> Зарегистрироваться
                 </button>
             </form>
 
@@ -191,11 +191,11 @@
 
             <div class="auth-links">
                 <span style="color: #555; font-size: 13px;">Уже есть аккаунт?</span>
-                <a href="{{ url_for('login') }}" style="margin-left: 4px;">Войти</a>
+                <a href="{{ url_for('auth.login') }}" style="margin-left: 4px;">Войти</a>
             </div>
 
-            <a href="{{ url_for('index') }}" class="back-link">
-                <i class="fas fa-home"></i>На главную
+            <a href="{{ url_for('main.index') }}" class="back-link">
+                <i class="fas fa-home"></i> На главную
             </a>
         </div>
     </div>

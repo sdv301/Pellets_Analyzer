@@ -3,6 +3,10 @@
 <script src="{{ url_for('static', filename='assets/js/core/bootstrap.min.js') }}"></script>
 <script src="{{ url_for('static', filename='assets/js/plugins/perfect-scrollbar.min.js') }}"></script>
 <script src="{{ url_for('static', filename='assets/js/plugins/smooth-scrollbar.min.js') }}"></script>
+<script src="{{ url_for('static', filename='assets/js/plugins/chartjs.min.js') }}"></script>
+<!-- jQuery ДОЛЖЕН загружаться ДО bootstrap-notify -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+<script src="{{ url_for('static', filename='assets/js/plugins/bootstrap-notify.js') }}"></script>
 
 <!-- ЗАЩИТНЫЙ ПАТЧ: предотвращает ошибку removeChild в soft-ui-dashboard.min.js -->
 <script>
@@ -34,6 +38,34 @@
 <!-- Control Center for Soft Dashboard: parallax effects, scripts for the example pages etc -->
 <script src="{{ url_for('static', filename='assets/js/soft-ui-dashboard.min.js') }}?v=1.1.0"></script>
 
+<!-- Chart.js & Bootstrap Notify -->
+<script>
+    // Toast-уведомления через Bootstrap Notify
+    function showNotify(message, type = 'info') {
+        const icons = {
+            success: 'fas fa-check-circle',
+            danger: 'fas fa-exclamation-circle',
+            warning: 'fas fa-exclamation-triangle',
+            info: 'fas fa-info-circle'
+        };
+        $.notify({
+            icon: icons[type] || icons.info,
+            message: message
+        }, {
+            type: type,
+            allow_dismiss: true,
+            newest_on_top: true,
+            placement: { from: 'top', align: 'right' },
+            offset: { x: 20, y: 80 },
+            spacing: 10,
+            z_index: 9999,
+            delay: 3000,
+            timer: 1000,
+            animate: { enter: 'animated fadeInDown', exit: 'animated fadeOutUp' }
+        });
+    }
+</script>
+
 <!-- Premium UI Scroll Animations -->
 <script>
     document.addEventListener("DOMContentLoaded", function () {
@@ -47,8 +79,6 @@
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
                     entry.target.classList.add('is-visible');
-                    // Optional: Stop observing once animated
-                    // observer.unobserve(entry.target); 
                 }
             });
         }, observerOptions);

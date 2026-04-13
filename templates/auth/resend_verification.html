@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Сброс пароля — Pellets Analyzer</title>
+    <title>Повторная отправка подтверждения — Pellets Analyzer</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -33,10 +33,13 @@
             0%, 100% { transform: translate(0, 0); }
             50% { transform: translate(-5%, -3%); }
         }
-        .auth-container {
-            position: relative; z-index: 1; width: 100%; max-width: 420px;
+        .resend-container {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 480px;
         }
-        .auth-card {
+        .resend-card {
             background: rgba(255,255,255,0.03);
             border: 1px solid rgba(255,255,255,0.08);
             border-radius: 20px;
@@ -67,7 +70,7 @@
             margin-bottom: 8px; letter-spacing: -0.02em;
         }
         .auth-subtitle {
-            font-size: 14px; color: #666; text-align: center; margin-bottom: 32px;
+            font-size: 14px; color: #666; text-align: center; margin-bottom: 32px; line-height: 1.5;
         }
         .form-group { margin-bottom: 20px; }
         .form-label {
@@ -101,6 +104,17 @@
         .alert-danger { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2); color: #ef4444; }
         .alert-warning { background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.2); color: #f59e0b; }
         .alert-info { background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.2); color: #3b82f6; }
+        .info-box {
+            background: rgba(59,130,246,0.06);
+            border: 1px solid rgba(59,130,246,0.15);
+            border-radius: 10px;
+            padding: 16px;
+            margin-bottom: 24px;
+        }
+        .info-box p {
+            font-size: 13px; color: #888; line-height: 1.6; margin: 0;
+        }
+        .info-box i { color: #3b82f6; margin-right: 6px; }
         .back-link {
             display: flex; align-items: center; justify-content: center; gap: 6px;
             margin-top: 24px; color: #555; font-size: 13px; text-decoration: none; transition: color 0.2s;
@@ -109,14 +123,14 @@
     </style>
 </head>
 <body>
-    <div class="auth-container">
-        <div class="auth-card">
+    <div class="resend-container">
+        <div class="resend-card">
             <a href="{{ url_for('main.index') }}" class="auth-logo">
                 <div class="logo-icon"><i class="fas fa-flask"></i></div>
                 Pellets Analyzer
             </a>
-            <h1 class="auth-title">Сброс пароля</h1>
-            <p class="auth-subtitle">Введите email для получения ссылки на сброс пароля</p>
+            <h1 class="auth-title">Подтверждение email</h1>
+            <p class="auth-subtitle">Введите email, и мы повторно отправим письмо с подтверждением</p>
 
             {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
@@ -129,19 +143,24 @@
             {% endif %}
             {% endwith %}
 
-            <form method="POST" action="{{ url_for('auth.forgot_password') }}">
+            <div class="info-box">
+                <p><i class="fas fa-info-circle"></i> Письмо может попасть в папку «Спам». Проверьте её, если не видите письмо во входящих.</p>
+            </div>
+
+            <form method="POST" action="{{ url_for('auth.resend_verification') }}">
                 <div class="form-group">
-                    <label class="form-label">Email</label>
-                    <input type="email" name="email" class="form-input" placeholder="your@email.com" required autofocus>
+                    <label class="form-label">Email аккаунта</label>
+                    <input type="email" name="email" class="form-input" placeholder="your@email.com" required>
                 </div>
                 <button type="submit" class="btn-submit">
-                    <i class="fas fa-paper-plane me-2"></i> Отправить ссылку
+                    <i class="fas fa-paper-plane me-2"></i> Отправить повторно
                 </button>
             </form>
 
-            <a href="{{ url_for('auth.login') }}" class="back-link">
-                <i class="fas fa-arrow-left"></i> Вернуться ко входу
-            </a>
+            <div class="back-link">
+                <i class="fas fa-arrow-left"></i>
+                <a href="{{ url_for('auth.login') }}">Вернуться к входу</a>
+            </div>
         </div>
     </div>
 </body>

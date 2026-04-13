@@ -30,11 +30,14 @@ COPY requirements.txt .
 RUN pip install --upgrade pip && \
     pip install -r requirements.txt
 
-# Копирование приложения
-COPY . .
+# Копирование приложения (исключая .git, venv, __pycache__)
+COPY main.py .
+COPY app/ ./app/
+COPY templates/ ./templates/
+COPY static/ ./static/
 
 # Создание необходимых директорий
-RUN mkdir -p Uploads sessions static/assets/images
+RUN mkdir -p data Uploads sessions static/assets/images app/services/models
 
 # Непривилегированный пользователь
 RUN useradd --create-home --shell /bin/bash appuser && \
@@ -50,3 +53,6 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 
 # Запуск через gunicorn для продакшена
 CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "4", "--threads", "2", "--timeout", "120", "main:app"]
+
+# Для разработки (с автоперезагрузкой):
+# CMD ["python", "main.py"]

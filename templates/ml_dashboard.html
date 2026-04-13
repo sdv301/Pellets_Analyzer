@@ -355,6 +355,17 @@
                         </div>
 
                         <div class="p-3 border-radius-md bg-white border shadow-sm mb-4"
+                            style="border-left: 4px solid #0d6efd !important;">
+                            <h6 class="text-dark"><i class="fas fa-file-excel text-primary me-2"></i>Загрузка данных из Excel</h6>
+                            <p class="text-sm text-muted mb-3">Автоматически загружает составы и характеристики из файла в папке Uploads/. Это расширит базу для обучения.</p>
+                            <button type="button" class="btn btn-sm btn-outline-primary w-100 m-0" id="loadExcelBtn">
+                                <i class="fas fa-file-import me-1"></i><span class="btn-text">Загрузить из Excel</span>
+                                <div class="spinner-border spinner-border-sm ms-2 d-none" role="status"></div>
+                            </button>
+                            <div id="loadExcelResult" class="mt-2"></div>
+                        </div>
+
+                        <div class="p-3 border-radius-md bg-white border shadow-sm mb-4"
                             style="border-left: 4px solid #17ad37 !important;">
                             <h6 class="text-dark"><i class="fas fa-copy text-success me-2"></i>Масштабирование данных
                                 (Аугментация)</h6>
@@ -820,6 +831,39 @@
         }
     }
 
+    // --- ЗАГРУЗКА ИЗ EXCEL ---
+    document.getElementById('loadExcelBtn')?.addEventListener('click', async function() {
+        const btn = this;
+        const spinner = btn.querySelector('.spinner-border');
+        const txt = btn.querySelector('.btn-text');
+        const resultDiv = document.getElementById('loadExcelResult');
+
+        btn.disabled = true;
+        spinner.classList.remove('d-none');
+        txt.textContent = 'Загрузка...';
+        resultDiv.innerHTML = '';
+
+        try {
+            const r = await fetch('/ml_load_excel', { method: 'POST' });
+            const data = await r.json();
+
+            if (data.success) {
+                resultDiv.innerHTML = `<div class="alert alert-success py-2 px-3 mb-0 text-sm"><i class="fas fa-check me-1"></i>${data.message}</div>`;
+                updateSystemStats();
+                loadComponentFeatures();
+                initSandbox();
+            } else {
+                resultDiv.innerHTML = `<div class="alert alert-danger py-2 px-3 mb-0 text-sm"><i class="fas fa-exclamation-triangle me-1"></i>${data.error}</div>`;
+            }
+        } catch (error) {
+            resultDiv.innerHTML = `<div class="alert alert-danger py-2 px-3 mb-0 text-sm"><i class="fas fa-plug me-1"></i>Ошибка сети</div>`;
+        } finally {
+            btn.disabled = false;
+            spinner.classList.add('d-none');
+            txt.textContent = 'Загрузить из Excel';
+        }
+    });
+
     // --- ОБУЧЕНИЕ ---
     async function handleMLTraining(e) {
         e.preventDefault();
@@ -1000,14 +1044,27 @@
         const changedSafeId = changed.getAttribute('data-safe-id');
         let newVal = parseFloat(changed.value);
 
-        // Один компонент = 100%, остальные = 0
+        // БЛОКИРОВКА: не даём одному ползунку выйти за 100
+        if (newVal > 100) {
+            newVal = 100;
+            changed.value = '100.0';
+        }
+        if (newVal < 0) {
+            newVal = 0;
+            changed.value = '0.0';
+        }
+
+        // Один компонент = 100%
         if (sliders.length === 1) {
-            document.getElementById(`val_${changedSafeId}`).textContent = newVal.toFixed(1) + '%';
-            document.getElementById('sandboxTotalText').textContent = newVal.toFixed(1) + '%';
-            updateTotalColor(newVal);
+            changed.value = '100.0';
+            newVal = 100;
+            document.getElementById(`val_${changedSafeId}`).textContent = '100.0%';
+            document.getElementById('sandboxTotalText').textContent = '100.0%';
+            updateTotalColor(100);
             return;
         }
 
+        // Если ползунок >= 99.9 — все остальные в 0
         if (newVal >= 99.9) {
             sliders.forEach(s => {
                 const sid = s.getAttribute('data-safe-id');
@@ -1037,23 +1094,37 @@
 
         if (sumOthers > 0.05) {
             others.forEach(s => {
-                let adjustedVal = (parseFloat(s.value) * (targetOtherSum / sumOthers)).toFixed(1);
-                if (parseFloat(adjustedVal) < 0) adjustedVal = '0.0';
-                if (parseFloat(adjustedVal) > 100) adjustedVal = '100.0';
-                s.value = adjustedVal;
-                document.getElementById(`val_${s.getAttribute('data-safe-id')}`).textContent = adjustedVal + '%';
+                let adjustedVal = (parseFloat(s.value) * (targetOtherSum / sumOthers));
+                // Защита от отрицательных и >100
+                if (adjustedVal < 0) adjustedVal = 0;
+                if (adjustedVal > 100) adjustedVal = 100;
+                adjustedVal = Math.round(adjustedVal * 10) / 10;
+                s.value = adjustedVal.toFixed(1);
+                document.getElementById(`val_${s.getAttribute('data-safe-id')}`).textContent = adjustedVal.toFixed(1) + '%';
             });
         } else if (targetOtherSum > 0) {
-            let equalShare = (targetOtherSum / others.length).toFixed(1);
+            let equalShare = (targetOtherSum / others.length);
             others.forEach(s => {
-                s.value = equalShare;
-                document.getElementById(`val_${s.getAttribute('data-safe-id')}`).textContent = equalShare + '%';
+                s.value = equalShare.toFixed(1);
+                document.getElementById(`val_${s.getAttribute('data-safe-id')}`).textContent = equalShare.toFixed(1) + '%';
             });
         }
 
         document.getElementById(`val_${changedSafeId}`).textContent = newVal.toFixed(1) + '%';
 
+        // Финальная проверка: сумма НЕ МОЖЕТ быть > 100
         let actualSum = sliders.reduce((sum, s) => sum + parseFloat(s.value), 0);
+        if (actualSum > 100.1) {
+            // Пересчитываем до ровно 100
+            const ratio = 100 / actualSum;
+            sliders.forEach(s => {
+                const corrected = parseFloat(s.value) * ratio;
+                s.value = corrected.toFixed(1);
+                document.getElementById(`val_${s.getAttribute('data-safe-id')}`).textContent = corrected.toFixed(1) + '%';
+            });
+            actualSum = 100;
+        }
+
         document.getElementById('sandboxTotalText').textContent = actualSum.toFixed(1) + '%';
         updateTotalColor(actualSum);
     }

@@ -187,6 +187,16 @@ data/
 app_data/
 
 # ===========================================
+# Deploy scripts (содержат данные сервера — НЕ коммитить!)
+# ===========================================
+full-deploy.sh
+quick-deploy.sh
+setup-server.sh
+deploy.sh
+backup.sh
+server-info.txt
+
+# ===========================================
 # Documentation build
 # ===========================================
 docs/_build/

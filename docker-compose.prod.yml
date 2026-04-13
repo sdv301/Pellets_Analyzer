@@ -1,0 +1,83 @@
+# ============================================================
+# Pellets Analyzer — Docker Compose Production
+# Сервер: 178.250.158.115
+# ============================================================
+# Запуск: docker compose -f docker-compose.prod.yml up -d
+# Остановка: docker compose -f docker-compose.prod.yml down
+# ============================================================
+
+services:
+  # Основное приложение
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pellets-analyzer
+    restart: unless-stopped
+    expose:
+      - "5000"
+    env_file:
+      - .env
+    environment:
+      - SECRET_KEY=${SECRET_KEY:-change-me-to-random-string}
+      - FLASK_ENV=production
+      - DATABASE_URL=sqlite:////app/data/pellets_data.db
+      - MAIL_SERVER=${MAIL_SERVER:-smtp.gmail.com}
+      - MAIL_PORT=${MAIL_PORT:-587}
+      - MAIL_USE_TLS=${MAIL_USE_TLS:-true}
+      - MAIL_USERNAME=${MAIL_USERNAME:-}
+      - MAIL_PASSWORD=${MAIL_PASSWORD:-}
+      - MAIL_DEFAULT_SENDER=${MAIL_DEFAULT_SENDER:-Pellets Analyzer <noreply@pellets-analyzer.com>}
+      - MAIL_TIMEOUT=${MAIL_TIMEOUT:-30}
+      - LOG_LEVEL=${LOG_LEVEL:-WARNING}
+    volumes:
+      - app_data:/app/data
+      - uploads:/app/Uploads
+      - sessions:/app/sessions
+      - ml_models:/app/app/services/models
+    networks:
+      - pellets-net
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:5000/', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G
+        reservations:
+          cpus: '0.25'
+          memory: 512M
+
+  # Nginx — обратный прокси (HTTP без SSL, SSL через Certbot позже)
+  nginx:
+    image: nginx:alpine
+    container_name: pellets-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.prod.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - web
+    networks:
+      - pellets-net
+
+volumes:
+  app_data:
+    name: pellets-app-data
+  uploads:
+    name: pellets-uploads
+  sessions:
+    name: pellets-sessions
+  ml_models:
+    name: pellets-ml-models
+
+networks:
+  pellets-net:
+    driver: bridge
