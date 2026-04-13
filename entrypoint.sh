@@ -1,14 +1,14 @@
 #!/bin/bash
 # ============================================================
 # Pellets Analyzer - Docker Entrypoint Script
-# Fixes permissions on mounted volumes before starting the app
+# Runs as root, fixes permissions, then drops to appuser
 # ============================================================
 
 set -e
 
-# Ensure data directories exist and are writable
+# Ensure data directories exist and are writable by appuser
 mkdir -p /app/data /app/Uploads /app/sessions /app/app/services/models
 chown -R appuser:appuser /app/data /app/Uploads /app/sessions /app/app/services/models
 
-# Run the main command
-exec "$@"
+# Drop privileges and run the main command
+exec su-exec appuser "$@"
