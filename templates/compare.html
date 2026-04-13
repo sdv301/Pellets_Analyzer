@@ -2065,9 +2065,27 @@ window.addEventListener('load', function() {
         }
     }
 
+    // Глобальные переменные для Chart.js инстансов
+    var comparisonChartInstance = null;
+    var differenceChartInstance = null;
+    var radarChartInstance = null;
+
+    function destroyAllCharts() {
+        if (comparisonChartInstance) { comparisonChartInstance.destroy(); comparisonChartInstance = null; }
+        if (differenceChartInstance) { differenceChartInstance.destroy(); differenceChartInstance = null; }
+        if (radarChartInstance) { radarChartInstance.destroy(); radarChartInstance = null; }
+    }
+
     function toggleChartsView() {
         const chartsContainer = document.getElementById('visualComparison');
+        if (!chartsContainer) return;
         const isDetailed = chartsContainer.classList.contains('detailed-view');
+
+        // Сохраняем данные перед переключением
+        const savedData = currentComparisonData;
+
+        // Уничтожаем все Chart.js инстансы перед перерисовкой
+        destroyAllCharts();
 
         if (isDetailed) {
             chartsContainer.classList.remove('detailed-view');
@@ -2085,7 +2103,13 @@ window.addEventListener('load', function() {
                 </div>
             </div>
         `;
-            createVisualizations(currentComparisonData);
+            setTimeout(function() {
+                if (savedData && savedData.compositions && savedData.compositions.length > 0) {
+                    createVisualizationsWithCriteria(savedData);
+                } else {
+                    createSimpleFallbackCharts();
+                }
+            }, 100);
         } else {
             chartsContainer.classList.add('detailed-view');
             chartsContainer.innerHTML = `
@@ -2098,42 +2122,51 @@ window.addEventListener('load', function() {
                 </div>
             </div>
         `;
-            // Создаем радарную диаграмму
-            const radarCtx = document.getElementById('radarChart').getContext('2d');
-            new Chart(radarCtx, {
-                type: 'radar',
-                data: {
-                    labels: ['Теплота', 'Зольность', 'Плотность', 'Горение', 'Эмиссии', 'Прочность'],
-                    datasets: [{
-                        label: 'Состав 1',
-                        data: [85, 95, 80, 75, 90, 85],
-                        fill: true,
-                        backgroundColor: 'rgba(203, 12, 159, 0.2)',
-                        borderColor: '#cb0c9f',
-                        pointBackgroundColor: '#cb0c9f',
-                        pointBorderColor: '#fff',
-                        pointHoverBackgroundColor: '#fff',
-                        pointHoverBorderColor: '#cb0c9f'
-                    }, {
-                        label: 'Состав 2',
-                        data: [75, 85, 90, 80, 70, 75],
-                        fill: true,
-                        backgroundColor: 'rgba(130, 214, 22, 0.2)',
-                        borderColor: '#82d616',
-                        pointBackgroundColor: '#82d616',
-                        pointBorderColor: '#fff',
-                        pointHoverBackgroundColor: '#fff',
-                        pointHoverBorderColor: '#82d616'
-                    }]
-                },
-                options: {
-                    elements: {
-                        line: {
-                            borderWidth: 3
-                        }
-                    }
+            setTimeout(function() {
+                var radarCanvas = document.getElementById('radarChart');
+                if (!radarCanvas) return;
+                var radarCtx = radarCanvas.getContext('2d');
+                var labels = ['Теплота', 'Зольность', 'Плотность', 'Горение', 'Эмиссии', 'Прочность'];
+                var data1 = [85, 95, 80, 75, 90, 85];
+                var data2 = [75, 85, 90, 80, 70, 75];
+                var comp1Name = 'Состав 1';
+                var comp2Name = 'Состав 2';
+                if (currentComparisonData && currentComparisonData.compositions && currentComparisonData.compositions.length >= 2) {
+                    comp1Name = currentComparisonData.compositions[0].name || currentComparisonData.compositions[0] || 'Состав 1';
+                    comp2Name = currentComparisonData.compositions[1].name || currentComparisonData.compositions[1] || 'Состав 2';
                 }
-            });
+                radarChartInstance = new Chart(radarCtx, {
+                    type: 'radar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: comp1Name,
+                            data: data1,
+                            fill: true,
+                            backgroundColor: 'rgba(203, 12, 159, 0.2)',
+                            borderColor: '#cb0c9f',
+                            pointBackgroundColor: '#cb0c9f',
+                            pointBorderColor: '#fff',
+                            pointHoverBackgroundColor: '#fff',
+                            pointHoverBorderColor: '#cb0c9f'
+                        }, {
+                            label: comp2Name,
+                            data: data2,
+                            fill: true,
+                            backgroundColor: 'rgba(130, 214, 22, 0.2)',
+                            borderColor: '#82d616',
+                            pointBackgroundColor: '#82d616',
+                            pointBorderColor: '#fff',
+                            pointHoverBackgroundColor: '#fff',
+                            pointHoverBorderColor: '#82d616'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        elements: { line: { borderWidth: 3 } }
+                    }
+                });
+            }, 50);
         }
 
         showNotification('Вид графиков изменен', 'info');
@@ -2404,7 +2437,7 @@ window.addEventListener('load', function() {
     function createSmartDemoCharts(compositions, selectedCriteria) {
         try {
             const comparisonCtx = document.getElementById('comparisonChart');
-            const differenceCtx = document.getElementById('differenceCtx');
+            const differenceCtx = document.getElementById('differenceChart');
 
             if (!comparisonCtx || !differenceCtx) return;
 

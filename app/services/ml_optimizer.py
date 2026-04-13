@@ -385,7 +385,7 @@ class PelletPropertyPredictor:
             param_grid,
             cv=n_cv,
             scoring='r2',
-            n_jobs=-1,
+            n_jobs=1,  # FIX: n_jobs=-1 uses loky backend which crashes on Windows Python 3.14 (EOFError in popen_loky_win32)
             verbose=0
         )
         grid_search.fit(X_scaled, y_prop)
@@ -697,7 +697,10 @@ class MLCompositionOptimizer:
 
 
 class PelletMLSystem:
-    def __init__(self, db_path: str = 'pellets_data.db', use_remote: bool = False, **ssh_kwargs):
+    def __init__(self, db_path: str = None, use_remote: bool = False, **ssh_kwargs):
+        # По умолчанию БД в папке data/ относительно рабочей директории
+        if db_path is None:
+            db_path = os.path.join('data', 'pellets_data.db')
         """
         Инициализация ML-системы с поддержкой удалённой БД.
         

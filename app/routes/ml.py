@@ -1,13 +1,14 @@
 # app/routes/ml.py — ML Dashboard, обучение, оптимизация
+import os
 import threading
 import time
-from flask import Blueprint, render_template, request, jsonify
+from flask import Blueprint, render_template, request, jsonify, session
 from app.auth.auth import login_required
 from app.models.database import query_db
 
 ml_bp = Blueprint('ml', __name__)
 
-_db_path = 'pellets_data.db'
+_db_path = os.path.join('data', 'pellets_data.db')
 
 # Глобальное хранилище статуса обучения
 _training_status = {
@@ -28,11 +29,14 @@ def set_db_path(path):
 def _get_ml_system():
     from app.services.ml_optimizer import get_ml_system
     ml_system = get_ml_system()
-    ml_system.reload_data()
+    # Переопределяем путь к БД (без полной перезагрузки)
+    if ml_system.db_path != _db_path:
+        ml_system.db_path = _db_path
+        ml_system.reload_data()
     return ml_system
 
 
-def _train_async_task(target_properties, algorithm, input_features):
+def _train_async_task(target_properties, algorithm, input_features, user_id=None):
     """Фоновая задача обучения."""
     global _training_status
     try:
@@ -57,6 +61,25 @@ def _train_async_task(target_properties, algorithm, input_features):
         _training_status['message'] = 'Сохранение результатов...'
 
         if result.get('success'):
+            # Сохраняем модели в user_ml_models для отображения
+            if user_id:
+                from app.auth.auth import save_ml_model
+                status = ml_system.get_ml_system_status()
+                for prop, metrics in status.get('model_metrics', {}).items():
+                    training_metrics = metrics.get('training_metrics', {})
+                    composition_text = ', '.join(status.get('available_components', [])[:5])
+                    save_ml_model(
+                        _db_path, user_id,
+                        model_name=f'Model_{prop}',
+                        target_property=prop,
+                        algorithm=metrics.get('algorithm_used', algorithm),
+                        r2_score=training_metrics.get('r2_score', 0),
+                        mae=training_metrics.get('mae', 0),
+                        cv_r2=training_metrics.get('cv_r2', 0),
+                        training_data_size=status.get('training_data_size', 0),
+                        composition_text=composition_text
+                    )
+
             _training_status['result'] = result
             _training_status['progress'] = 100
             _training_status['message'] = 'Обучение завершено!'
@@ -72,37 +95,13 @@ def _train_async_task(target_properties, algorithm, input_features):
         _training_status['finished_at'] = time.time()
 
 
-@ml_bp.route('/admin/ml/dashboard')
+@ml_bp.route('/ml_dashboard')
 @login_required
 def ml_dashboard():
-    from app.routes.main import get_uploaded_files
-    uploaded_files = get_uploaded_files()
-    measured_data = query_db(_db_path, "measured_parameters")
-
-    ml_system = _get_ml_system()
-    status = ml_system.get_ml_system_status()
-
-    history_list = []
-    try:
-        from app.models.database import get_ml_optimizations
-        optimizations_history = get_ml_optimizations(_db_path, limit=10)
-        if hasattr(optimizations_history, 'empty') and not optimizations_history.empty:
-            history_list = optimizations_history.to_dict('records')
-            for item in history_list:
-                if 'optimal_composition' in item and isinstance(item['optimal_composition'], dict):
-                    item['optimal_composition_text'] = ", ".join([f"{v}% {k}" for k, v in item['optimal_composition'].items()])
-                else:
-                    item['optimal_composition_text'] = "Нет данных"
-    except Exception:
-        pass
-
+    # Минимальная загрузка — данные подгружаются асинхронно через JS
     return render_template(
         'ml_dashboard.html',
-        segment='ML Анализ',
-        uploaded_files=uploaded_files,
-        compositions=measured_data['composition'].tolist() if not measured_data.empty and 'composition' in measured_data.columns else [],
-        ml_status=status,
-        optimization_history=history_list
+        segment='ML Анализ'
     )
 
 
@@ -124,10 +123,12 @@ def ml_system_train():
         if not input_features:
             input_features = None
 
+        user_id = session.get('user_id')
+
         # Запуск обучения в фоне
         thread = threading.Thread(
             target=_train_async_task,
-            args=(target_properties, algorithm, input_features)
+            args=(target_properties, algorithm, input_features, user_id)
         )
         thread.daemon = True
         thread.start()
@@ -228,7 +229,7 @@ def ml_predict():
 def ml_system_status():
     try:
         ml_system = _get_ml_system()
-        ml_system.reload_data()
+        # Не перезагружаем данные каждый раз — используем кэш
         status = ml_system.get_ml_system_status()
         return jsonify({'success': True, 'system_status': status})
     except Exception as e:

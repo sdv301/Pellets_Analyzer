@@ -208,7 +208,10 @@ def generate_plotly_graph(data, x_param='ad', y_param='q', graph_type='scatter',
         template = get_plotly_theme(theme)
         
         # Определяем количество элементов для легенды
-        legend_items = len(filtered_data['composition'].unique()) if 'composition' in filtered_data.columns else 0
+        try:
+            legend_items = len(filtered_data['composition'].unique()) if 'composition' in filtered_data.columns else 0
+        except Exception:
+            legend_items = 0
         
         # Адаптивные настройки легенды
         legend_font_size = 10 if legend_items <= 10 else (9 if legend_items <= 15 else 8)

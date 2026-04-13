@@ -354,7 +354,7 @@
                             </div>
                         </div>
 
-                        <div class="p-3 border-radius-md bg-white border shadow-sm mb-4"
+                        <div class="p-3 border-radius-lg bg-gray-100 mb-4"
                             style="border-left: 4px solid #0d6efd !important;">
                             <h6 class="text-dark"><i class="fas fa-file-excel text-primary me-2"></i>Загрузка данных из Excel</h6>
                             <p class="text-sm text-muted mb-3">Автоматически загружает составы и характеристики из файла в папке Uploads/. Это расширит базу для обучения.</p>
@@ -365,7 +365,7 @@
                             <div id="loadExcelResult" class="mt-2"></div>
                         </div>
 
-                        <div class="p-3 border-radius-md bg-white border shadow-sm mb-4"
+                        <div class="p-3 border-radius-lg bg-gray-100 mb-4"
                             style="border-left: 4px solid #17ad37 !important;">
                             <h6 class="text-dark"><i class="fas fa-copy text-success me-2"></i>Масштабирование данных
                                 (Аугментация)</h6>
@@ -624,18 +624,28 @@
         }
     }
 
+    // Глобальный кэш статуса — один запрос на всю страницу
+    let _mlStatusCache = null;
+
+    async function fetchMLStatusOnce() {
+        if (_mlStatusCache) return _mlStatusCache;
+        const r = await fetch('/ml_system_status');
+        _mlStatusCache = await r.json();
+        return _mlStatusCache;
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         console.log('🚀 ML Dashboard инициализация...');
         
-        // Инициализируем все компоненты
-        loadMLStatus();
-        updateSystemStats();
-        loadComponentFeatures();
-        initConstraintsSection();
-        initSandbox();
-
-        // Проверяем статус системы при загрузке
-        checkMLReadyStatus();
+        // ОДИН запрос — переиспользуем данные везде
+        fetchMLStatusOnce().then(data => {
+            updateSystemStatsFromCache(data);
+            loadMLStatusFromCache(data);
+            loadComponentFeaturesFromCache(data);
+            initConstraintsFromCache(data);
+            initSandboxFromCache(data);
+            checkMLReadyStatusFromCache(data);
+        }).catch(err => console.warn('⚠️ Ошибка загрузки статуса:', err));
 
         // Навешиваем обработчики на вкладки
         document.querySelectorAll('button[data-bs-toggle="tab"]').forEach(btn => {
@@ -673,122 +683,92 @@
         console.log('✅ ML Dashboard готов к работе');
     });
 
-    // --- ПРОВЕРКА ГОТОВНОСТИ ML СИСТЕМЫ ---
-    function checkMLReadyStatus() {
-        fetch('/ml_system_status').then(r => r.json()).then(data => {
-            if (data.success && data.system_status.is_trained) {
-                // ML система готова
-                console.log('✅ ML система готова');
-            } else {
-                // ML система не готова - показываем подсказку
-                console.log('⚠️ ML система требует обучения');
-            }
-        });
+    // --- ПРОВЕРКА ГОТОВНОСТИ ML СИСТЕМЫ (из кэша) ---
+    function checkMLReadyStatusFromCache(data) {
+        if (data.success && data.system_status.is_trained) {
+            console.log('✅ ML система готова');
+        } else {
+            console.log('⚠️ ML система требует обучения');
+        }
     }
 
-    // --- СТАТУС СИСТЕМЫ ---
-    function updateSystemStats() {
-        fetch('/ml_system_status').then(r => r.json()).then(data => {
-            if (data.success && data.system_status) {
-                const el = (id) => document.getElementById(id);
-                if (el('dataCount')) el('dataCount').textContent = data.system_status.training_data_size || 0;
-                if (el('activeModels')) el('activeModels').textContent = (data.system_status.trained_models || []).length;
-                let totalR2 = 0; let count = 0;
-                const metrics = data.system_status.model_metrics || {};
-                Object.values(metrics).forEach(m => { if (m.training_metrics && m.training_metrics.r2_score) { totalR2 += m.training_metrics.r2_score; count++; } });
-                if (el('avgAccuracy')) el('avgAccuracy').textContent = count > 0 ? (totalR2 / count * 100).toFixed(1) + '%' : "0%";
-            }
-        }).catch(err => console.warn('⚠️ Ошибка обновления статистики:', err));
+    // --- СТАТУС СИСТЕМЫ (из кэша) ---
+    function updateSystemStatsFromCache(data) {
+        if (!data.success || !data.system_status) return;
+        const el = (id) => document.getElementById(id);
+        if (el('dataCount')) el('dataCount').textContent = data.system_status.training_data_size || 0;
+        if (el('activeModels')) el('activeModels').textContent = (data.system_status.trained_models || []).length;
+        let totalR2 = 0; let count = 0;
+        const metrics = data.system_status.model_metrics || {};
+        Object.values(metrics).forEach(m => { if (m.training_metrics && m.training_metrics.r2_score) { totalR2 += m.training_metrics.r2_score; count++; } });
+        if (el('avgAccuracy')) el('avgAccuracy').textContent = count > 0 ? (totalR2 / count * 100).toFixed(1) + '%' : "0%";
     }
 
-    function loadMLStatus() {
-        fetch('/ml_system_status').then(r => r.json()).then(data => {
-            const c = document.getElementById('mlSystemStatus');
-            if (!c) return;
-            if (data.success && data.system_status && data.system_status.trained_models && data.system_status.trained_models.length > 0) {
-                let html = '<h6 class="mb-3 mt-2">Обученные нейросети:</h6><div class="row g-3">';
-                for (const [prop, metrics] of Object.entries(data.system_status.model_metrics)) {
-                    const r2 = metrics.training_metrics ? (metrics.training_metrics.r2_score * 100).toFixed(1) : 'N/A';
-                    const badgeClass = r2 >= 80 ? 'bg-success' : (r2 >= 50 ? 'bg-warning' : 'bg-danger');
-                    const leftBorder = r2 >= 80 ? '#198754' : (r2 >= 50 ? '#ffc107' : '#dc3545');
-                    html += `
-                    <div class="col-md-6">
-                        <div class="card shadow-sm border-0 h-100">
-                            <div class="card-body p-3">
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <span class="fw-bold text-sm">${metrics.display_name || prop}</span>
-                                    <span class="badge ${badgeClass}">${r2}% Точность</span>
-                                </div>
-                                <div class="p-2 border-radius-sm" style="border-left: 3px solid ${leftBorder};">
-                                    <div class="text-xs fw-bold">Метод: ${metrics.algorithm_used || 'Выбрано ИИ'}</div>
-                                    <div class="text-xs text-muted mt-1">${metrics.algorithm_reason || ''}</div>
-                                </div>
+    function loadMLStatusFromCache(data) {
+        const c = document.getElementById('mlSystemStatus');
+        if (!c) return;
+        if (data.success && data.system_status && data.system_status.trained_models && data.system_status.trained_models.length > 0) {
+            let html = '<h6 class="mb-3 mt-2">Обученные нейросети:</h6><div class="row g-3">';
+            for (const [prop, metrics] of Object.entries(data.system_status.model_metrics)) {
+                const r2 = metrics.training_metrics ? (metrics.training_metrics.r2_score * 100).toFixed(1) : 'N/A';
+                const badgeClass = r2 >= 80 ? 'bg-success' : (r2 >= 50 ? 'bg-warning' : 'bg-danger');
+                const leftBorder = r2 >= 80 ? '#198754' : (r2 >= 50 ? '#ffc107' : '#dc3545');
+                html += `
+                <div class="col-md-6">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-body p-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="fw-bold text-sm">${metrics.display_name || prop}</span>
+                                <span class="badge ${badgeClass}">${r2}% Точность</span>
+                            </div>
+                            <div class="p-2 border-radius-sm" style="border-left: 3px solid ${leftBorder};">
+                                <div class="text-xs fw-bold">Метод: ${metrics.algorithm_used || 'Выбрано ИИ'}</div>
+                                <div class="text-xs text-muted mt-1">${metrics.algorithm_reason || ''}</div>
                             </div>
                         </div>
-                    </div>`;
-                }
-                c.innerHTML = html + '</div>';
-            } else { c.innerHTML = ''; }
-        }).catch(err => console.warn('⚠️ Ошибка загрузки статуса ML:', err));
+                    </div>
+                </div>`;
+            }
+            c.innerHTML = html + '</div>';
+        } else { c.innerHTML = ''; }
     }
 
-    // --- ПОДГРУЗКА КОМПОНЕНТОВ ИЗ БАЗЫ ДАННЫХ (БЕЗ НАЕЗДОВ И ОШИБОК ПРОБЕЛОВ) ---
-    function loadComponentFeatures() {
-        console.log('🔄 Загрузка компонентов из БД...');
-        
-        fetch('/ml_system_status')
-            .then(r => r.json())
-            .then(data => {
-                const container = document.getElementById('componentFeaturesContainer');
-                
-                if (!container) {
-                    console.warn('⚠️ Контейнер компонентов не найден');
-                    return;
-                }
-                
-                container.innerHTML = '';
+    // --- ПОДГРУЗКА КОМПОНЕНТОВ ИЗ БАЗЫ ДАННЫХ (из кэша) ---
+    function loadComponentFeaturesFromCache(data) {
+        console.log('🔄 Загрузка компонентов из кэша...');
+        const container = document.getElementById('componentFeaturesContainer');
+        if (!container) {
+            console.warn('⚠️ Контейнер компонентов не найден');
+            return;
+        }
+        container.innerHTML = '';
 
-                if (data.success && data.system_status.available_components && data.system_status.available_components.length > 0) {
-                    console.log('✅ Найдено компонентов:', data.system_status.available_components.length);
-                    
-                    data.system_status.available_components.forEach(comp => {
-                        // Создаем безопасный ID без пробелов (Рисовая шелуха -> Рисовая_шелуха)
-                        let safeId = comp.replace(/[^a-zA-Z0-9а-яА-ЯёЁ]/g, '_');
-
-                        // Добавлено m-1 (margin), чтобы кнопки не слипались при переносе строк
-                        const wrapper = document.createElement('div');
-                        wrapper.className = 'm-1';
-                        wrapper.style.display = 'inline-block';
-                        
-                        const checkbox = document.createElement('input');
-                        checkbox.className = 'btn-check-custom feature-checkbox';
-                        checkbox.type = 'checkbox';
-                        checkbox.name = 'input_features[]';
-                        checkbox.value = comp;
-                        checkbox.id = `feat_${safeId}`;
-                        checkbox.checked = true;
-                        
-                        const label = document.createElement('label');
-                        label.htmlFor = `feat_${safeId}`;
-                        label.className = 'shadow-sm mb-0 user-select-none';
-                        label.textContent = comp;
-                        
-                        wrapper.appendChild(checkbox);
-                        wrapper.appendChild(label);
-                        container.appendChild(wrapper);
-                    });
-                } else {
-                    container.innerHTML = '<div class="alert alert-light border text-muted w-100 text-center text-sm"><i class="fas fa-database me-2"></i>В базе нет данных о сырье. Сгенерируйте их на Шаге 1.</div>';
-                    console.warn('⚠️ В базе нет компонентов');
-                }
-            })
-            .catch(error => {
-                console.error('❌ Ошибка загрузки компонентов:', error);
-                const container = document.getElementById('componentFeaturesContainer');
-                if (container) {
-                    container.innerHTML = '<div class="alert alert-danger text-white text-center text-sm"><i class="fas fa-exclamation-triangle me-2"></i>Ошибка загрузки компонентов</div>';
-                }
+        if (data.success && data.system_status.available_components && data.system_status.available_components.length > 0) {
+            console.log('✅ Найдено компонентов:', data.system_status.available_components.length);
+            data.system_status.available_components.forEach(comp => {
+                let safeId = comp.replace(/[^a-zA-Z0-9а-яА-ЯёЁ]/g, '_');
+                const wrapper = document.createElement('div');
+                wrapper.className = 'm-1';
+                wrapper.style.display = 'inline-block';
+                const checkbox = document.createElement('input');
+                checkbox.className = 'btn-check-custom feature-checkbox';
+                checkbox.type = 'checkbox';
+                checkbox.name = 'input_features[]';
+                checkbox.value = comp;
+                checkbox.id = `feat_${safeId}`;
+                checkbox.checked = true;
+                const label = document.createElement('label');
+                label.htmlFor = `feat_${safeId}`;
+                label.className = 'shadow-sm mb-0 user-select-none';
+                label.textContent = comp;
+                wrapper.appendChild(checkbox);
+                wrapper.appendChild(label);
+                container.appendChild(wrapper);
             });
+        } else {
+            container.innerHTML = '<div class="alert alert-light border text-muted w-100 text-center text-sm"><i class="fas fa-database me-2"></i>В базе нет данных о сырье. Сгенерируйте их на Шаге 1.</div>';
+            console.warn('⚠️ В базе нет компонентов');
+        }
     }
 
     // --- АУГМЕНТАЦИЯ (С ПОЛНЫМ UI) ---
@@ -807,7 +787,12 @@
             const data = await r.json();
 
             if (data.success) {
-                updateSystemStats();
+                _mlStatusCache = null;
+                fetchMLStatusOnce().then(newData => {
+                    updateSystemStatsFromCache(newData);
+                    loadComponentFeaturesFromCache(newData);
+                    initSandboxFromCache(newData);
+                });
                 Swal.fire({
                     icon: 'success',
                     title: 'База успешно расширена!',
@@ -849,9 +834,12 @@
 
             if (data.success) {
                 resultDiv.innerHTML = `<div class="alert alert-success py-2 px-3 mb-0 text-sm"><i class="fas fa-check me-1"></i>${data.message}</div>`;
-                updateSystemStats();
-                loadComponentFeatures();
-                initSandbox();
+                _mlStatusCache = null;
+                fetchMLStatusOnce().then(newData => {
+                    updateSystemStatsFromCache(newData);
+                    loadComponentFeaturesFromCache(newData);
+                    initSandboxFromCache(newData);
+                });
             } else {
                 resultDiv.innerHTML = `<div class="alert alert-danger py-2 px-3 mb-0 text-sm"><i class="fas fa-exclamation-triangle me-1"></i>${data.error}</div>`;
             }
@@ -864,7 +852,9 @@
         }
     });
 
-    // --- ОБУЧЕНИЕ ---
+    // --- ОБУЧЕНИЕ С ПОЛЛИНГОМ СТАТУСА ---
+    let _trainingPollInterval = null;
+
     async function handleMLTraining(e) {
         e.preventDefault();
         const btn = document.getElementById('trainButton');
@@ -873,10 +863,10 @@
 
         btn.disabled = true;
         spinner.classList.remove('d-none');
-        txt.textContent = 'Идёт обучение...';
+        txt.textContent = 'Запуск обучения...';
 
         const resDiv = document.getElementById('trainingResults');
-        resDiv.innerHTML = '<span class="text-info"><i class="fas fa-spinner fa-spin"></i> Нейросеть изучает данные...</span>';
+        resDiv.innerHTML = '<span class="text-info"><i class="fas fa-spinner fa-spin"></i> Подключение к серверу...</span>';
 
         try {
             const formData = new FormData(this);
@@ -886,49 +876,119 @@
             const data = await r.json();
 
             if (data.success) {
-                resDiv.innerHTML = `<span class="text-success"><i class="fas fa-check"></i> ${data.message}</span>`;
-                updateSystemStats();
-                loadMLStatus();
-                Swal.fire({ icon: 'success', title: 'Обучение завершено!', confirmButtonColor: '#0d6efd' });
+                resDiv.innerHTML = '<span class="text-info"><i class="fas fa-spinner fa-spin"></i> Загрузка данных...</span>';
+                txt.textContent = 'Обучение запущено...';
+                startTrainingPoll();
             } else {
                 resDiv.innerHTML = `<span class="text-danger"><i class="fas fa-exclamation-triangle"></i> ${data.error}</span>`;
+                btn.disabled = false;
+                spinner.classList.add('d-none');
+                txt.textContent = 'Начать обучение';
             }
         } catch (error) {
             resDiv.innerHTML = `<span class="text-danger"><i class="fas fa-plug"></i> Ошибка соединения с сервером</span>`;
-        } finally {
             btn.disabled = false;
             spinner.classList.add('d-none');
             txt.textContent = 'Начать обучение';
         }
     }
 
+    function startTrainingPoll() {
+        if (_trainingPollInterval) clearInterval(_trainingPollInterval);
+        _trainingPollInterval = setInterval(async () => {
+            try {
+                const r = await fetch('/ml_train_status');
+                const data = await r.json();
+                updateTrainingProgress(data);
+
+                if (!data.is_training) {
+                    clearInterval(_trainingPollInterval);
+                    _trainingPollInterval = null;
+                    onTrainingComplete(data);
+                }
+            } catch (err) {
+                console.warn('⚠️ Ошибка поллинга:', err);
+            }
+        }, 1000);
+    }
+
+    function updateTrainingProgress(data) {
+        const resDiv = document.getElementById('trainingResults');
+        const btn = document.getElementById('trainButton');
+        const txt = btn.querySelector('.btn-text');
+
+        const progress = data.progress || 0;
+        const message = data.message || 'Обработка...';
+
+        txt.textContent = `Обучение: ${progress}%`;
+
+        let statusHtml = `<span class="text-info"><i class="fas fa-spinner fa-spin"></i> ${message} (${progress}%)</span>`;
+        statusHtml += `
+        <div class="progress mt-2" style="height: 6px;">
+            <div class="progress-bar bg-info" role="progressbar" style="width: ${progress}%"
+                 aria-valuenow="${progress}" aria-valuemin="0" aria-valuemax="100"></div>
+        </div>`;
+
+        resDiv.innerHTML = statusHtml;
+    }
+
+    function onTrainingComplete(data) {
+        const btn = document.getElementById('trainButton');
+        const spinner = btn.querySelector('.spinner-border');
+        const txt = btn.querySelector('.btn-text');
+        const resDiv = document.getElementById('trainingResults');
+
+        btn.disabled = false;
+        spinner.classList.add('d-none');
+        txt.textContent = 'Начать обучение';
+
+        if (data.error) {
+            resDiv.innerHTML = `<span class="text-danger"><i class="fas fa-exclamation-triangle"></i> ${data.error}</span>`;
+            Swal.fire({ icon: 'error', title: 'Ошибка обучения', text: data.error, confirmButtonColor: '#0d6efd' });
+        } else if (data.result && data.result.success) {
+            resDiv.innerHTML = `<span class="text-success"><i class="fas fa-check"></i> Обучение завершено!</span>`;
+            _mlStatusCache = null;
+            fetchMLStatusOnce().then(newData => {
+                updateSystemStatsFromCache(newData);
+                loadMLStatusFromCache(newData);
+                loadComponentFeaturesFromCache(newData);
+                initConstraintsFromCache(newData);
+                initSandboxFromCache(newData);
+            });
+            Swal.fire({ icon: 'success', title: 'Обучение завершено!', text: data.result.message || 'Модели успешно обучены', confirmButtonColor: '#0d6efd' });
+        } else {
+            resDiv.innerHTML = `<span class="text-warning"><i class="fas fa-exclamation-circle"></i> Обучение завершено с предупреждениями</span>`;
+        }
+    }
+
     // --- ОПТИМИЗАЦИЯ ---
-    function initConstraintsSection() {
+    function initConstraintsFromCache(data) {
         document.getElementById('advancedConstraints').addEventListener('change', function () {
             const section = document.getElementById('constraintsSection');
             section.style.display = this.checked ? 'block' : 'none';
             if (this.checked) {
-                fetch('/ml_system_status').then(r => r.json()).then(data => {
-                    const cContainer = document.getElementById('constraintsContainer');
-                    cContainer.innerHTML = '';
-                    if (data.success && data.system_status.available_components) {
-                        data.system_status.available_components.forEach(comp => {
-                            let safeId = comp.replace(/[^a-zA-Z0-9а-яА-ЯёЁ]/g, '_');
-                            cContainer.innerHTML += `
-                            <div class="col-md-6 mb-1">
-                                <label class="text-xs fw-bold text-dark mb-1">${comp}</label>
-                                <div class="input-group input-group-sm">
-                                    <span class="input-group-text">Min %</span><input type="number" name="min_${safeId}" class="form-control" value="0" min="0" max="100">
-                                    <span class="input-group-text ms-1">Max %</span><input type="number" name="max_${safeId}" class="form-control" value="100" min="0" max="100">
-                                </div>
-                            </div>`;
-                        });
-                    }
-                }).catch(err => {
-                    console.error('Ошибка загрузки ограничений:', err);
-                });
+                const cContainer = document.getElementById('constraintsContainer');
+                cContainer.innerHTML = '';
+                if (data.success && data.system_status.available_components) {
+                    data.system_status.available_components.forEach(comp => {
+                        let safeId = comp.replace(/[^a-zA-Z0-9а-яА-ЯёЁ]/g, '_');
+                        cContainer.innerHTML += `
+                        <div class="col-md-6 mb-1">
+                            <label class="text-xs fw-bold text-dark mb-1">${comp}</label>
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text">Min %</span><input type="number" name="min_${safeId}" class="form-control" value="0" min="0" max="100">
+                                <span class="input-group-text ms-1">Max %</span><input type="number" name="max_${safeId}" class="form-control" value="100" min="0" max="100">
+                            </div>
+                        </div>`;
+                    });
+                }
             }
         });
+    }
+
+    // Обратная совместимость
+    function initConstraintsSection() {
+        fetchMLStatusOnce().then(data => initConstraintsFromCache(data));
     }
 
     async function handleOptimization(e) {
@@ -955,27 +1015,55 @@
                     }
                 }
 
-                let html = `<div class="card border border-success shadow-sm mb-3"><div class="card-body">`;
-
-                if (isMono) {
-                    html += `<div class="alert alert-info py-2 px-3 text-sm border-0"><i class="fas fa-robot text-primary me-2"></i><b>Анализ ИИ:</b> Для достижения максимума добавление примесей ухудшит результат. Лучший вариант — чистое сырье.</div>`;
+                // Текстовое представление состава
+                let compositionText = '';
+                if (data.optimal_composition) {
+                    compositionText = Object.entries(data.optimal_composition)
+                        .map(([k, v]) => `${Number(v).toFixed(1)}% ${k}`)
+                        .join(', ');
                 }
 
-                html += `<div class="row align-items-center">
-                            <div class="col-md-5 text-center border-end">
-                                <h6 class="text-muted mb-0">Результат:</h6>
-                                <h2 class="text-success fw-bolder mb-0">${Number(data.predicted_value || data.optimal_value || 0).toFixed(2)}</h2>
+                let html = `
+                <div class="card border border-success shadow-lg mb-3" style="border-width: 2px !important;">
+                    <div class="card-body p-4">
+                        <div class="d-flex align-items-center mb-3">
+                            <i class="fas fa-check-circle text-success fa-2x me-3"></i>
+                            <div>
+                                <h5 class="text-success fw-bolder mb-0">Оптимизация завершена!</h5>
+                                <small class="text-muted">Найден идеальный состав</small>
                             </div>
-                            <div class="col-md-7 ps-4">
-                                <h6 class="text-sm mb-2">Точный Состав:</h6>
-                                <div class="d-flex flex-wrap gap-2">`;
+                        </div>
+
+                        <div class="row align-items-center g-3">
+                            <div class="col-md-4 text-center p-3 bg-success bg-opacity-10 rounded-3">
+                                <small class="text-muted text-uppercase fw-bold">Результат</small>
+                                <h1 class="text-success fw-bolder mb-0">${Number(data.predicted_value || data.optimal_value || 0).toFixed(2)}</h1>
+                            </div>
+                            <div class="col-md-8">
+                                <h6 class="text-dark fw-bold mb-2"><i class="fas fa-flask me-2"></i>Идеальный состав:</h6>
+                                <div class="p-3 bg-light rounded border-start border-success border-3">
+                                    <p class="mb-0 fw-bold text-dark">${compositionText}</p>
+                                </div>
+                                <div class="d-flex flex-wrap gap-2 mt-2">`;
 
                 if (data.optimal_composition) {
                     for (const [comp, pct] of Object.entries(data.optimal_composition)) {
-                        html += `<span class="badge bg-light text-dark border">${comp}: <span class="text-primary">${Number(pct).toFixed(1)}%</span></span>`;
+                        const pctNum = Number(pct);
+                        const badgeColor = pctNum > 50 ? 'bg-success' : (pctNum > 20 ? 'bg-primary' : 'bg-secondary');
+                        html += `<span class="badge ${badgeColor} fs-6">${comp}: ${pctNum.toFixed(1)}%</span>`;
                     }
                 }
-                resDiv.innerHTML = html + `</div></div></div></div></div>`;
+
+                html += `</div>
+                            </div>
+                        </div>`;
+
+                if (isMono) {
+                    html += `<div class="alert alert-info mt-3 py-2 px-3 text-sm border-0 mb-0"><i class="fas fa-robot text-primary me-2"></i><b>Анализ ИИ:</b> Для достижения максимума добавление примесей ухудшит результат. Лучший вариант — чистое сырье.</div>`;
+                }
+
+                html += `</div></div>`;
+                resDiv.innerHTML = html;
             } else {
                 resDiv.innerHTML = `<div class="alert alert-danger border-0">${data.error}</div>`;
             }
@@ -991,47 +1079,47 @@
     // --- ПЕСОЧНИЦА (С БЕЗОПАСНЫМИ ID) ---
     let sandboxTimer = null;
 
+    function initSandboxFromCache(data) {
+        const container = document.getElementById('sandboxSlidersContainer');
+        if (!container) return;
+        container.innerHTML = '';
+
+        if (data.success && data.system_status && data.system_status.available_components && data.system_status.available_components.length > 0) {
+            const components = data.system_status.available_components;
+            let initial = Math.floor((100 / components.length) * 10) / 10;
+            let remainder = 100 - (initial * components.length);
+
+            components.forEach((comp, index) => {
+                let val = initial;
+                if (index === 0) val += remainder;
+                let safeId = comp.replace(/[^a-zA-Z0-9а-яА-ЯёЁ]/g, '_');
+                container.innerHTML += `
+                    <div class="mb-3 border-bottom pb-2">
+                        <div class="d-flex justify-content-between mb-1">
+                            <label class="text-sm fw-bold text-dark m-0">${comp}</label>
+                            <span class="text-sm fw-bolder text-primary" id="val_${safeId}">${val.toFixed(1)}%</span>
+                        </div>
+                        <input type="range" class="custom-range sandbox-slider" data-comp="${comp}" data-safe-id="${safeId}" min="0" max="100" step="0.5" value="${val.toFixed(1)}">
+                    </div>`;
+            });
+
+            document.querySelectorAll('.sandbox-slider').forEach(s => {
+                s.addEventListener('input', function () {
+                    normalizeSliders(this);
+                    clearTimeout(sandboxTimer);
+                    sandboxTimer = setTimeout(updateSandbox, 150);
+                });
+            });
+            updateTotalColor(100);
+            updateSandbox();
+        } else {
+            container.innerHTML = '<div class="text-center text-muted py-4"><i class="fas fa-info-circle mb-2 fa-2x"></i><br>Нет компонентов для песочницы</div>';
+        }
+    }
+
+    // Обратная совместимость — старый код вызывает новый
     function initSandbox() {
-        fetch('/ml_system_status').then(r => r.json()).then(data => {
-            const container = document.getElementById('sandboxSlidersContainer');
-            if (!container) return;
-            container.innerHTML = '';
-
-            if (data.success && data.system_status && data.system_status.available_components && data.system_status.available_components.length > 0) {
-                const components = data.system_status.available_components;
-
-                let initial = Math.floor((100 / components.length) * 10) / 10;
-                let remainder = 100 - (initial * components.length);
-
-                components.forEach((comp, index) => {
-                    let val = initial;
-                    if (index === 0) val += remainder;
-
-                    let safeId = comp.replace(/[^a-zA-Z0-9а-яА-ЯёЁ]/g, '_');
-
-                    container.innerHTML += `
-                        <div class="mb-3 border-bottom pb-2">
-                            <div class="d-flex justify-content-between mb-1">
-                                <label class="text-sm fw-bold text-dark m-0">${comp}</label>
-                                <span class="text-sm fw-bolder text-primary" id="val_${safeId}">${val.toFixed(1)}%</span>
-                            </div>
-                            <input type="range" class="custom-range sandbox-slider" data-comp="${comp}" data-safe-id="${safeId}" min="0" max="100" step="0.5" value="${val.toFixed(1)}">
-                        </div>`;
-                });
-
-                document.querySelectorAll('.sandbox-slider').forEach(s => {
-                    s.addEventListener('input', function () {
-                        normalizeSliders(this);
-                        clearTimeout(sandboxTimer);
-                        sandboxTimer = setTimeout(updateSandbox, 150);
-                    });
-                });
-                updateTotalColor(100);
-                updateSandbox();
-            } else {
-                container.innerHTML = '<div class="text-center text-muted py-4"><i class="fas fa-info-circle mb-2 fa-2x"></i><br>Нет компонентов для песочницы</div>';
-            }
-        }).catch(err => {
+        fetchMLStatusOnce().then(data => initSandboxFromCache(data)).catch(err => {
             console.warn('⚠️ Ошибка инициализации песочницы:', err);
             const container = document.getElementById('sandboxSlidersContainer');
             if (container) container.innerHTML = '<div class="text-center text-muted py-4"><i class="fas fa-exclamation-triangle mb-2 fa-2x text-danger"></i><br>Ошибка загрузки</div>';
@@ -1218,18 +1306,22 @@
             const data = await r.json();
 
             if (data.success) {
-                updateSystemStats();
-                loadMLStatus();
+                _mlStatusCache = null;
+                fetchMLStatusOnce().then(newData => {
+                    updateSystemStatsFromCache(newData);
+                    loadMLStatusFromCache(newData);
+                    initSandboxFromCache(newData);
+                });
                 
                 // Обновляем ограничения для оптимизации
                 if (document.getElementById('advancedConstraints').checked) {
                     initConstraintsSection();
                 }
                 
-                Swal.fire({ 
-                    icon: 'success', 
-                    title: 'Готово!', 
-                    text: 'ИИ обучен. Песочница активирована!', 
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Готово!',
+                    text: 'ИИ обучен. Песочница активирована!',
                     confirmButtonColor: '#0d6efd',
                     timer: 2000
                 });

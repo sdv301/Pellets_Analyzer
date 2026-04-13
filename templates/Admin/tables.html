@@ -750,8 +750,10 @@
     }
 
     // Асинхронная отправка формы добавления данных
-    const addDataForm = document.getElementById('addDataForm');
-    if (addDataForm) {
+    (function() {
+        var addDataForm = document.getElementById('addDataForm');
+        if (!addDataForm || addDataForm._handlerAttached) return;
+        addDataForm._handlerAttached = true;
         addDataForm.addEventListener('submit', async function (e) {
             e.preventDefault();
             const formData = new FormData(this);
@@ -775,7 +777,7 @@
                 showToast('Ошибка при добавлении данных: ' + error.message, 'danger');
             }
         });
-    }
+    })();
 
     function showToast(message, type) {
         const toastContainer = document.createElement('div');

@@ -173,6 +173,8 @@ read_excel.py
 create_graph_fixed.js
 ml_old.py
 ml_optimizer_backup.py
+test_ml_data.py
+conftest.py
 
 # ===========================================
 # JavaScript files (outside static/)
@@ -181,10 +183,30 @@ ml_optimizer_backup.py
 !static/**/*.js
 
 # ===========================================
-# Docker volumes
+# Docker volumes / local data directories
 # ===========================================
 data/
 app_data/
+backups/
+backup/
+
+# ===========================================
+# PowerShell scripts (Windows-only deployment)
+# ===========================================
+*.ps1
+!deploy-git.ps1
+
+# ===========================================
+# Batch files (Windows-only)
+# ===========================================
+*.bat
+!install.bat
+
+# ===========================================
+# Compiled Python
+# ===========================================
+*.pyc
+*.pyo
 
 # ===========================================
 # Deploy scripts (содержат данные сервера — НЕ коммитить!)

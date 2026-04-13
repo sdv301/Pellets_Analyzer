@@ -154,11 +154,18 @@ def init_auth_tables(db_path: str = 'pellets_data.db'):
         cv_r2 REAL,
         training_data_size INTEGER,
         model_path TEXT,
+        composition_text TEXT,
         is_active INTEGER DEFAULT 1,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     )
     ''')
+
+    # Добавляем колонку composition_text если таблица уже существует
+    try:
+        cursor.execute('ALTER TABLE user_ml_models ADD COLUMN composition_text TEXT')
+    except Exception:
+        pass  # Колонка уже существует
 
     # Вставка ролей по умолчанию
     default_roles = [
@@ -659,17 +666,18 @@ def get_user_uploads(db_path: str, user_id: int, limit: int = 50) -> List[Dict[s
 
 def save_ml_model(db_path: str, user_id: int, model_name: str, target_property: str,
                   algorithm: str = '', r2_score: float = 0, mae: float = 0,
-                  cv_r2: float = 0, training_data_size: int = 0, model_path: str = ''):
+                  cv_r2: float = 0, training_data_size: int = 0, model_path: str = '',
+                  composition_text: str = ''):
     """Сохраняет информацию о ML модели пользователя."""
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     try:
         cursor.execute('''
             INSERT INTO user_ml_models (user_id, model_name, target_property, algorithm,
-                                        r2_score, mae, cv_r2, training_data_size, model_path)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                        r2_score, mae, cv_r2, training_data_size, model_path, composition_text)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (user_id, model_name, target_property, algorithm, r2_score, mae, cv_r2,
-              training_data_size, model_path))
+              training_data_size, model_path, composition_text))
         conn.commit()
         return cursor.lastrowid
     except Exception as e:

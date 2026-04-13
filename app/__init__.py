@@ -95,41 +95,73 @@ def create_app(config=None):
     # ============================================================
     # ОБРАБОТЧИКИ ОШИБОК
     # ============================================================
+    def _build_error_context(e):
+        """Строит контекст ошибки для отображения на странице."""
+        import traceback
+        from flask import request
+        from datetime import datetime
+
+        error_type = type(e).__name__
+        error_str = str(e)
+        traceback_str = traceback.format_exc()
+
+        # Извлекаем первую строку traceback как основную причину
+        cause = error_str
+        if traceback_str:
+            lines = traceback_str.strip().split('\n')
+            for line in reversed(lines):
+                line = line.strip()
+                if line and not line.startswith('Traceback') and not line.startswith('File'):
+                    # Берём последнюю строку с описанием ошибки
+                    if ':' in line:
+                        cause = line.split(':', 1)[-1].strip()
+                        break
+
+        return {
+            'error_type': error_type,
+            'error_message': error_str,
+            'traceback': traceback_str,
+            'cause': cause if cause else 'Неизвестная ошибка',
+            'url': request.url if request else 'N/A',
+            'method': request.method if request else 'N/A',
+            'endpoint': request.endpoint if request else 'N/A',
+            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'ip': request.remote_addr if request else 'N/A',
+        }
+
     @app.errorhandler(404)
     def handle_not_found(e):
-        import traceback
-        error_message = traceback.format_exc()
-        return render_template('errors/404.html', error_message=error_message), 404
+        ctx = _build_error_context(e)
+        app.logger.warning(f"404 Not Found: {ctx['url']} (метод: {ctx['method']})")
+        return render_template('errors/404.html', **ctx), 404
 
     @app.errorhandler(403)
     def handle_forbidden(e):
-        import traceback
-        error_message = traceback.format_exc()
-        return render_template('errors/403.html', error_message=error_message), 403
+        ctx = _build_error_context(e)
+        app.logger.warning(f"403 Forbidden: {ctx['url']} (пользователь: {session.get('username', 'anon')})")
+        return render_template('errors/403.html', **ctx), 403
 
     @app.errorhandler(500)
     def handle_server_error(e):
-        import traceback
-        error_info = traceback.format_exc()
-        app.logger.error(f"КРИТИЧЕСКАЯ ОШИБКА:\n{error_info}")
-        return render_template('errors/500.html', error_message=error_info), 500
+        ctx = _build_error_context(e)
+        app.logger.error(f"КРИТИЧЕСКАЯ ОШИБКА 500:\n{ctx['traceback']}")
+        return render_template('errors/500.html', **ctx), 500
 
     @app.errorhandler(Exception)
     def handle_exception(e):
         import traceback
+        ctx = _build_error_context(e)
         if hasattr(e, 'code'):
             if e.code == 404:
-                return render_template('errors/404.html'), 404
+                return render_template('errors/404.html', **ctx), 404
             if e.code == 403:
-                return render_template('errors/403.html'), 403
+                return render_template('errors/403.html', **ctx), 403
             if e.code == 500:
-                error_info = traceback.format_exc()
-                app.logger.error(f"КРИТИЧЕСКАЯ ОШИБКА:\n{error_info}")
-                return render_template('errors/500.html', error_message=error_info), 500
+                app.logger.error(f"КРИТИЧЕСКАЯ ОШИБКА:\n{ctx['traceback']}")
+                return render_template('errors/500.html', **ctx), 500
             return str(e), e.code
-        error_info = traceback.format_exc()
-        app.logger.error(f"КРИТИЧЕСКАЯ ОШИБКА:\n{error_info}")
-        return render_template('errors/500.html', error_message=error_info), 500
+        app.logger.error(f"НЕОБРАБОТАННОЕ ИСКЛЮЧЕНИЕ:\n{ctx['traceback']}")
+        return render_template('errors/500.html', **ctx), 500
 
     # ============================================================
     # КОНТЕКСТНЫЙ ПРОЦЕССОР
@@ -190,7 +222,9 @@ def _initialize_extensions(app):
 
     # Устанавливаем путь к БД во всех blueprints
     # БД хранится в /app/data/ — это смонтированный Docker volume для сохранения данных
-    db_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'pellets_data.db')
+    db_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
+    os.makedirs(db_dir, exist_ok=True)
+    db_path = os.path.join(db_dir, 'pellets_data.db')
 
     # Инициализация БД
     init_db(db_path)

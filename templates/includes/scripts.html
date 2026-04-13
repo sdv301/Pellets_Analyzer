@@ -1,11 +1,17 @@
 <!--   Core JS Files   -->
+<!-- jQuery FIRST — required by bootstrap-notify -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js" integrity="sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2iyI61OV8e6M8PP2/4hpQINQ/g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script>
+    // Fallback: if CDN jQuery fails, load local copy
+    if (typeof jQuery === 'undefined') {
+        document.write('<script src="{{ url_for("static", filename="assets/js/core/jquery.min.js") }}"><\/script>');
+    }
+</script>
 <script src="{{ url_for('static', filename='assets/js/core/popper.min.js') }}"></script>
 <script src="{{ url_for('static', filename='assets/js/core/bootstrap.min.js') }}"></script>
 <script src="{{ url_for('static', filename='assets/js/plugins/perfect-scrollbar.min.js') }}"></script>
 <script src="{{ url_for('static', filename='assets/js/plugins/smooth-scrollbar.min.js') }}"></script>
 <script src="{{ url_for('static', filename='assets/js/plugins/chartjs.min.js') }}"></script>
-<!-- jQuery ДОЛЖЕН загружаться ДО bootstrap-notify -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
 <script src="{{ url_for('static', filename='assets/js/plugins/bootstrap-notify.js') }}"></script>
 
 <!-- ЗАЩИТНЫЙ ПАТЧ: предотвращает ошибку removeChild в soft-ui-dashboard.min.js -->

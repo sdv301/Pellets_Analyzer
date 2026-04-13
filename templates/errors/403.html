@@ -122,6 +122,7 @@
             font-size: 13px;
             color: #888;
             animation: fadeInUp 0.8s ease-out 0.35s both;
+            text-align: left;
         }
 
         .error-details code {
@@ -130,6 +131,44 @@
             padding: 2px 6px;
             border-radius: 4px;
             font-size: 12px;
+        }
+
+        .error-info-row {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+
+        .error-info-item {
+            flex: 1;
+            min-width: 140px;
+        }
+
+        .error-info-label {
+            font-size: 11px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 2px;
+        }
+
+        .error-info-value {
+            font-size: 13px;
+            color: #ccc;
+            font-family: 'Courier New', monospace;
+            word-break: break-all;
+        }
+
+        .error-cause {
+            background: rgba(239, 68, 68, 0.06);
+            border: 1px solid rgba(239, 68, 68, 0.15);
+            border-radius: 8px;
+            padding: 10px 14px;
+            margin: 12px 0;
+            font-size: 13px;
+            color: #ef4444;
+            font-family: 'Courier New', monospace;
         }
 
         .error-trace {
@@ -247,10 +286,45 @@
             Если вы считаете, что это ошибка, обратитесь к администратору.
         </p>
 
-        {% if error_message %}
+        {% if cause or error_message or traceback %}
         <div class="error-details">
-            <i class="fas fa-info-circle"></i>
-            <pre class="error-trace">{{ error_message }}</pre>
+            <div class="error-info-row">
+                <div class="error-info-item">
+                    <div class="error-info-label">Время</div>
+                    <div class="error-info-value">{{ timestamp }}</div>
+                </div>
+                <div class="error-info-item">
+                    <div class="error-info-label">Метод</div>
+                    <div class="error-info-value">{{ method }}</div>
+                </div>
+                <div class="error-info-item">
+                    <div class="error-info-label">IP</div>
+                    <div class="error-info-value">{{ ip }}</div>
+                </div>
+            </div>
+            <div class="error-info-item" style="margin-top: 8px;">
+                <div class="error-info-label">URL</div>
+                <div class="error-info-value">{{ url }}</div>
+            </div>
+            {% if endpoint and endpoint != 'N/A' %}
+            <div class="error-info-item" style="margin-top: 8px;">
+                <div class="error-info-label">Endpoint</div>
+                <div class="error-info-value">{{ endpoint }}</div>
+            </div>
+            {% endif %}
+            {% if cause %}
+            <div class="error-cause">
+                <i class="fas fa-exclamation-triangle me-1"></i> {{ cause }}
+            </div>
+            {% endif %}
+            {% if traceback %}
+            <details>
+                <summary style="cursor: pointer; color: #ef4444; font-size: 12px; margin-bottom: 8px;">
+                    <i class="fas fa-code me-1"></i> Показать полный traceback
+                </summary>
+                <pre class="error-trace">{{ traceback }}</pre>
+            </details>
+            {% endif %}
         </div>
         {% endif %}
 
