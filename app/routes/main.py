@@ -4,7 +4,7 @@ import json
 import pandas as pd
 from flask import Blueprint, render_template, request, jsonify, session, flash, redirect, url_for
 from app.auth.auth import login_required
-from app.models.database import query_db
+from app.database.database import query_db
 from app.services.data_processor import process_data_source
 from app.services.gui import generate_graph, get_data_statistics
 
@@ -357,7 +357,7 @@ def add_data():
             'od': float(request.form.get('od', '')) if request.form.get('od', '') else None
         }
         df = pd.DataFrame([data])
-        from app.models.database import insert_data
+        from app.database.database import insert_data
         insert_data(_db_path, "measured_parameters", df)
 
         measured_data = query_db(_db_path, "measured_parameters")

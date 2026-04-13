@@ -738,7 +738,7 @@ class PelletMLSystem:
     def _connect_remote_db(self):
         """Подключается к удалённой БД через SSH-туннель."""
         try:
-            from app.models.database import DatabaseConnection
+            from app.database.database import DatabaseConnection
             self._db_connection = DatabaseConnection(
                 db_path=self.db_path,
                 use_remote=True,
@@ -819,7 +819,7 @@ class PelletMLSystem:
 
     def load_components(self) -> pd.DataFrame:
         try:
-            from app.models.database import query_db
+            from app.database.database import query_db
             components = query_db(self.db_path, "components")
             return components
         except Exception:
@@ -924,7 +924,7 @@ class PelletMLSystem:
             if df_clean.empty:
                 return {'success': False, 'error': 'Нет записей с составами после очистки данных'}
 
-            from app.models.database import insert_data
+            from app.database.database import insert_data
             insert_data(self.db_path, "measured_parameters", df_clean)
             logger.info(f"Загружено {len(df_clean)} записей в БД из Excel")
             self.training_data = self.load_training_data()
@@ -940,7 +940,7 @@ class PelletMLSystem:
 
     def load_training_data(self) -> pd.DataFrame:
         try:
-            from app.models.database import query_db, get_ml_optimizations
+            from app.database.database import query_db, get_ml_optimizations
             training_data = query_db(self.db_path, "measured_parameters")
             ml_optimizations = get_ml_optimizations(self.db_path, limit=100)
             
@@ -1011,7 +1011,7 @@ class PelletMLSystem:
         train_result = self.predictor.train(self.training_data, target_properties, algorithm, selected_features)
         if train_result.get('success', False):
             try:
-                from app.models.database import insert_ml_model_metrics
+                from app.database.database import insert_ml_model_metrics
                 for prop in self.predictor.models.keys():
                     metrics = self.predictor.training_metrics.get(prop, {})
                     metrics_data = {
@@ -1062,7 +1062,7 @@ class PelletMLSystem:
         
         if result.get('success'):
             try:
-                from app.models.database import insert_ml_optimization, add_ml_optimization_to_training_data
+                from app.database.database import insert_ml_optimization, add_ml_optimization_to_training_data
                 optimization_data = {
                     'target_property': target_property,
                     'maximize': maximize,
@@ -1191,7 +1191,7 @@ class PelletMLSystem:
 
     def augment_database(self, variations_count: int = 3, confidence_interval: float = 5.0) -> Dict:
         try:
-            from app.models.database import query_db, insert_data
+            from app.database.database import query_db, insert_data
             measured_data = query_db(self.db_path, "measured_parameters")
             if measured_data.empty:
                 return {'success': False, 'error': 'База данных пуста'}

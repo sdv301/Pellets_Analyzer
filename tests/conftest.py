@@ -10,7 +10,7 @@ import pytest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app import create_app
-from app.models.database import init_db, insert_data
+from app.database.database import init_db, insert_data
 import pandas as pd
 
 

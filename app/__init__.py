@@ -217,7 +217,7 @@ def _initialize_extensions(app):
     """Инициализирует БД, email, ML-систему."""
     import os
     from app.auth.auth import init_auth_tables, init_mail
-    from app.models.database import init_db
+    from app.database.database import init_db
     from app.services.ai_ml_analyzer import AIMLAnalyzer
 
     # Устанавливаем путь к БД во всех blueprints

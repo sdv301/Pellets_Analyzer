@@ -2,7 +2,7 @@
 from flask import Blueprint, render_template, request, jsonify, session, flash
 import pandas as pd
 from app.auth.auth import login_required
-from app.models.database import query_db
+from app.database.database import query_db
 
 compare_bp = Blueprint('compare', __name__)
 

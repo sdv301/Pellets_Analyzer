@@ -2,7 +2,7 @@
 from flask import Blueprint, render_template, request, jsonify, session
 import json
 from app.auth.auth import login_required
-from app.models.database import query_db
+from app.database.database import query_db
 from app.services.gui import (
     generate_graph, generate_plotly_graph, generate_seaborn_plot,
     get_data_statistics, MATPLOTLIB_GRAPHS, PLOTLY_GRAPHS, SEABORN_GRAPHS, VIZ_TYPES

@@ -4,7 +4,7 @@ import threading
 import time
 from flask import Blueprint, render_template, request, jsonify, session
 from app.auth.auth import login_required
-from app.models.database import query_db
+from app.database.database import query_db
 
 ml_bp = Blueprint('ml', __name__)
 

@@ -2,7 +2,7 @@
 import sqlite3
 from flask import Blueprint, render_template, request, jsonify, session
 from app.auth.auth import login_required, admin_required, get_activity_logs, get_user_stats, log_activity, hash_password
-from app.models.database import query_db
+from app.database.database import query_db
 
 admin_bp = Blueprint('admin', __name__)
 

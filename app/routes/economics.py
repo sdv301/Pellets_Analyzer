@@ -4,7 +4,7 @@ import pandas as pd
 import io
 import math
 from app.auth.auth import login_required
-from app.models.database import query_db
+from app.database.database import query_db
 
 economics_bp = Blueprint('economics', __name__)
 
