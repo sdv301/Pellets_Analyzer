@@ -41,11 +41,13 @@ MAIL_CONFIG = {
     'MAIL_MAX_EMAILS': int(os.environ.get('MAIL_MAX_EMAILS', '100')),
 }
 
-# Флаг: SMTP настроен или нет
-SMTP_CONFIGURED = bool(
-    os.environ.get('MAIL_USERNAME', '').strip() and
-    os.environ.get('MAIL_PASSWORD', '').strip()
-)
+# Флаг: SMTP настроен или нет (ленивая проверка)
+def is_smtp_configured() -> bool:
+    """Проверяет, настроен ли SMTP (ленивая проверка)."""
+    return bool(
+        os.environ.get('MAIL_USERNAME', '').strip() and
+        os.environ.get('MAIL_PASSWORD', '').strip()
+    )
 
 mail = Mail()
 
@@ -756,9 +758,57 @@ def moderator_required(f):
 # ОТПРАВКА EMAIL
 # ============================================================
 
+def _send_email_direct(subject: str, recipients: list, html: str) -> bool:
+    """Прямая отправка email через smtplib (fallback если Flask-Mail не работает)."""
+    username = os.environ.get('MAIL_USERNAME', '').strip()
+    password = os.environ.get('MAIL_PASSWORD', '').strip()
+    sender = os.environ.get('MAIL_DEFAULT_SENDER', 'noreply@pellets-analyzer.com')
+    server = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
+    port = int(os.environ.get('MAIL_PORT', '587'))
+    use_tls = os.environ.get('MAIL_USE_TLS', 'True').lower() == 'true'
+    timeout = int(os.environ.get('MAIL_TIMEOUT', '30'))
+
+    if not username or not password:
+        logger.warning("SMTP учётные данные не настроены")
+        return False
+
+    try:
+        if use_tls and port == 587:
+            smtp = smtplib.SMTP(server, port, timeout=timeout)
+            smtp.ehlo()
+            smtp.starttls()
+            smtp.ehlo()
+        elif port == 465:
+            smtp = smtplib.SMTP_SSL(server, port, timeout=timeout)
+        else:
+            smtp = smtplib.SMTP(server, port, timeout=timeout)
+            if use_tls:
+                smtp.ehlo()
+                smtp.starttls()
+
+        smtp.login(username, password)
+
+        from email.mime.multipart import MIMEMultipart
+        from email.mime.text import MIMEText
+
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = subject
+        msg['From'] = sender
+        msg['To'] = ', '.join(recipients)
+        msg.attach(MIMEText(html, 'html', 'utf-8'))
+
+        smtp.sendmail(sender, recipients, msg.as_string())
+        smtp.quit()
+        logger.info(f"Email успешно отправлен через прямую SMTP: {recipients}")
+        return True
+    except Exception as e:
+        logger.error(f"Ошибка прямой SMTP отправки: {e}")
+        return False
+
+
 def send_verification_email(email: str, token: str, base_url: str, username: str = ''):
     """Отправляет email с подтверждением регистрации с retry-логикой."""
-    if not SMTP_CONFIGURED:
+    if not is_smtp_configured():
         logger.warning("SMTP не настроен — email подтверждения не отправлен. Регистрация успешна.")
         return True  # Graceful degradation: регистрация проходит без email
 
@@ -870,29 +920,64 @@ def send_verification_email(email: str, token: str, base_url: str, username: str
 
     max_retries = 3
     retry_delay = 2  # секунды между попытками
+    use_fallback = False
 
     for attempt in range(max_retries):
         try:
             logger.info(f"Отправка email подтверждения на {email} (попытка {attempt + 1}/{max_retries})")
-            msg = Message(
-                subject='Подтверждение регистрации — Pellets Analyzer',
-                recipients=[email],
-                html=html_content
-            )
-            mail.send(msg)
-            logger.info(f"Email подтверждения успешно отправлен: {email}")
-            return True
+
+            # Первая попытка через Flask-Mail, fallback — прямая SMTP
+            if attempt == 0 and not use_fallback:
+                try:
+                    msg = Message(
+                        subject='Подтверждение регистрации — Pellets Analyzer',
+                        recipients=[email],
+                        html=html_content
+                    )
+                    mail.send(msg)
+                    logger.info(f"Email подтверждения успешно отправлен через Flask-Mail: {email}")
+                    return True
+                except Exception as flask_mail_err:
+                    logger.warning(f"Flask-Mail не сработал, пробуем прямую SMTP: {flask_mail_err}")
+                    use_fallback = True
+                    # Не тратим попытку, переходим к fallback
+
+            if use_fallback:
+                success = _send_email_direct(
+                    subject='Подтверждение регистрации — Pellets Analyzer',
+                    recipients=[email],
+                    html=html_content
+                )
+                if success:
+                    return True
+                logger.warning(f"Прямая SMTP отправка не удалась (попытка {attempt + 1})")
+                if attempt < max_retries - 1:
+                    time.sleep(retry_delay * (attempt + 1))
+                else:
+                    logger.error(f"Не удалось отправить email после {max_retries} попыток: {email}")
+                    return False
+            else:
+                # Flask-Mail retry
+                msg = Message(
+                    subject='Подтверждение регистрации — Pellets Analyzer',
+                    recipients=[email],
+                    html=html_content
+                )
+                mail.send(msg)
+                logger.info(f"Email подтверждения успешно отправлен: {email}")
+                return True
+
         except smtplib.SMTPAuthenticationError as e:
             logger.error(f"SMTP Authentication Error при отправке на {email}: {e}")
-            return False  # Не retry — проблема с учётными данными
+            return False
         except smtplib.SMTPRecipientsRefused as e:
             logger.error(f"SMTP Recipients Refused для {email}: {e}")
-            return False  # Не retry — email отклонён
+            return False
         except (smtplib.SMTPServerDisconnected, smtplib.SMTPSenderRefused,
                 socket.timeout, socket.error, ConnectionRefusedError) as e:
             logger.warning(f"SMTP ошибка (попытка {attempt + 1}/{max_retries}) для {email}: {e}")
             if attempt < max_retries - 1:
-                time.sleep(retry_delay * (attempt + 1))  # Экспоненциальная задержка
+                time.sleep(retry_delay * (attempt + 1))
             else:
                 logger.error(f"Не удалось отправить email после {max_retries} попыток: {email}")
                 return False
@@ -908,7 +993,7 @@ def send_verification_email(email: str, token: str, base_url: str, username: str
 
 def send_reset_email(email: str, token: str, base_url: str):
     """Отправляет email для сброса пароля с retry-логикой."""
-    if not SMTP_CONFIGURED:
+    if not is_smtp_configured():
         logger.warning("SMTP не настроен — email сброса пароля не отправлен.")
         return False
 
@@ -1004,18 +1089,50 @@ def send_reset_email(email: str, token: str, base_url: str):
 
     max_retries = 3
     retry_delay = 2
+    use_fallback = False
 
     for attempt in range(max_retries):
         try:
             logger.info(f"Отправка email сброса пароля на {email} (попытка {attempt + 1}/{max_retries})")
-            msg = Message(
-                subject='Сброс пароля — Pellets Analyzer',
-                recipients=[email],
-                html=html_content
-            )
-            mail.send(msg)
-            logger.info(f"Email сброса пароля успешно отправлен: {email}")
-            return True
+
+            if attempt == 0 and not use_fallback:
+                try:
+                    msg = Message(
+                        subject='Сброс пароля — Pellets Analyzer',
+                        recipients=[email],
+                        html=html_content
+                    )
+                    mail.send(msg)
+                    logger.info(f"Email сброса пароля успешно отправлен через Flask-Mail: {email}")
+                    return True
+                except Exception as flask_mail_err:
+                    logger.warning(f"Flask-Mail не сработал, пробуем прямую SMTP: {flask_mail_err}")
+                    use_fallback = True
+
+            if use_fallback:
+                success = _send_email_direct(
+                    subject='Сброс пароля — Pellets Analyzer',
+                    recipients=[email],
+                    html=html_content
+                )
+                if success:
+                    return True
+                logger.warning(f"Прямая SMTP отправка не удалась (попытка {attempt + 1})")
+                if attempt < max_retries - 1:
+                    time.sleep(retry_delay * (attempt + 1))
+                else:
+                    logger.error(f"Не удалось отправить email сброса после {max_retries} попыток: {email}")
+                    return False
+            else:
+                msg = Message(
+                    subject='Сброс пароля — Pellets Analyzer',
+                    recipients=[email],
+                    html=html_content
+                )
+                mail.send(msg)
+                logger.info(f"Email сброса пароля успешно отправлен: {email}")
+                return True
+
         except smtplib.SMTPAuthenticationError as e:
             logger.error(f"SMTP Authentication Error при сбросе пароля для {email}: {e}")
             return False
@@ -1042,7 +1159,7 @@ def send_reset_email(email: str, token: str, base_url: str):
 
 def resend_verification_email(email: str, db_path: str, base_url: str) -> Dict[str, Any]:
     """Повторно отправляет email подтверждения для указанного пользователя."""
-    if not SMTP_CONFIGURED:
+    if not is_smtp_configured():
         return {'success': True, 'message': 'Подтверждение email отключено. Аккаунт уже активен.'}
 
     conn = sqlite3.connect(db_path)

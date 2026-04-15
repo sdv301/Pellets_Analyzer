@@ -71,8 +71,8 @@ def register():
         result = create_user(_db_path, username, email, password, full_name=full_name or username)
 
         if result['success']:
-            from app.auth.auth import SMTP_CONFIGURED
-            if not SMTP_CONFIGURED:
+            from app.auth.auth import is_smtp_configured
+            if not is_smtp_configured():
                 # SMTP не настроен — авто-верификация пользователя
                 import sqlite3
                 conn = sqlite3.connect(_db_path)
