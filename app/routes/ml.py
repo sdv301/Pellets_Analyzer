@@ -2,11 +2,14 @@
 import os
 import threading
 import time
+import logging
+from collections import deque
 from flask import Blueprint, render_template, request, jsonify, session
 from app.auth.auth import login_required
 from app.database.database import query_db
 
 ml_bp = Blueprint('ml', __name__)
+logger = logging.getLogger(__name__)
 
 _db_path = os.path.join('data', 'pellets_data.db')
 
@@ -20,25 +23,82 @@ _training_status = {
     'started_at': None,
     'finished_at': None,
 }
+_ml_warmup_started = False
+_ml_warmup_completed = False
+_ml_warmup_error = None
+_ml_warmup_lock = threading.Lock()
+_endpoint_timings = {
+    '/ml_optimize': deque(maxlen=200),
+    '/ml_system_train': deque(maxlen=200),
+}
+
+
+def _percentile(values, q):
+    if not values:
+        return 0.0
+    sorted_values = sorted(values)
+    idx = int(round((q / 100.0) * (len(sorted_values) - 1)))
+    return float(sorted_values[idx])
+
+
+def _record_endpoint_timing(endpoint, elapsed_sec):
+    timings = _endpoint_timings.get(endpoint)
+    if timings is None:
+        return
+    elapsed_ms = elapsed_sec * 1000.0
+    timings.append(elapsed_ms)
+    p50 = _percentile(list(timings), 50)
+    p95 = _percentile(list(timings), 95)
+    logger.info("%s latency_ms=%.2f p50=%.2f p95=%.2f n=%s", endpoint, elapsed_ms, p50, p95, len(timings))
 
 def set_db_path(path):
     global _db_path
     _db_path = path
 
 
-def _get_ml_system():
+def _resolve_ml_system():
     from app.services.ml_optimizer import get_ml_system
+    started_at = time.perf_counter()
     ml_system = get_ml_system()
     # Переопределяем путь к БД (без полной перезагрузки)
     if ml_system.db_path != _db_path:
         ml_system.db_path = _db_path
         ml_system.reload_data()
+    elapsed_ms = (time.perf_counter() - started_at) * 1000.0
+    logger.info("_get_ml_system resolve_ms=%.2f db=%s", elapsed_ms, _db_path)
     return ml_system
+
+
+def _warmup_ml_system_worker():
+    global _ml_warmup_completed, _ml_warmup_error
+    try:
+        _resolve_ml_system()
+        _ml_warmup_completed = True
+        _ml_warmup_error = None
+        logger.info("ML warmup completed successfully")
+    except Exception as exc:
+        _ml_warmup_error = str(exc)
+        logger.warning("ML warmup failed: %s", exc)
+
+
+def _ensure_ml_warmup():
+    global _ml_warmup_started
+    with _ml_warmup_lock:
+        if _ml_warmup_started:
+            return
+        _ml_warmup_started = True
+    thread = threading.Thread(target=_warmup_ml_system_worker, daemon=True)
+    thread.start()
+
+
+def _get_ml_system():
+    return _resolve_ml_system()
 
 
 def _train_async_task(target_properties, algorithm, input_features, user_id=None):
     """Фоновая задача обучения."""
     global _training_status
+    started_at = time.perf_counter()
     try:
         _training_status['is_training'] = True
         _training_status['progress'] = 10
@@ -93,12 +153,14 @@ def _train_async_task(target_properties, algorithm, input_features, user_id=None
     finally:
         _training_status['is_training'] = False
         _training_status['finished_at'] = time.time()
+        logger.info("ml_train_async completed in %.2fms", (time.perf_counter() - started_at) * 1000.0)
 
 
 @ml_bp.route('/ml_dashboard')
 @login_required
 def ml_dashboard():
     # Минимальная загрузка — данные подгружаются асинхронно через JS
+    _ensure_ml_warmup()
     return render_template(
         'ml_dashboard.html',
         segment='ML Анализ'
@@ -109,6 +171,7 @@ def ml_dashboard():
 @login_required
 def ml_system_train():
     global _training_status
+    started_at = time.perf_counter()
     if _training_status['is_training']:
         return jsonify({'success': False, 'error': 'Обучение уже запущено. Дождитесь завершения.'})
 
@@ -140,6 +203,8 @@ def ml_system_train():
         })
     except Exception as e:
         return jsonify({'success': False, 'error': f'Ошибка запуска обучения: {str(e)}'})
+    finally:
+        _record_endpoint_timing('/ml_system_train', time.perf_counter() - started_at)
 
 
 @ml_bp.route('/ml_train_status')
@@ -176,6 +241,7 @@ def ml_augment_database():
 @ml_bp.route('/ml_optimize', methods=['POST'])
 @login_required
 def ml_optimize():
+    started_at = time.perf_counter()
     try:
         ml_system = _get_ml_system()
         target_property = request.form.get('target_property')
@@ -201,6 +267,8 @@ def ml_optimize():
         return jsonify(result)
     except Exception as e:
         return jsonify({'success': False, 'error': f'Ошибка оптимизации: {str(e)}'})
+    finally:
+        _record_endpoint_timing('/ml_optimize', time.perf_counter() - started_at)
 
 
 @ml_bp.route('/ml_predict', methods=['POST'])
@@ -208,7 +276,9 @@ def ml_optimize():
 def ml_predict():
     try:
         ml_system = _get_ml_system()
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
+        if not isinstance(data, dict):
+            return jsonify({'success': False, 'error': 'Некорректный формат запроса'})
         composition = data.get('composition', {})
         target_property = data.get('target_property')
 
@@ -240,8 +310,12 @@ def ml_system_status():
 @login_required
 def api_predict_composition():
     try:
-        data = request.json
+        data = request.get_json(silent=True) or {}
+        if not isinstance(data, dict):
+            return jsonify({'success': False, 'error': 'Некорректный формат запроса'})
         composition = data.get('composition', {})
+        if not isinstance(composition, dict) or not composition:
+            return jsonify({'success': False, 'error': 'Не указан состав для предсказания'})
         ml_system = _get_ml_system()
 
         if not ml_system.predictor.is_trained:

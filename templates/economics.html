@@ -88,7 +88,7 @@
                                         <option value="Угольный шлам">Угольный шлам</option>
                                         <option value="Торф">Торф</option>
                                         <option value="Бурый уголь">Бурый уголь</option>
-                                        <option value="CMC">CMC</option>
+                                        <option value="СМС">СМС (CMC)</option>
                                         <option value="Пластик">Пластик</option>
                                         <option value="Листья">Листья</option>
                                         <option value="Отработанное моторное масло">Отр. моторное масло</option>
@@ -128,6 +128,31 @@
                         <button type="submit" class="btn bg-gradient-success w-100 shadow-sm" id="calc-btn">
                             <i class="fas fa-calculator me-2"></i>Рассчитать себестоимость
                         </button>
+
+                        <hr class="horizontal light my-3">
+                        <h6 class="text-uppercase text-body text-xs font-weight-bolder mb-2">Сценарии сравнения</h6>
+                        <div class="row g-2 mb-2">
+                            <div class="col-8">
+                                <input type="text" class="form-control premium-input" id="scenario-name-input" placeholder="Название варианта">
+                            </div>
+                            <div class="col-4">
+                                <button type="button" class="btn btn-sm btn-outline-primary w-100" id="save-scenario-btn">
+                                    <i class="fas fa-save me-1"></i>Сохранить
+                                </button>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2 mb-2">
+                            <button type="button" class="btn btn-sm btn-outline-info flex-fill" id="compare-scenarios-btn">
+                                <i class="fas fa-balance-scale me-1"></i>Сравнить
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-success flex-fill" id="export-scenarios-excel-btn">
+                                <i class="fas fa-file-excel me-1"></i>Excel
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-danger flex-fill" id="export-scenarios-pdf-btn">
+                                <i class="fas fa-file-pdf me-1"></i>PDF
+                            </button>
+                        </div>
+                        <div id="saved-scenarios-container" class="small text-muted"></div>
                     </form>
                 </div>
             </div>
@@ -256,6 +281,24 @@
                     </div>
 
                 </div>
+
+                <div class="card-body pt-0 d-none" id="compare-results-content">
+                    <h6 class="text-uppercase text-body text-xs font-weight-bolder mb-3">Сравнение сценариев</h6>
+                    <div class="table-responsive">
+                        <table class="table align-items-center mb-0 text-sm text-dark">
+                            <thead>
+                                <tr>
+                                    <th>Сценарий</th>
+                                    <th>Итог, руб</th>
+                                    <th>Масса, кг</th>
+                                    <th>Теплота, МДж/кг</th>
+                                    <th>Себестоимость, руб/кг</th>
+                                </tr>
+                            </thead>
+                            <tbody id="compare-results-body"></tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -268,6 +311,7 @@
     document.addEventListener('DOMContentLoaded', function () {
 
         let costChart = null;
+        const savedScenarios = [];
 
         // ----- Dynamic Component List Logic -----
         const container = document.getElementById('components-container');
@@ -310,6 +354,51 @@
             }
         }
 
+        function collectCurrentScenarioComponents() {
+            const components = {};
+            document.querySelectorAll('.component-row').forEach(row => {
+                const name = row.querySelector('.component-select').value;
+                const perc = parseFloat(row.querySelector('.component-percentage').value) || 0;
+                if (perc > 0) {
+                    components[name] = (components[name] || 0) + perc;
+                }
+            });
+            return components;
+        }
+
+        function collectGlobalParams() {
+            return {
+                q_boiler: document.getElementById('q_boiler').value,
+                t_hours: document.getElementById('t_hours').value,
+                distance: document.getElementById('distance').value,
+                capacity_factor: document.getElementById('capacity_factor').value,
+                efficiency: document.getElementById('efficiency').value
+            };
+        }
+
+        function renderSavedScenarios() {
+            const container = document.getElementById('saved-scenarios-container');
+            if (!savedScenarios.length) {
+                container.innerHTML = '<span>Сценарии не сохранены</span>';
+                return;
+            }
+            container.innerHTML = savedScenarios.map((item, idx) => (
+                `<div class="d-flex justify-content-between align-items-center border rounded p-2 mb-1">
+                    <span>${idx + 1}. ${item.name}</span>
+                    <button type="button" class="btn btn-sm btn-outline-danger remove-scenario-btn" data-index="${idx}">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>`
+            )).join('');
+            container.querySelectorAll('.remove-scenario-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const i = Number(btn.dataset.index);
+                    savedScenarios.splice(i, 1);
+                    renderSavedScenarios();
+                });
+            });
+        }
+
         // Attach listener to initial row
         document.querySelectorAll('.component-percentage').forEach(input => {
             input.addEventListener('input', updateTotal);
@@ -347,6 +436,109 @@
 
             checkRemoveButtons();
             updateTotal();
+        });
+
+        document.getElementById('save-scenario-btn').addEventListener('click', function () {
+            const scenarioNameInput = document.getElementById('scenario-name-input');
+            const name = (scenarioNameInput.value || '').trim() || `Вариант ${savedScenarios.length + 1}`;
+            let sum = 0;
+            document.querySelectorAll('.component-percentage').forEach(input => sum += parseFloat(input.value) || 0);
+            if (Math.abs(sum - 100) > 0.1) {
+                Swal.fire('Ошибка', 'Перед сохранением сумма компонентов должна быть 100%', 'error');
+                return;
+            }
+            const components = collectCurrentScenarioComponents();
+            savedScenarios.push({ name, components });
+            scenarioNameInput.value = '';
+            renderSavedScenarios();
+            Swal.fire({ title: 'Сохранено', text: `Сценарий "${name}" добавлен`, icon: 'success', timer: 1200, showConfirmButton: false });
+        });
+
+        async function runScenarioComparison() {
+            if (!savedScenarios.length) {
+                Swal.fire('Внимание', 'Сначала сохраните хотя бы один сценарий', 'warning');
+                return null;
+            }
+            const payload = {
+                global_params: collectGlobalParams(),
+                scenarios: savedScenarios
+            };
+            const response = await fetch('/api/compare_economics', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            return await response.json();
+        }
+
+        document.getElementById('compare-scenarios-btn').addEventListener('click', async function () {
+            try {
+                const data = await runScenarioComparison();
+                if (!data) return;
+                if (!data.success) {
+                    Swal.fire('Ошибка', data.error || 'Ошибка сравнения', 'error');
+                    return;
+                }
+                const body = document.getElementById('compare-results-body');
+                body.innerHTML = '';
+                const fmt = new Intl.NumberFormat('ru-RU');
+                data.scenarios.forEach(row => {
+                    if (!row.success) return;
+                    const result = row.result;
+                    body.innerHTML += `
+                        <tr>
+                            <td>${row.name}</td>
+                            <td>${fmt.format(result.total_cost)}</td>
+                            <td>${fmt.format(result.storage.mass_kg)}</td>
+                            <td>${result.mix_metrics.heat_capacity}</td>
+                            <td>${result.production.cost_per_kg}</td>
+                        </tr>
+                    `;
+                });
+                document.getElementById('compare-results-content').classList.remove('d-none');
+                if (data.summary && data.summary.best_scenario) {
+                    Swal.fire({
+                        title: 'Сравнение готово',
+                        text: `Лучший сценарий: ${data.summary.best_scenario}`,
+                        icon: 'success'
+                    });
+                }
+            } catch (error) {
+                Swal.fire('Ошибка', 'Не удалось выполнить сравнение', 'error');
+            }
+        });
+
+        async function exportScenarios(endpoint) {
+            if (!savedScenarios.length) {
+                Swal.fire('Внимание', 'Сначала сохраните хотя бы один сценарий', 'warning');
+                return;
+            }
+            const payload = { global_params: collectGlobalParams(), scenarios: savedScenarios };
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (!response.ok) {
+                Swal.fire('Ошибка', 'Не удалось сформировать файл', 'error');
+                return;
+            }
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = endpoint.includes('pdf') ? 'economics_compare.pdf' : 'economics_compare.xlsx';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+        }
+
+        document.getElementById('export-scenarios-excel-btn').addEventListener('click', () => {
+            exportScenarios('/api/export_economics_compare_excel');
+        });
+        document.getElementById('export-scenarios-pdf-btn').addEventListener('click', () => {
+            exportScenarios('/api/export_economics_compare_pdf');
         });
 
         function checkRemoveButtons() {
@@ -449,6 +641,7 @@
         });
 
         loadAvailableComponents();
+        renderSavedScenarios();
 
         // ----- Chart Rendering Logic -----
         function renderChart(storage, prod, trans) {

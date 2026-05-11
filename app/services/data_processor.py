@@ -128,7 +128,8 @@ def process_data_source(file_path, db_path):
     expected_measured_columns = [
         'composition', 'density', 'kf', 'kt', 'h', 'mass_loss', 
         'tign', 'tb', 'tau_d1', 'tau_d2', 'tau_b', 
-        'co2', 'co', 'so2', 'nox', 'q', 'ad'
+        'co2', 'co', 'so2', 'nox', 'q', 'ad',
+        'war', 'vd', 'cd', 'hd', 'nd', 'sd', 'od'
     ]
     expected_components_columns = [
         'component', 'war', 'ad', 'vd', 'q', 'cd', 'hd', 'nd', 'sd', 'od'

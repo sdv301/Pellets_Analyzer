@@ -1,3 +1,90 @@
+import sqlite3
+from pathlib import Path
+
+import pandas as pd
+import pytest
+
+import app as app_module
+
+
+@pytest.fixture
+def test_db_path(tmp_path: Path) -> str:
+    return str(tmp_path / "test_pellets.db")
+
+
+@pytest.fixture
+def app(test_db_path, monkeypatch, tmp_path):
+    def _light_initialize_extensions(flask_app):
+        from app.auth.auth import init_auth_tables
+        from app.database.database import init_db
+        from app.routes import admin, compare, economics, graphs, main, ml
+        from app.auth import routes as auth_routes
+        from app.services.ai_ml_analyzer import AIMLAnalyzer
+
+        init_db(test_db_path)
+        init_auth_tables(test_db_path)
+
+        for module in [main, compare, economics, graphs, ml, admin, auth_routes]:
+            if hasattr(module, "set_db_path"):
+                module.set_db_path(test_db_path)
+
+        flask_app.config["AI_ML_ANALYZER"] = AIMLAnalyzer(test_db_path)
+
+    monkeypatch.setattr(app_module, "_initialize_extensions", _light_initialize_extensions)
+
+    flask_app = app_module.create_app(
+        {
+            "TESTING": True,
+            "SECRET_KEY": "test-secret-key",
+            "UPLOAD_FOLDER": str(tmp_path / "Uploads"),
+        }
+    )
+    Path(flask_app.config["UPLOAD_FOLDER"]).mkdir(parents=True, exist_ok=True)
+
+    yield flask_app
+
+
+@pytest.fixture
+def client(app):
+    return app.test_client()
+
+
+@pytest.fixture
+def authed_client(client):
+    with client.session_transaction() as sess:
+        sess["user_id"] = 1
+        sess["username"] = "tester"
+        sess["role_name"] = "admin"
+        sess["email"] = "tester@example.com"
+    return client
+
+
+@pytest.fixture
+def seeded_components(test_db_path):
+    conn = sqlite3.connect(test_db_path)
+    pd.DataFrame(
+        [
+            {
+                "component": "Опилки",
+                "war": 10.8,
+                "ad": 0.18,
+                "vd": 0.0,
+                "q": 18.18,
+                "cd": 0.0,
+                "hd": 0.0,
+                "nd": 0.0,
+                "sd": 0.0,
+                "od": 0.0,
+                "ro": 1048.0,
+                "cost_raw": 1.0,
+                "cost_crush": 0.2,
+                "cost_granule": 1.2,
+            }
+        ]
+    ).to_sql("components", conn, if_exists="append", index=False)
+    conn.commit()
+    conn.close()
+    return test_db_path
 """
 Pytest конфигурация и фикстуры для Pellets Analyzer.
 """

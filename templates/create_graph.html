@@ -39,9 +39,7 @@
                                     <option value="pie">Круговая диаграмма</option>
                                     <option value="heatmap">Тепловая карта</option>
                                     <option value="radar">Радарная диаграмма</option>
-                                    <option value="sunburst">Sunburst</option>
-                                    <option value="treemap">Treemap</option>
-                                    <option value="animated_scatter">Анимированный</option>
+                                    <option value="3d_scatter">3D Scatter</option>
                                 </select>
                             </div>
                         </div>
@@ -887,10 +885,7 @@ window.addEventListener('load', function() {
             { value: 'pie', label: 'Круговая диаграмма' },
             { value: 'heatmap', label: 'Тепловая карта' },
             { value: 'radar', label: 'Радарная диаграмма' },
-            { value: 'sunburst', label: 'Sunburst' },
-            { value: 'treemap', label: 'Treemap' },
-            { value: '3d_scatter', label: '3D Scatter' },
-            { value: 'animated_scatter', label: 'Анимированный график' }
+            { value: '3d_scatter', label: '3D Scatter' }
         ],
         seaborn: [
             { value: 'scatter', label: 'Точечная диаграмма' },
@@ -1309,9 +1304,9 @@ window.addEventListener('load', function() {
         }
 
         try {
-            if (graphType === 'plotly') {
+            if (graphType === 'plotly_json' || graphType === 'plotly') {
                 console.log('📈 Создаем Plotly график');
-                createPlotlyGraph(graphData, dynamicContainer);
+                createPlotlyGraphFromJson(graphData, dynamicContainer);
             } else {
                 console.log('📊 Создаем matplotlib график');
                 dynamicContainer.innerHTML = `
@@ -1343,6 +1338,31 @@ window.addEventListener('load', function() {
     }
 
     // ГЛАВНЫЕ ФУНКЦИИ PLOTLY
+    function createPlotlyGraphFromJson(graphData, container) {
+        container.innerHTML = '';
+        if (typeof Plotly === 'undefined') {
+            throw new Error('Plotly не загружен');
+        }
+
+        const target = document.createElement('div');
+        target.id = `plotly-${Date.now()}`;
+        target.style.width = '100%';
+        target.style.height = '100%';
+        target.style.minHeight = '450px';
+        container.appendChild(target);
+
+        let parsed = graphData;
+        if (typeof graphData === 'string') {
+            parsed = JSON.parse(graphData);
+        }
+        Plotly.newPlot(target, parsed.data || [], parsed.layout || {}, {
+            responsive: true,
+            displayModeBar: true,
+            displaylogo: false
+        });
+        forcePlotlyResize();
+    }
+
     function createPlotlyGraph(graphData, container) {
         console.log('📈 Создаем Plotly график');
 
@@ -1527,12 +1547,12 @@ window.addEventListener('load', function() {
     }
 
     function retryPlotlyRender() {
-        if (currentGraph && currentGraphType === 'plotly') {
+        if (currentGraph && (currentGraphType === 'plotly' || currentGraphType === 'plotly_json')) {
             console.log('🔄 Повторная попытка создания Plotly графика');
             const dynamicContainer = document.getElementById('dynamicGraphContainer');
             if (dynamicContainer) {
                 dynamicContainer.innerHTML = '';
-                createPlotlyGraph(currentGraph, dynamicContainer);
+                createPlotlyGraphFromJson(currentGraph, dynamicContainer);
             }
         }
     }
@@ -1656,7 +1676,7 @@ window.addEventListener('load', function() {
         }
 
         try {
-            if (currentGraphType === 'plotly') {
+            if (currentGraphType === 'plotly' || currentGraphType === 'plotly_json') {
                 // Для Plotly графиков — ищем в dynamicGraphContainer
                 const dynamicContainer = document.getElementById('dynamicGraphContainer');
                 const plotlyGraph = dynamicContainer.querySelector('.js-plotly-plot');

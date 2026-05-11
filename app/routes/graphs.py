@@ -78,7 +78,7 @@ def create_graph():
                     z_param, color_param, size_param, animation_param,
                     theme, title, width, height, show_grid, selected_compositions
                 )
-                graph_output_type = 'plotly'
+                graph_output_type = 'plotly_json'
             elif viz_type == 'seaborn':
                 graph, graph_message, available_compositions = generate_seaborn_plot(
                     measured_data, x_param, y_param, graph_type, theme, color_param, selected_compositions

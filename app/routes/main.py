@@ -12,6 +12,9 @@ main_bp = Blueprint('main', __name__)
 
 # Путь к БД — будет установлен при инициализации
 _db_path = 'pellets_data.db'
+_SESSION_PREVIEW_MAX_ROWS = 5000
+_SESSION_PREVIEW_MAX_COLS = 25
+_HTML_PREVIEW_MAX_COLS = 20
 
 
 def set_db_path(path):
@@ -23,6 +26,49 @@ def get_uploaded_files():
     """Возвращает список загруженных файлов"""
     upload_folder = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'Uploads')
     return os.listdir(upload_folder) if os.path.exists(upload_folder) else []
+
+
+def _compact_dataframe(df: pd.DataFrame, max_rows=500, max_cols=20) -> pd.DataFrame:
+    if df is None or df.empty:
+        return pd.DataFrame()
+    compact = df.iloc[:max_rows].copy()
+    if len(compact.columns) > max_cols:
+        priority_cols = [
+            'composition', 'component', 'q', 'ad', 'war', 'density',
+            'kf', 'kt', 'cost_raw', 'cost_crush', 'cost_granule'
+        ]
+        selected = [col for col in priority_cols if col in compact.columns]
+        for col in compact.columns:
+            if len(selected) >= max_cols:
+                break
+            if col not in selected:
+                selected.append(col)
+        compact = compact[selected]
+    return compact
+
+
+def _to_preview_html(df: pd.DataFrame, max_rows=20, max_cols=_HTML_PREVIEW_MAX_COLS) -> str:
+    if df is None or df.empty:
+        return ''
+    compact = _compact_dataframe(df, max_rows=max_rows, max_cols=max_cols)
+    return compact.to_html(classes='table table-striped table-sm', index=False)
+
+
+def _store_session_preview(key: str, df: pd.DataFrame):
+    compact = _compact_dataframe(df, max_rows=_SESSION_PREVIEW_MAX_ROWS, max_cols=_SESSION_PREVIEW_MAX_COLS)
+    session[key] = compact.to_json(orient='records', force_ascii=False)
+
+
+def _query_table_count(table_name: str) -> int:
+    count_df = query_db(_db_path, table_name, query="SELECT COUNT(*) AS cnt FROM {}")
+    if count_df.empty:
+        return 0
+    return int(count_df.iloc[0]['cnt'])
+
+
+def _query_table_page(table_name: str, page: int, per_page: int) -> pd.DataFrame:
+    offset = max(0, (page - 1) * per_page)
+    return query_db(_db_path, table_name, query="SELECT * FROM {} LIMIT ? OFFSET ?", params=(per_page, offset))
 
 
 @main_bp.route('/')
@@ -115,8 +161,8 @@ def upload_file():
             ]
             session['components_sheet_name'] = components_sheet_name
             session['show_data'] = True
-            session['measured_data'] = measured_data.to_json(orient='records', force_ascii=False)
-            session['components_data'] = components_data.to_json(orient='records', force_ascii=False)
+            _store_session_preview('measured_data', measured_data)
+            _store_session_preview('components_data', components_data)
 
             flash(f'Данные сохранены в сессию: {len(sheet_data)} листов.', 'info')
 
@@ -125,8 +171,8 @@ def upload_file():
                 'message': 'Файл успешно загружен.',
                 'uploaded_files': uploaded_files,
                 'messages': messages,
-                'measured_data': measured_data.head(20).to_html(classes='table table-striped table-sm', index=False) if not measured_data.empty else '',
-                'components_data': components_data.head(20).to_html(classes='table table-striped table-sm', index=False) if not components_data.empty else '',
+                'measured_data': _to_preview_html(measured_data, max_rows=20),
+                'components_data': _to_preview_html(components_data, max_rows=20),
                 'total_measured': len(measured_data),
                 'total_components': len(components_data),
                 'refresh_page': True
@@ -167,16 +213,16 @@ def load_file():
 
         session['show_data'] = True
         session['data_loaded'] = True
-        session['measured_data'] = measured_data.to_json()
-        session['components_data'] = components_data.to_json()
+        _store_session_preview('measured_data', measured_data)
+        _store_session_preview('components_data', components_data)
         session['graph'] = graph
         session['components_sheet_name'] = components_sheet_name
 
         return jsonify({
             'success': True,
             'message': f'Данные из файла {selected_file} успешно загружены.',
-            'measured_data': measured_data.head(10).to_html(classes='table table-striped table-sm', index=False),
-            'components_data': components_data.head(10).to_html(classes='table table-striped table-sm', index=False),
+            'measured_data': _to_preview_html(measured_data, max_rows=10),
+            'components_data': _to_preview_html(components_data, max_rows=10),
             'graph': graph,
             'uploaded_files': uploaded_files,
             'components_sheet_name': components_sheet_name,
@@ -283,12 +329,22 @@ def search():
         if filtered_data.empty:
             return jsonify({'success': True, 'message': 'Ничего не найдено', 'count': 0, 'refresh_page': True})
 
-        session['search_results'] = filtered_data.to_json(orient='records', force_ascii=False)
+        filtered_for_session = _compact_dataframe(
+            filtered_data,
+            max_rows=_SESSION_PREVIEW_MAX_ROWS,
+            max_cols=_SESSION_PREVIEW_MAX_COLS
+        )
+        is_truncated = len(filtered_for_session) < len(filtered_data)
+        session['search_results'] = filtered_for_session.to_json(orient='records', force_ascii=False)
         session['search_performed'] = True
+        message = f'Найдено записей: {len(filtered_for_session)}'
+        if is_truncated:
+            message += f' (показаны первые {_SESSION_PREVIEW_MAX_ROWS})'
         return jsonify({
             'success': True,
-            'message': f'Найдено записей: {len(filtered_data)}',
-            'count': len(filtered_data),
+            'message': message,
+            'count': len(filtered_for_session),
+            'total_found': len(filtered_data),
             'refresh_page': True
         })
     except Exception as e:
@@ -366,15 +422,15 @@ def add_data():
 
         session['show_data'] = True
         session['data_loaded'] = True
-        session['measured_data'] = measured_data.to_json()
-        session['components_data'] = components_data.to_json()
+        _store_session_preview('measured_data', measured_data)
+        _store_session_preview('components_data', components_data)
         session['graph'] = graph
 
         return jsonify({
             'success': True,
             'message': 'Данные успешно добавлены.',
-            'measured_data': measured_data.head(10).to_html(classes='table table-striped table-sm', index=False),
-            'components_data': components_data.head(10).to_html(classes='table table-striped table-sm', index=False),
+            'measured_data': _to_preview_html(measured_data, max_rows=10),
+            'components_data': _to_preview_html(components_data, max_rows=10),
             'graph': graph,
             'uploaded_files': get_uploaded_files(),
             'components_sheet_name': session.get('components_sheet_name', 'Таблица компонентов'),
@@ -430,29 +486,22 @@ def tables():
             print(f"Ошибка загрузки результатов поиска: {e}")
 
     if not tables:
-        measured_data = query_db(_db_path, "measured_parameters")
-        components_data = query_db(_db_path, "components")
-
-        if not measured_data.empty:
-            total_measured = len(measured_data)
+        total_measured = _query_table_count("measured_parameters")
+        if total_measured > 0:
             total_rows.append(total_measured)
-            start_idx = (page - 1) * per_page
-            end_idx = start_idx + per_page
-            df_pag = measured_data.iloc[start_idx:end_idx] if total_measured > 0 else pd.DataFrame()
+            df_pag = _query_table_page("measured_parameters", page, per_page)
             tables.append({
                 'name': 'Измеренные параметры',
-                'data': df_pag.to_html(classes='table table-striped table-sm', index=False) if not df_pag.empty else 'Таблица пуста.'
+                'data': _to_preview_html(df_pag, max_rows=per_page, max_cols=_SESSION_PREVIEW_MAX_COLS) if not df_pag.empty else 'Таблица пуста.'
             })
 
-        if not components_data.empty:
-            total_components = len(components_data)
+        total_components = _query_table_count("components")
+        if total_components > 0:
             total_rows.append(total_components)
-            start_idx = (page - 1) * per_page
-            end_idx = start_idx + per_page
-            df_pag = components_data.iloc[start_idx:end_idx] if total_components > 0 else pd.DataFrame()
+            df_pag = _query_table_page("components", page, per_page)
             tables.append({
                 'name': 'Компоненты',
-                'data': df_pag.to_html(classes='table table-striped table-sm', index=False) if not df_pag.empty else 'Таблица пуста.'
+                'data': _to_preview_html(df_pag, max_rows=per_page, max_cols=_SESSION_PREVIEW_MAX_COLS) if not df_pag.empty else 'Таблица пуста.'
             })
 
     show_data = len(tables) > 0

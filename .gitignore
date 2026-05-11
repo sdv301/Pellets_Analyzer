@@ -175,6 +175,7 @@ ml_old.py
 ml_optimizer_backup.py
 test_ml_data.py
 conftest.py
+tests/conftest.py
 
 # ===========================================
 # JavaScript files (outside static/)
@@ -186,6 +187,7 @@ conftest.py
 # Docker volumes / local data directories
 # ===========================================
 data/
+artifacts/
 app_data/
 backups/
 backup/
@@ -263,3 +265,5 @@ README_IMPROVEMENTS.md
 COMPLETION_CHECKLIST.md
 ENV_SETUP_INSTRUCTIONS.txt
 GITIGNORE_DOCS.md
+test-project/
+.github/workflows/

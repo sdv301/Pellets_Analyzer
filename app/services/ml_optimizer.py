@@ -12,12 +12,18 @@ import re
 import os
 import joblib
 from concurrent.futures import ThreadPoolExecutor
+from functools import lru_cache
 from typing import Dict, List, Tuple, Optional
 import logging
 
 # Настройка логирования
 logger = logging.getLogger(__name__)
 warnings.filterwarnings('ignore')
+
+MAX_AUGMENT_VARIATIONS = int(os.environ.get('ML_MAX_AUGMENT_VARIATIONS', '10'))
+MAX_SYNTHETIC_ROWS_PER_REQUEST = int(os.environ.get('ML_MAX_SYNTHETIC_ROWS_PER_REQUEST', '5000'))
+MAX_MEASURED_ROWS = int(os.environ.get('ML_MAX_MEASURED_ROWS', '50000'))
+MAX_SQLITE_DB_BYTES = int(os.environ.get('ML_MAX_SQLITE_DB_BYTES', str(250 * 1024 * 1024)))
 
 
 class CompositionParser:
@@ -40,10 +46,14 @@ class CompositionParser:
     def parse_composition(self, composition_text: str) -> Dict[str, float]:
         if pd.isna(composition_text) or not composition_text:
             return {}
-        
+
         original_text = str(composition_text)
+        return dict(self._parse_composition_cached(original_text))
+
+    @lru_cache(maxsize=4096)
+    def _parse_composition_cached(self, original_text: str) -> Dict[str, float]:
         text = original_text.lower()
-        
+
         composition_dict = {}
         found_matches = []
         
@@ -532,6 +542,8 @@ class PelletPropertyPredictor:
     
     def prepare_composition_for_prediction(self, composition: Dict[str, float]) -> np.ndarray:
         total = sum(composition.values())
+        if total <= 0:
+            raise ValueError('Сумма компонентов должна быть больше 0')
         if total != 100:
             composition = {k: (v / total) * 100 for k, v in composition.items()}
         X = [composition.get(feature, 0.0) for feature in self.feature_names]
@@ -631,7 +643,16 @@ class MLCompositionOptimizer:
                 
                 # ЗАЩИТА ОТ ФИЗИЧЕСКИХ ПАРАДОКСОВ
                 if target_property in ['q', 'ad', 'war', 'density']:
-                    max_possible = max([self.predictor.predict({f: 100}, target_property) for f in comp_dict.keys() if comp_dict[f] > 0])
+                    single_component_predictions = [
+                        self.predictor.predict({f: 100}, target_property)
+                        for f in comp_dict.keys()
+                        if comp_dict[f] > 0
+                    ]
+                    valid_predictions = [p for p in single_component_predictions if p is not None]
+                    if valid_predictions:
+                        max_possible = max(valid_predictions)
+                    else:
+                        max_possible = pred
                     if maximize and pred > max_possible:
                         pred = max_possible - 0.01 
 
@@ -899,8 +920,8 @@ class PelletMLSystem:
                 'Mass loss, %': 'mass_loss',
                 'Тign, °С': 'tign',
                 'Tb, °C': 'tb',
-                'τd1, с': 'td1',
-                'τd2, с': 'td2',
+                'τd1, с': 'tau_d1',
+                'τd2, с': 'tau_d2',
                 'τb, с': 'tau_b',
                 'CO2, ': 'co2',
                 'CO,': 'co',
@@ -1195,11 +1216,109 @@ class PelletMLSystem:
             measured_data = query_db(self.db_path, "measured_parameters")
             if measured_data.empty:
                 return {'success': False, 'error': 'База данных пуста'}
+
+            try:
+                variations_count = int(variations_count)
+            except (ValueError, TypeError):
+                return {'success': False, 'error': 'Параметр variations_count должен быть целым числом'}
+
+            if variations_count < 1:
+                return {'success': False, 'error': 'Параметр variations_count должен быть не меньше 1'}
+            if variations_count > MAX_AUGMENT_VARIATIONS:
+                return {
+                    'success': False,
+                    'error': (
+                        f'Слишком большой объём генерации за один запрос. '
+                        f'Максимум: {MAX_AUGMENT_VARIATIONS} копий на образец.'
+                    ),
+                    'limits': {
+                        'max_variations_per_sample': MAX_AUGMENT_VARIATIONS,
+                        'max_synthetic_rows_per_request': MAX_SYNTHETIC_ROWS_PER_REQUEST,
+                        'max_measured_rows': MAX_MEASURED_ROWS
+                    }
+                }
+
+            if len(measured_data) >= MAX_MEASURED_ROWS:
+                return {
+                    'success': False,
+                    'error': (
+                        f'Лимит записей в БД достигнут ({len(measured_data)}). '
+                        f'Аугментация отключена для защиты сервера.'
+                    ),
+                    'limits': {'max_measured_rows': MAX_MEASURED_ROWS}
+                }
+
+            if os.path.exists(self.db_path):
+                db_size = os.path.getsize(self.db_path)
+                if db_size >= MAX_SQLITE_DB_BYTES:
+                    return {
+                        'success': False,
+                        'error': (
+                            f'Размер БД достиг лимита ({db_size // (1024 * 1024)} МБ). '
+                            f'Аугментация отключена для стабильной работы сервера.'
+                        ),
+                        'limits': {'max_sqlite_db_bytes': MAX_SQLITE_DB_BYTES}
+                    }
+
             import random
             ci = confidence_interval / 100.0
             prop_ci = max(0.01, ci / 2)
             synthetic_rows = []
-            all_props = ['density', 'kf', 'kt', 'h', 'mass_loss', 'tign', 'tb', 'tau_d1', 'tau_d2', 'tau_b', 'co2', 'co', 'so2', 'nox', 'q', 'ad']
+            all_props = [
+                'density', 'kf', 'kt', 'h', 'mass_loss', 'tign', 'tb', 'tau_d1', 'tau_d2', 'tau_b',
+                'co2', 'co', 'so2', 'nox', 'q', 'ad', 'war', 'vd', 'cd', 'hd', 'nd', 'sd', 'od'
+            ]
+            bounded_percent_props = {'kf', 'kt', 'h', 'mass_loss', 'ad', 'war', 'vd'}
+            non_negative_props = {
+                'density', 'tign', 'tb', 'tau_d1', 'tau_d2', 'tau_b',
+                'co2', 'co', 'so2', 'nox', 'q', 'cd', 'hd', 'nd', 'sd', 'od'
+            }
+            high_heat_components = {
+                'Пластик', 'Подсолнечный_жмых', 'Бурый_уголь',
+                'Отработанное_моторное_масло', 'Рапсовое_масло'
+            }
+            mechanical_components = {'Картон', 'СМС'}
+            low_ash_components = {'Пластик', 'Отработанное_моторное_масло', 'Рапсовое_масло'}
+
+            median_q = float(measured_data['q'].dropna().median()) if 'q' in measured_data.columns and measured_data['q'].notna().any() else None
+            median_kf = float(measured_data['kf'].dropna().median()) if 'kf' in measured_data.columns and measured_data['kf'].notna().any() else None
+            median_kt = float(measured_data['kt'].dropna().median()) if 'kt' in measured_data.columns and measured_data['kt'].notna().any() else None
+            median_ad = float(measured_data['ad'].dropna().median()) if 'ad' in measured_data.columns and measured_data['ad'].notna().any() else None
+
+            eligible_rows = 0
+            for _, row in measured_data.iterrows():
+                comp_text = row.get('composition')
+                if not comp_text or pd.isna(comp_text):
+                    continue
+                comp_dict = self.predictor.parser.parse_composition(comp_text)
+                if comp_dict:
+                    eligible_rows += 1
+
+            requested_new_rows = eligible_rows * variations_count
+            if requested_new_rows == 0:
+                return {'success': False, 'error': 'Не найдено валидных составов для генерации'}
+            if requested_new_rows > MAX_SYNTHETIC_ROWS_PER_REQUEST:
+                return {
+                    'success': False,
+                    'error': (
+                        f'Превышен лимит генерации за один запрос: {requested_new_rows} > '
+                        f'{MAX_SYNTHETIC_ROWS_PER_REQUEST}. Уменьшите количество копий.'
+                    ),
+                    'limits': {
+                        'max_variations_per_sample': MAX_AUGMENT_VARIATIONS,
+                        'max_synthetic_rows_per_request': MAX_SYNTHETIC_ROWS_PER_REQUEST
+                    }
+                }
+            if (len(measured_data) + requested_new_rows) > MAX_MEASURED_ROWS:
+                allowed_new_rows = max(0, MAX_MEASURED_ROWS - len(measured_data))
+                return {
+                    'success': False,
+                    'error': (
+                        f'Операция добавит слишком много строк ({requested_new_rows}). '
+                        f'Доступный остаток до лимита: {allowed_new_rows}.'
+                    ),
+                    'limits': {'max_measured_rows': MAX_MEASURED_ROWS}
+                }
             
             for _, row in measured_data.iterrows():
                 comp_text = row.get('composition')
@@ -1213,6 +1332,32 @@ class PelletMLSystem:
                     for comp, val in comp_dict.items():
                         noise = random.uniform(-ci, ci)
                         new_comp[comp] = max(0.1, val * (1 + noise))
+
+                    # Лёгкая эвристика генерации по тех. тезисам:
+                    # - для повышения теплоты слегка усиливаем высококалорийные добавки
+                    # - для механики слегка усиливаем Картон/СМС
+                    # - для снижения золы слегка усиливаем низкозольные компоненты
+                    q_val = row.get('q')
+                    if median_q is not None and pd.notna(q_val) and float(q_val) < median_q:
+                        for comp in high_heat_components:
+                            if comp in new_comp:
+                                new_comp[comp] *= 1.03
+                    kf_val = row.get('kf')
+                    kt_val = row.get('kt')
+                    low_mechanics = (
+                        (median_kf is not None and pd.notna(kf_val) and float(kf_val) < median_kf) or
+                        (median_kt is not None and pd.notna(kt_val) and float(kt_val) < median_kt)
+                    )
+                    if low_mechanics:
+                        for comp in mechanical_components:
+                            if comp in new_comp:
+                                new_comp[comp] *= 1.04
+                    ad_val = row.get('ad')
+                    if median_ad is not None and pd.notna(ad_val) and float(ad_val) > median_ad:
+                        for comp in low_ash_components:
+                            if comp in new_comp:
+                                new_comp[comp] *= 1.03
+
                     total = sum(new_comp.values())
                     if total > 0:
                         new_comp = {k: round((v / total) * 100, 2) for k, v in new_comp.items()}
@@ -1220,7 +1365,12 @@ class PelletMLSystem:
                     for prop in all_props:
                         val = row.get(prop)
                         if pd.notna(val) and val is not None:
-                            new_row[prop] = val * (1 + random.uniform(-prop_ci, prop_ci))
+                            new_val = float(val) * (1 + random.uniform(-prop_ci, prop_ci))
+                            if prop in bounded_percent_props:
+                                new_val = min(100.0, max(0.0, new_val))
+                            elif prop in non_negative_props:
+                                new_val = max(0.0, new_val)
+                            new_row[prop] = new_val
                         else:
                             new_row[prop] = None
                     synthetic_rows.append(new_row)
@@ -1231,7 +1381,17 @@ class PelletMLSystem:
             insert_data(self.db_path, "measured_parameters", synthetic_df)
             self.training_data = self.load_training_data()
             retrain_result = self.train_models()
-            return {'success': True, 'message': f'База успешно масштабирована (+{len(synthetic_df)} образцов)', 'added_count': len(synthetic_df), 'retrain_status': retrain_result}
+            return {
+                'success': True,
+                'message': f'База успешно масштабирована (+{len(synthetic_df)} образцов)',
+                'added_count': len(synthetic_df),
+                'retrain_status': retrain_result,
+                'limits': {
+                    'max_variations_per_sample': MAX_AUGMENT_VARIATIONS,
+                    'max_synthetic_rows_per_request': MAX_SYNTHETIC_ROWS_PER_REQUEST,
+                    'max_measured_rows': MAX_MEASURED_ROWS
+                }
+            }
         except Exception as e:
             return {'success': False, 'error': f'Ошибка аугментации: {str(e)}'}
 

@@ -75,10 +75,7 @@ PLOTLY_GRAPHS = [
     ('pie', 'Круговая диаграмма'),
     ('heatmap', 'Тепловая карта'),
     ('radar', 'Радарная диаграмма'),
-    ('sunburst', 'Sunburst'),
-    ('treemap', 'Treemap'),
-    ('3d_scatter', '3D Scatter'),
-    ('animated_scatter', 'Анимированный график')
+    ('3d_scatter', '3D Scatter')
 ]
 
 SPECIAL_GRAPH_PARAMS = {
@@ -437,46 +434,6 @@ def generate_plotly_graph(data, x_param='ad', y_param='q', graph_type='scatter',
                     )
                 )
                 
-            elif graph_type == 'sunburst':
-                if 'composition' not in filtered_data.columns:
-                    return None, "Для sunburst нужна колонка 'composition'", available_compositions
-                if y_param not in filtered_data.columns or filtered_data[y_param].dropna().empty:
-                    return None, f"Неверный параметр Y ({y_param}) или нет данных", available_compositions
-                fig = px.sunburst(
-                    filtered_data,
-                    path=['composition', x_param],
-                    values=y_param,
-                    title=title or f"Sunburst: {get_param_display_name(y_param)} по составам и {get_param_display_name(x_param)}",
-                    template=template
-                )
-                fig.update_traces(
-                    hovertemplate=(
-                        "<b>%{label}</b><br>" +
-                        f"Значение: %{{value:.2f}}<br>" +
-                        "<extra></extra>"
-                    )
-                )
-                
-            elif graph_type == 'treemap':
-                if 'composition' not in filtered_data.columns:
-                    return None, "Для treemap нужна колонка 'composition'", available_compositions
-                if y_param not in filtered_data.columns or filtered_data[y_param].dropna().empty:
-                    return None, f"Неверный параметр Y ({y_param}) или нет данных", available_compositions
-                fig = px.treemap(
-                    filtered_data,
-                    path=['composition', x_param],
-                    values=y_param,
-                    title=title or f"Treemap: {get_param_display_name(y_param)} по составам и {get_param_display_name(x_param)}",
-                    template=template
-                )
-                fig.update_traces(
-                    hovertemplate=(
-                        "<b>%{label}</b><br>" +
-                        f"Значение: %{{value:.2f}}<br>" +
-                        "<extra></extra>"
-                    )
-                )
-                
             elif graph_type == 'pie':
                 try:
                     if pd.api.types.is_numeric_dtype(filtered_data[x_param]):
@@ -566,7 +523,9 @@ def generate_plotly_graph(data, x_param='ad', y_param='q', graph_type='scatter',
                 except Exception as e:
                     return None, f"Ошибка при создании радарной диаграммы: {str(e)}", available_compositions
                 
-            elif graph_type == '3d_scatter' and z_param and z_param in filtered_data.columns:
+            elif graph_type == '3d_scatter':
+                if not z_param or z_param not in filtered_data.columns:
+                    return None, "Для 3D Scatter выберите корректный параметр Z", available_compositions
                 if y_param not in filtered_data.columns or filtered_data[y_param].dropna().empty:
                     return None, f"Неверный параметр Y ({y_param}) или нет данных", available_compositions
                 fig = px.scatter_3d(
@@ -594,23 +553,6 @@ def generate_plotly_graph(data, x_param='ad', y_param='q', graph_type='scatter',
                         "<extra></extra>"
                     )
                 )
-                
-            elif graph_type == 'animated_scatter' and animation_param and animation_param in filtered_data.columns:
-                try:
-                    fig = create_animated_scatter(
-                        filtered_data,
-                        x_param,
-                        y_param,
-                        animation_param,
-                        template,
-                        title,
-                        color_param='composition' if 'composition' in filtered_data.columns else color_param,
-                        size_param=size_param
-                    )
-                    if fig is None:
-                        return None, "Не удалось создать анимированный график", available_compositions
-                except Exception as e:
-                    return None, f"Ошибка при создании анимированного графика: {str(e)}", available_compositions
                 
             else:
                 return None, f"Неподдерживаемый тип графика: {graph_type}", available_compositions
@@ -649,24 +591,12 @@ def generate_plotly_graph(data, x_param='ad', y_param='q', graph_type='scatter',
                     )
                 )
                 
-                if show_grid and graph_type not in ['pie', 'sunburst', 'treemap', 'heatmap', 'radar']:
+                if show_grid and graph_type not in ['pie', 'heatmap', 'radar']:
                     fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='lightgray')
                     fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='lightgray')
                 
-                # Конвертация в HTML
-                graph_html = pio.to_html(
-                    fig,
-                    include_plotlyjs='cdn',
-                    full_html=False,
-                    config={
-                        'responsive': True,
-                        'displayModeBar': True,
-                        'displaylogo': False,
-                        'modeBarButtonsToAdd': ['hoverClosestGl2d', 'hoverCompareGl2d']
-                    }
-                )
-                
-                return graph_html, f"{graph_type.capitalize()} график создан успешно", available_compositions
+                graph_json = pio.to_json(fig, validate=False, pretty=False)
+                return graph_json, f"{graph_type.capitalize()} график создан успешно", available_compositions
             
             return None, "Не удалось создать график", available_compositions
         
@@ -1202,17 +1132,29 @@ def generate_graph(data, x_param='ad', y_param='q', graph_type='scatter',
             else:
                 return None, "Для тепловой карты нужно больше числовых параметров", available_compositions
             
-        elif graph_type == '3d_scatter' and z_param and z_param in filtered_data.columns:
+        elif graph_type == '3d_scatter':
+            if not z_param or z_param not in filtered_data.columns:
+                return None, "Для 3D Scatter выберите корректный параметр Z", available_compositions
             fig = plt.figure(figsize=(width/100, height/100))
             ax = fig.add_subplot(111, projection='3d')
-            scatter = ax.scatter(filtered_data[x_param], filtered_data[y_param], filtered_data[z_param],
-                               c=filtered_data[color_param] if color_param and color_param in filtered_data.columns else 'blue',
-                               cmap='viridis' if color_param and color_param in filtered_data.columns else None,
-                               alpha=0.7)
+            c_arg = 'blue'
+            cmap_arg = None
+            if color_param and color_param in filtered_data.columns:
+                if pd.api.types.is_numeric_dtype(filtered_data[color_param]):
+                    c_arg = filtered_data[color_param]
+                    cmap_arg = 'viridis'
+                else:
+                    encoded = pd.Categorical(filtered_data[color_param]).codes
+                    c_arg = encoded
+                    cmap_arg = 'tab10'
+            scatter = ax.scatter(
+                filtered_data[x_param], filtered_data[y_param], filtered_data[z_param],
+                c=c_arg, cmap=cmap_arg, alpha=0.7
+            )
             ax.set_xlabel(get_param_display_name(x_param))
             ax.set_ylabel(get_param_display_name(y_param))
             ax.set_zlabel(get_param_display_name(z_param))
-            if color_param and color_param in filtered_data.columns:
+            if color_param and color_param in filtered_data.columns and pd.api.types.is_numeric_dtype(filtered_data[color_param]):
                 plt.colorbar(scatter, ax=ax, label=get_param_display_name(color_param))
                 
         elif graph_type == 'animated_scatter' and animation_param and animation_param in filtered_data.columns:

@@ -289,7 +289,14 @@ def init_db(db_path):
         so2 REAL,
         nox REAL,
         q REAL,
-        ad REAL
+        ad REAL,
+        war REAL,
+        vd REAL,
+        cd REAL,
+        hd REAL,
+        nd REAL,
+        sd REAL,
+        od REAL
     )
     ''')
 
@@ -380,52 +387,98 @@ def check_and_migrate_db(db_path):
         if col not in columns:
             print(f"🔧 Миграция: Добавление колонки {col} в таблицу components")
             cursor.execute(f"ALTER TABLE components ADD COLUMN {col} {dtype}")
+
+    # 2. Проверка таблицы measured_parameters
+    cursor.execute("PRAGMA table_info(measured_parameters)")
+    measured_columns = [row[1] for row in cursor.fetchall()]
+
+    measured_new_columns = {
+        'war': 'REAL',
+        'vd': 'REAL',
+        'cd': 'REAL',
+        'hd': 'REAL',
+        'nd': 'REAL',
+        'sd': 'REAL',
+        'od': 'REAL'
+    }
+
+    for col, dtype in measured_new_columns.items():
+        if col not in measured_columns:
+            print(f"🔧 Миграция: Добавление колонки {col} в таблицу measured_parameters")
+            cursor.execute(f"ALTER TABLE measured_parameters ADD COLUMN {col} {dtype}")
             
     conn.commit()
     conn.close()
 
 def insert_data(db_path, table, data):
     """Пакетная вставка данных."""
+    max_rows_per_request = int(os.environ.get('DB_MAX_INSERT_ROWS_PER_REQUEST', '50000'))
+    batch_size = int(os.environ.get('DB_INSERT_BATCH_SIZE', '1000'))
+    if batch_size < 1:
+        batch_size = 1000
+
+    if not isinstance(data, pd.DataFrame):
+        data = pd.DataFrame(data)
+
+    if len(data) > max_rows_per_request:
+        raise ValueError(
+            f"Слишком большой объём вставки: {len(data)} строк. "
+            f"Лимит на запрос: {max_rows_per_request}"
+        )
+
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
+    try:
+        if table == "measured_parameters":
+            expected_columns = ['composition', 'density', 'kf', 'kt', 'h', 'mass_loss',
+                              'tign', 'tb', 'tau_d1', 'tau_d2', 'tau_b',
+                              'co2', 'co', 'so2', 'nox', 'q', 'ad',
+                              'war', 'vd', 'cd', 'hd', 'nd', 'sd', 'od']
+            numeric_columns = [col for col in expected_columns if col != 'composition']
 
-    if table == "measured_parameters":
-        expected_columns = ['composition', 'density', 'kf', 'kt', 'h', 'mass_loss',
-                          'tign', 'tb', 'tau_d1', 'tau_d2', 'tau_b',
-                          'co2', 'co', 'so2', 'nox', 'q', 'ad']
-        
-        # Добавляем недостающие колонки как None
-        for col in expected_columns:
-            if col not in data.columns:
-                data[col] = None
-        
-        data = data[expected_columns]
-        
-        query = '''
-        INSERT OR REPLACE INTO measured_parameters VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        '''
-        records = [tuple(row) for _, row in data.iterrows()]
-        cursor.executemany(query, records)
-        
-    elif table == "components":
-        expected_columns = ['component', 'war', 'ad', 'vd', 'q', 'cd', 'hd', 'nd', 'sd', 'od', 
-                           'ro', 'cost_raw', 'cost_crush', 'cost_granule']
-        
-        # Если в DataFrame нет новых колонок, заполняем их None/NaN
-        for col in ['ro', 'cost_raw', 'cost_crush', 'cost_granule']:
-            if col not in data.columns:
-                data[col] = None
-        
-        data = data[expected_columns] if all(col in data.columns for col in expected_columns) else data
-        
-        query = '''
-        INSERT OR REPLACE INTO components VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        '''
-        records = [tuple(row) for _, row in data.iterrows()]
-        cursor.executemany(query, records)
+            # Добавляем недостающие колонки как None
+            for col in expected_columns:
+                if col not in data.columns:
+                    data[col] = None
 
-    conn.commit()
-    conn.close()
+            data = data[expected_columns].copy()
+            for col in numeric_columns:
+                data[col] = pd.to_numeric(data[col], errors='coerce')
+
+            query = '''
+            INSERT OR REPLACE INTO measured_parameters VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            '''
+            records = [tuple(row) for _, row in data.iterrows()]
+            for idx in range(0, len(records), batch_size):
+                cursor.executemany(query, records[idx:idx + batch_size])
+
+        elif table == "components":
+            expected_columns = ['component', 'war', 'ad', 'vd', 'q', 'cd', 'hd', 'nd', 'sd', 'od',
+                               'ro', 'cost_raw', 'cost_crush', 'cost_granule']
+            numeric_columns = [col for col in expected_columns if col != 'component']
+
+            # Приводим к фиксированному контракту колонок, чтобы размер records
+            # всегда соответствовал INSERT выражению.
+            for col in expected_columns:
+                if col not in data.columns:
+                    data[col] = None
+
+            data = data[expected_columns].copy()
+            for col in numeric_columns:
+                data[col] = pd.to_numeric(data[col], errors='coerce')
+
+            query = '''
+            INSERT OR REPLACE INTO components VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            '''
+            records = [tuple(row) for _, row in data.iterrows()]
+            for idx in range(0, len(records), batch_size):
+                cursor.executemany(query, records[idx:idx + batch_size])
+        else:
+            raise ValueError(f"Недопустимая таблица для вставки: {table}")
+
+        conn.commit()
+    finally:
+        conn.close()
 
 def insert_ml_optimization(db_path, optimization_data):
     """Сохраняет результат ML оптимизации в базу"""
@@ -529,8 +582,8 @@ def add_ml_optimization_to_training_data(db_path, optimization_data, actual_prop
     if actual_properties:
         query = '''
         INSERT OR REPLACE INTO measured_parameters 
-        (composition, density, kf, kt, h, mass_loss, tign, tb, tau_d1, tau_d2, tau_b, co2, co, so2, nox, q, ad)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (composition, density, kf, kt, h, mass_loss, tign, tb, tau_d1, tau_d2, tau_b, co2, co, so2, nox, q, ad, war, vd, cd, hd, nd, sd, od)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         '''
         cursor.execute(query, (
             composition_text,
@@ -549,7 +602,14 @@ def add_ml_optimization_to_training_data(db_path, optimization_data, actual_prop
             actual_properties.get('so2'),
             actual_properties.get('nox'),
             actual_properties.get('q'),
-            actual_properties.get('ad')
+            actual_properties.get('ad'),
+            actual_properties.get('war'),
+            actual_properties.get('vd'),
+            actual_properties.get('cd'),
+            actual_properties.get('hd'),
+            actual_properties.get('nd'),
+            actual_properties.get('sd'),
+            actual_properties.get('od')
         ))
     else:
         # Добавляем только состав, свойства будут NULL (для предсказания)
@@ -576,14 +636,14 @@ def update_ml_optimization_with_actual(db_path, optimization_id, actual_properti
             return False
         
         # Получаем оптимальный состав из JSON
-        optimal_composition = json.loads(row[5])  # optimal_composition_json
+        optimal_composition = json.loads(row[4])  # optimal_composition_json
         composition_text = ", ".join([f"{v}% {k}" for k, v in optimal_composition.items()])
         
         # Добавляем реальные измерения в measured_parameters
         query = '''
         INSERT OR REPLACE INTO measured_parameters 
-        (composition, density, kf, kt, h, mass_loss, tign, tb, tau_d1, tau_d2, tau_b, co2, co, so2, nox, q, ad)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (composition, density, kf, kt, h, mass_loss, tign, tb, tau_d1, tau_d2, tau_b, co2, co, so2, nox, q, ad, war, vd, cd, hd, nd, sd, od)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         '''
         cursor.execute(query, (
             composition_text,
@@ -602,7 +662,14 @@ def update_ml_optimization_with_actual(db_path, optimization_id, actual_properti
             actual_properties.get('so2'),
             actual_properties.get('nox'),
             actual_properties.get('q'),
-            actual_properties.get('ad')
+            actual_properties.get('ad'),
+            actual_properties.get('war'),
+            actual_properties.get('vd'),
+            actual_properties.get('cd'),
+            actual_properties.get('hd'),
+            actual_properties.get('nd'),
+            actual_properties.get('sd'),
+            actual_properties.get('od')
         ))
         
         conn.commit()
