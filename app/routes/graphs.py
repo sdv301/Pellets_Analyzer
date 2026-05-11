@@ -34,6 +34,21 @@ def _resolve_3d_z_param(data, x_param, y_param, z_param):
     return z_param, candidates
 
 
+def _resolve_y_param(data, x_param, y_param, z_param=None):
+    """Возвращает валидный Y-параметр с данными."""
+    if not data.empty and y_param in data.columns and not data[y_param].dropna().empty:
+        return y_param, False
+
+    numeric_columns = data.select_dtypes(include='number').columns.tolist()
+    excluded = {x_param}
+    if z_param:
+        excluded.add(z_param)
+    candidates = [col for col in numeric_columns if col not in excluded and not data[col].dropna().empty]
+    if candidates:
+        return candidates[0], True
+    return y_param, False
+
+
 @graphs_bp.route('/create_graph', methods=['GET', 'POST'])
 @login_required
 def create_graph():
@@ -93,6 +108,8 @@ def create_graph():
                         'stats': stats
                     })
 
+            y_param, y_auto_selected = _resolve_y_param(measured_data, x_param, y_param, z_param if graph_type == '3d_scatter' else None)
+
             if selected_compositions is not None and len(selected_compositions) == 0:
                 if 'composition' in measured_data.columns:
                     selected_compositions = measured_data['composition'].unique().tolist()
@@ -132,9 +149,13 @@ def create_graph():
                     'available_compositions': available_compositions
                 })
 
+            response_message = graph_message
+            if y_auto_selected:
+                response_message = f"Параметр Y автоматически изменен на '{y_param}'. " + (graph_message or "")
+
             response = jsonify({
                 'success': True,
-                'message': graph_message,
+                'message': response_message,
                 'graph': graph,
                 'graph_type': graph_output_type,
                 'stats': stats,

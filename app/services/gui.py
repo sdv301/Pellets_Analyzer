@@ -163,7 +163,8 @@ def create_radar_chart(data, color_param, template, title):
             radialaxis=dict(visible=True, range=[0, max([max(trace.r) for trace in fig.data]) * 1.1])
         ),
         title=title or "Радарная диаграмма параметров",
-        template=template
+        template=template,
+        showlegend=False
     )
     
     return fig
@@ -563,7 +564,8 @@ def generate_plotly_graph(data, x_param='ad', y_param='q', graph_type='scatter',
                     width=width,
                     height=height,
                     template=template,
-                    showlegend=(legend_items > 0),
+                    # Легенда выводится в отдельной панели UI, внутри графика скрываем.
+                    showlegend=False,
                     legend=dict(
                         title=dict(
                             text='Составы' if 'composition' in filtered_data.columns else 'Категории',
@@ -853,7 +855,7 @@ def create_plotly_radar_chart(data, color_param, template, title):
         ),
         title=title or "Радарная диаграмма параметров",
         template=template,
-        showlegend=True
+        showlegend=False
     )
     
     return fig

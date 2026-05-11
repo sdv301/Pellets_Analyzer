@@ -200,7 +200,7 @@
     <section class="scroll-section" id="section-3">
         <div class="row w-100 h-100 py-3 mx-0">
             <!-- График -->
-            <div class="col-lg-9 h-100 d-flex flex-column pe-lg-2">
+            <div class="col-lg-8 h-100 d-flex flex-column pe-lg-2">
                 <div class="card bank-card h-100 shadow-sm">
                     <div
                         class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
@@ -240,9 +240,9 @@
             </div>
 
             <!-- Боковая панель результатов (Легенда, Статистика) -->
-            <div class="col-lg-3 h-100 d-flex flex-column ps-lg-2 mt-4 mt-lg-0 results-sidebar">
+            <div class="col-lg-4 h-100 d-flex flex-column ps-lg-2 mt-4 mt-lg-0 results-sidebar">
                 <!-- Управление составами — ПЕРЕРАБОТАННАЯ ПАНЕЛЬ -->
-                <div class="card bank-card mb-3 flex-shrink-0 results-panel" id="compositionControlsCard" style="display: none;">
+                <div class="card bank-card mb-3 flex-shrink-0 results-panel" id="compositionControlsCard" style="display: flex;">
                     <div class="card-header bg-white border-bottom py-2 px-3 d-flex align-items-center justify-content-between">
                         <button
                             type="button"
@@ -274,8 +274,8 @@
                                 placeholder="Поиск состава...">
                         </div>
                         <!-- Список составов -->
-                        <div id="compositionControls" class="composition-list" style="max-height: 280px; overflow-y: auto;">
-                            <!-- JS генерирует чекбоксы здесь -->
+                        <div id="compositionControls" class="composition-list" style="max-height: 46vh; overflow-y: auto;">
+                            <p class="text-muted text-center small m-3">Сначала создайте график, затем здесь появятся составы</p>
                         </div>
                     </div>
                 </div>
@@ -881,6 +881,10 @@
         gap: 0.25rem;
     }
 
+    .results-sidebar #compositionControlsCard {
+        min-height: 52vh;
+    }
+
     .results-sidebar.is-mini #compositionControlsCollapse {
         display: none !important;
     }
@@ -1080,7 +1084,6 @@
     let detailedStatsVisible = false;
     let sidebarMiniMode = false;
     const LEGEND_STATE_KEY = 'create_graph.legend_open';
-    const SIDEBAR_MINI_KEY = 'create_graph.sidebar_mini';
 
     // Списки графиков для каждого типа визуализации
     const GRAPHS_BY_TYPE = {
@@ -1151,14 +1154,14 @@
             availableCompositions = [];
             selectedCompositions = [];
             legendPanelVisible = localStorage.getItem(LEGEND_STATE_KEY) === '1';
-            sidebarMiniMode = localStorage.getItem(SIDEBAR_MINI_KEY) === '1';
+            sidebarMiniMode = false;
             initializeForm();
             setupEventListeners();
             updateFormOptions();
             setupCompositionControls();
             setupQuickParameterButtons();
             setLegendPanelVisibility(legendPanelVisible);
-            applySidebarMiniMode(sidebarMiniMode);
+            applySidebarMiniMode(false);
             setupScrollyTelling();
 
         } catch (error) {
@@ -1335,7 +1338,6 @@
 
     function applySidebarMiniMode(enabled) {
         sidebarMiniMode = !!enabled;
-        localStorage.setItem(SIDEBAR_MINI_KEY, sidebarMiniMode ? '1' : '0');
 
         const sidebar = document.querySelector('.results-sidebar');
         const miniBtn = document.getElementById('toggleSidebarMiniBtn');
@@ -1378,7 +1380,7 @@
         localStorage.setItem(LEGEND_STATE_KEY, legendPanelVisible ? '1' : '0');
 
         if (controlsCard) {
-            controlsCard.style.display = availableCompositions.length ? 'flex' : 'none';
+            controlsCard.style.display = 'flex';
         }
 
         if (collapseEl && sidebarMiniMode) {
@@ -2147,8 +2149,12 @@
         availableCompositions = [];
         selectedCompositions = [];
         const controlsCard = document.getElementById('compositionControlsCard');
+        const controlsContainer = document.getElementById('compositionControls');
         if (controlsCard) {
-            controlsCard.style.display = 'none';
+            controlsCard.style.display = 'flex';
+        }
+        if (controlsContainer) {
+            controlsContainer.innerHTML = '<p class="text-muted text-center small m-3">Сначала создайте график, затем здесь появятся составы</p>';
         }
         const searchInput = document.getElementById('compositionSearchInput');
         if (searchInput) {
@@ -2390,10 +2396,15 @@
         console.log('🔄 Обновление панели составов:', compositions);
 
         if (!compositions || compositions.length === 0) {
+            availableCompositions = [];
+            selectedCompositions = [];
             if (controlsCard) {
-                controlsCard.style.display = 'none';
+                controlsCard.style.display = 'flex';
             }
-            if (controlsContainer) controlsContainer.innerHTML = '<p class="text-muted text-center small">Нет доступных составов</p>';
+            if (controlsContainer) {
+                controlsContainer.innerHTML = '<p class="text-muted text-center small m-3">Нет доступных составов. Создайте график с составами.</p>';
+            }
+            updateCompositionsCounter();
             return;
         }
 
