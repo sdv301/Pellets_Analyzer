@@ -111,8 +111,8 @@
                                 <hr class="horizontal dark">
                                 <h5 class="mb-3 mt-4"><i class="fas fa-palette text-primary me-2"></i>Дополнительно</h5>
                                 <div class="row mb-3">
-                                    <div class="col-md-6" id="zParamGroup" style="display: none;">
-                                        <label class="form-label">Ось Z (для 3D):</label>
+                                    <div class="col-md-6" id="zParamGroup">
+                                        <label class="form-label">Ось Z (базовый параметр):</label>
                                         <select name="z_param" class="form-select border-radius-lg" id="zParam">
                                             <option value="">Не выбрано</option>
                                             {% for param in parameters %}
@@ -1553,14 +1553,9 @@
         //     yParamGroup.style.display = 'flex';
         // }
 
-        // Опции для 3D графиков
-        if (graphType === '3d_scatter') {
-            zParamGroup.style.display = 'flex';
-            refreshZOptionsFor3D();
-        } else {
-            zParamGroup.style.display = 'none';
-            document.getElementById('zParam').value = '';
-        }
+        // Z-параметр всегда доступен, но для 3D обязательно валиден
+        zParamGroup.style.display = 'flex';
+        refreshZOptionsFor3D();
     }
 
     async function handleGraphCreation(e) {
@@ -1661,14 +1656,28 @@
 
                 updateStatistics(data.stats);
             } else {
-                showMessage(data.message, 'danger');
-                console.error('❌ Ошибка сервера:', data.message);
-                showDefaultState();
+                const isAxisWarning = typeof data.message === 'string' && data.message.includes('Неверный параметр Y');
+                const messageType = isAxisWarning ? 'warning' : 'danger';
+                showMessage(data.message, messageType);
+                if (isAxisWarning) {
+                    console.warn('⚠️ Предупреждение сервера:', data.message);
+                } else {
+                    console.error('❌ Ошибка сервера:', data.message);
+                }
+
+                // Не сбрасываем текущий график при серверных ошибках, чтобы UI оставался стабильным.
+                const hasRenderedGraph = !!document.querySelector('#dynamicGraphContainer .js-plotly-plot, #dynamicGraphContainer img');
+                if (!hasRenderedGraph) {
+                    showDefaultState();
+                }
             }
         } catch (error) {
             console.error('❌ Ошибка запроса:', error);
             showMessage('Ошибка при создании графика: ' + error.message, 'danger');
-            showDefaultState();
+            const hasRenderedGraph = !!document.querySelector('#dynamicGraphContainer .js-plotly-plot, #dynamicGraphContainer img');
+            if (!hasRenderedGraph) {
+                showDefaultState();
+            }
         } finally {
             submitBtn.disabled = false;
             submitBtn.innerHTML = '<i class="fas fa-chart-line me-2"></i>Создать график';
@@ -2346,15 +2355,23 @@
         alert.className = `alert alert-${type} alert-dismissible fade show`;
         alert.innerHTML = `
         ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        <button type="button" class="btn-close" aria-label="Закрыть"></button>
     `;
 
         messagesContainer.appendChild(alert);
+        const closeBtn = alert.querySelector('.btn-close');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+                if (alert.isConnected) {
+                    alert.remove();
+                }
+            });
+        }
 
         // Автоматическое скрытие для информационных сообщений
         if (type === 'info' && duration > 0) {
             setTimeout(() => {
-                if (alert.parentNode) {
+                if (alert.isConnected && alert.parentNode) {
                     alert.remove();
                 }
             }, duration);
