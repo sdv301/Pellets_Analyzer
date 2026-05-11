@@ -196,7 +196,6 @@ backup/
 # PowerShell scripts (Windows-only deployment)
 # ===========================================
 *.ps1
-!deploy-git.ps1
 
 # ===========================================
 # Batch files (Windows-only)
@@ -217,8 +216,12 @@ full-deploy.sh
 quick-deploy.sh
 setup-server.sh
 deploy.sh
+deploy-git.sh
+deploy-git.ps1
 backup.sh
 server-info.txt
+DEPLOY.md
+pytest.ini
 
 # ===========================================
 # Documentation build

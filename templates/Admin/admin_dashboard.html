@@ -105,17 +105,51 @@
         <!-- Пользователи -->
         <div class="col-lg-8 mb-4">
             <div class="admin-card p-4">
-                <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
                     <h5 class="fw-bold mb-0"><i class="fas fa-users me-2 text-primary"></i>Пользователи</h5>
-                    <div class="input-group w-auto">
-                        <input type="text" class="form-control form-control-sm" placeholder="Поиск..." id="userSearch">
-                        <button class="btn btn-outline-primary btn-sm" type="button"><i class="fas fa-search"></i></button>
+                    <div class="d-flex flex-wrap align-items-center gap-2">
+                        <div class="input-group w-auto">
+                            <input type="text" class="form-control form-control-sm" placeholder="Поиск..." id="userSearch">
+                            <button class="btn btn-outline-primary btn-sm" type="button"><i class="fas fa-search"></i></button>
+                        </div>
+                        <select id="roleFilter" class="form-select form-select-sm" style="width: 140px;">
+                            <option value="">Все роли</option>
+                            <option value="admin">admin</option>
+                            <option value="moderator">moderator</option>
+                            <option value="user">user</option>
+                        </select>
+                        <select id="statusFilter" class="form-select form-select-sm" style="width: 140px;">
+                            <option value="">Любой статус</option>
+                            <option value="active">Активные</option>
+                            <option value="inactive">Неактивные</option>
+                        </select>
                     </div>
+                </div>
+                <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+                    <button class="btn btn-sm btn-outline-secondary" type="button" onclick="toggleSelectAllUsers()">
+                        <i class="fas fa-check-square me-1"></i>Выбрать/снять все
+                    </button>
+                    <select id="bulkRoleSelect" class="form-select form-select-sm" style="width: 150px;">
+                        <option value="">Роль для выбранных</option>
+                        <option value="user">user</option>
+                        <option value="moderator">moderator</option>
+                        <option value="admin">admin</option>
+                    </select>
+                    <button class="btn btn-sm btn-outline-primary" type="button" onclick="bulkChangeRole()">
+                        <i class="fas fa-user-shield me-1"></i>Массово сменить роль
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" type="button" onclick="bulkDeleteUsers()">
+                        <i class="fas fa-user-times me-1"></i>Массово удалить
+                    </button>
+                    <span class="text-muted small" id="selectedUsersCount">Выбрано: 0</span>
                 </div>
                 <div class="table-responsive">
                     <table class="table table-admin table-hover" id="usersTable">
                         <thead>
                             <tr>
+                                <th>
+                                    <input type="checkbox" id="selectAllUsersCheckbox" onclick="toggleSelectAllUsersFromHeader()">
+                                </th>
                                 <th>Статус</th>
                                 <th>Имя</th>
                                 <th>Email</th>
@@ -127,7 +161,21 @@
                         </thead>
                         <tbody>
                             {% for user in all_users %}
-                            <tr>
+                            <tr data-user-id="{{ user.id }}"
+                                data-role="{{ user.role_name or 'user' }}"
+                                data-status="{{ 'active' if user.is_active else 'inactive' }}"
+                                data-name="{{ (user.full_name or user.username)|lower }}"
+                                data-email="{{ (user.email or '')|lower }}">
+                                <td>
+                                    {% if user.id != session.get('user_id') %}
+                                    <input type="checkbox"
+                                           class="user-select-checkbox"
+                                           value="{{ user.id }}"
+                                           data-username="{{ user.username }}"
+                                           data-email="{{ user.email }}"
+                                           onchange="updateSelectedUsersCount()">
+                                    {% endif %}
+                                </td>
                                 <td><span class="user-status {{ 'active' if user.is_active else 'inactive' }}"></span></td>
                                 <td class="fw-semibold">{{ user.full_name or user.username }}</td>
                                 <td>{{ user.email }}</td>
@@ -144,9 +192,21 @@
                                 <td class="text-muted small">{{ user.last_login or '—' }}</td>
                                 <td>
                                     {% if user.id != session.get('user_id') %}
+                                    <div class="d-flex align-items-center gap-1 flex-wrap">
+                                    <select class="form-select form-select-sm" style="width: 120px;" onchange="changeUserRole({{ user.id }}, this)">
+                                        <option value="user" {% if user.role_name == 'user' %}selected{% endif %}>user</option>
+                                        <option value="moderator" {% if user.role_name == 'moderator' %}selected{% endif %}>moderator</option>
+                                        <option value="admin" {% if user.role_name == 'admin' %}selected{% endif %}>admin</option>
+                                    </select>
                                     <button class="btn btn-sm btn-outline-danger" onclick="toggleUserStatus({{ user.id }}, {{ user.is_active }})" title="Активировать/Деактивировать">
                                         <i class="fas fa-{{ 'ban' if user.is_active else 'check' }}"></i>
                                     </button>
+                                    <button class="btn btn-sm btn-outline-danger"
+                                            onclick='deleteUser({{ user.id }}, {{ (user.username or "")|tojson }}, {{ (user.email or "")|tojson }})'
+                                            title="Удалить аккаунт">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                    </div>
                                     {% else %}
                                     <span class="text-muted small">Вы</span>
                                     {% endif %}
@@ -165,10 +225,10 @@
                 <h5 class="fw-bold mb-3"><i class="fas fa-rocket me-2 text-success"></i>Быстрые действия</h5>
                 <div class="row g-3">
                     <div class="col-12">
-                        <a href="{{ url_for('main.tables') }}" class="quick-action-btn">
+                        <a href="{{ url_for('admin.admin_database') }}" class="quick-action-btn">
                             <i class="fas fa-database text-primary"></i>
                             <span class="fw-semibold">Открыть базу данных</span>
-                            <br><small class="text-muted">Просмотр таблиц</small>
+                            <br><small class="text-muted">Полный просмотр всей БД</small>
                         </a>
                     </div>
                     <div class="col-12">
@@ -261,15 +321,80 @@
 
 {% block extra_js %}
 <script>
-// Поиск пользователей
-document.getElementById('userSearch')?.addEventListener('input', function() {
-    const filter = this.value.toLowerCase();
+function getSelectedUserIds() {
+    return Array.from(document.querySelectorAll('.user-select-checkbox:checked'))
+        .map(el => Number(el.value))
+        .filter(Boolean);
+}
+
+function updateSelectedUsersCount() {
+    const selectedIds = getSelectedUserIds();
+    const label = document.getElementById('selectedUsersCount');
+    if (label) {
+        label.textContent = `Выбрано: ${selectedIds.length}`;
+    }
+
+    const allVisibleCheckboxes = Array.from(document.querySelectorAll('#usersTable tbody tr'))
+        .filter(row => row.style.display !== 'none')
+        .map(row => row.querySelector('.user-select-checkbox'))
+        .filter(Boolean);
+    const allVisibleChecked = allVisibleCheckboxes.length > 0 && allVisibleCheckboxes.every(cb => cb.checked);
+    const headerCheckbox = document.getElementById('selectAllUsersCheckbox');
+    if (headerCheckbox) {
+        headerCheckbox.checked = allVisibleChecked;
+    }
+}
+
+function applyUserFilters() {
+    const search = (document.getElementById('userSearch')?.value || '').toLowerCase().trim();
+    const role = document.getElementById('roleFilter')?.value || '';
+    const status = document.getElementById('statusFilter')?.value || '';
     const rows = document.querySelectorAll('#usersTable tbody tr');
+
     rows.forEach(row => {
-        const text = row.textContent.toLowerCase();
-        row.style.display = text.includes(filter) ? '' : 'none';
+        const name = row.dataset.name || '';
+        const email = row.dataset.email || '';
+        const rowRole = row.dataset.role || '';
+        const rowStatus = row.dataset.status || '';
+        const matchesSearch = !search || name.includes(search) || email.includes(search);
+        const matchesRole = !role || rowRole === role;
+        const matchesStatus = !status || rowStatus === status;
+        row.style.display = matchesSearch && matchesRole && matchesStatus ? '' : 'none';
     });
-});
+
+    updateSelectedUsersCount();
+}
+
+document.getElementById('userSearch')?.addEventListener('input', applyUserFilters);
+document.getElementById('roleFilter')?.addEventListener('change', applyUserFilters);
+document.getElementById('statusFilter')?.addEventListener('change', applyUserFilters);
+
+function toggleSelectAllUsersFromHeader() {
+    const checked = document.getElementById('selectAllUsersCheckbox')?.checked;
+    document.querySelectorAll('#usersTable tbody tr').forEach(row => {
+        if (row.style.display === 'none') return;
+        const checkbox = row.querySelector('.user-select-checkbox');
+        if (checkbox) {
+            checkbox.checked = !!checked;
+        }
+    });
+    updateSelectedUsersCount();
+}
+
+function toggleSelectAllUsers() {
+    const visibleCheckboxes = Array.from(document.querySelectorAll('#usersTable tbody tr'))
+        .filter(row => row.style.display !== 'none')
+        .map(row => row.querySelector('.user-select-checkbox'))
+        .filter(Boolean);
+    const shouldSelect = visibleCheckboxes.some(cb => !cb.checked);
+    visibleCheckboxes.forEach(cb => { cb.checked = shouldSelect; });
+    updateSelectedUsersCount();
+}
+
+function requestDeleteConfirmation(targetLabel) {
+    const value = window.prompt(`Для удаления введите: ${targetLabel}`);
+    return value === targetLabel;
+}
 
 // Фильтр логов
 document.getElementById('logFilter')?.addEventListener('change', function() {
@@ -299,5 +424,108 @@ function clearAllCache() {
         .then(r => r.json())
         .then(data => alert(data.message || 'Кэш очищен'));
 }
+
+function changeUserRole(userId, selectEl) {
+    const newRole = selectEl.value;
+    if (!confirm(`Изменить роль пользователя на "${newRole}"?`)) {
+        location.reload();
+        return;
+    }
+    fetch(`/admin/change_role/${userId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: newRole })
+    }).then(r => r.json()).then(data => {
+        if (data.success) {
+            location.reload();
+            return;
+        }
+        alert(data.error || 'Ошибка при смене роли');
+        location.reload();
+    });
+}
+
+function deleteUser(userId, username, email) {
+    const marker = username || email;
+    if (!marker) {
+        alert('Нет идентификатора пользователя для подтверждения удаления');
+        return;
+    }
+    if (!requestDeleteConfirmation(marker)) {
+        alert('Подтверждение не совпало. Удаление отменено.');
+        return;
+    }
+    fetch(`/admin/delete_user/${userId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    }).then(r => r.json()).then(data => {
+        if (data.success) {
+            location.reload();
+            return;
+        }
+        alert(data.error || 'Ошибка при удалении пользователя');
+    });
+}
+
+function bulkChangeRole() {
+    const selectedIds = getSelectedUserIds();
+    if (!selectedIds.length) {
+        alert('Выберите хотя бы одного пользователя');
+        return;
+    }
+    const role = document.getElementById('bulkRoleSelect')?.value;
+    if (!role) {
+        alert('Выберите роль для массового изменения');
+        return;
+    }
+    if (!confirm(`Сменить роль на "${role}" для ${selectedIds.length} пользователей?`)) return;
+
+    fetch('/admin/bulk_users_action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            action: 'change_role',
+            role,
+            user_ids: selectedIds
+        })
+    }).then(r => r.json()).then(data => {
+        if (data.success) {
+            location.reload();
+            return;
+        }
+        alert(data.error || 'Ошибка массового изменения роли');
+    });
+}
+
+function bulkDeleteUsers() {
+    const selectedIds = getSelectedUserIds();
+    if (!selectedIds.length) {
+        alert('Выберите хотя бы одного пользователя');
+        return;
+    }
+    const typed = window.prompt(`Для массового удаления ${selectedIds.length} пользователей введите DELETE`);
+    if (typed !== 'DELETE') {
+        alert('Подтверждение не совпало. Массовое удаление отменено.');
+        return;
+    }
+
+    fetch('/admin/bulk_users_action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            action: 'delete',
+            user_ids: selectedIds
+        })
+    }).then(r => r.json()).then(data => {
+        if (data.success) {
+            location.reload();
+            return;
+        }
+        alert(data.error || 'Ошибка массового удаления');
+    });
+}
+
+applyUserFilters();
+updateSelectedUsersCount();
 </script>
 {% endblock extra_js %}

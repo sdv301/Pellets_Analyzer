@@ -75,6 +75,19 @@ nginx.prod.conf
 # Test files
 test_*.py
 *_test.py
+tests/
+test-project/
+.github/
+.pytest_cache/
+.coverage
+coverage.xml
+artifacts/
+flask_session/
+
+# Local/CI helper files
+deploy-git.sh
+deploy-git.ps1
+pytest.ini
 
 # OS files
 .DS_Store

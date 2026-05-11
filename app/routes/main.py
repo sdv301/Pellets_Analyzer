@@ -90,28 +90,30 @@ def dashboard():
     chart_data = []
 
     try:
-        measured_data = query_db(_db_path, "measured_parameters")
-        components_data = query_db(_db_path, "components")
+        total_measured_count = _query_table_count("measured_parameters")
+        total_components_count = _query_table_count("components")
 
-        if not measured_data.empty:
-            total_measured_count = len(measured_data)
+        # Для ускорения дашборда используем выборку, а не полный набор.
+        # Этого достаточно для сводной визуализации в виджете.
+        measured_preview = query_db(
+            _db_path,
+            "measured_parameters",
+            query="SELECT composition FROM {} WHERE composition IS NOT NULL LIMIT ?",
+            params=(2000,),
+        )
+        if not measured_preview.empty and 'composition' in measured_preview.columns:
+            raw_compositions = measured_preview['composition'].astype(str).tolist()
+            parsed_components = []
+            for comp in raw_compositions:
+                base_comp = comp.split(' ')[0].split('_')[0].strip(',.-')
+                if base_comp:
+                    parsed_components.append(base_comp)
 
-        if not components_data.empty:
-            total_components_count = len(components_data)
-
-            if 'composition' in components_data.columns:
-                raw_compositions = components_data['composition'].astype(str).tolist()
-                parsed_components = []
-                for comp in raw_compositions:
-                    base_comp = comp.split(' ')[0].split('_')[0].strip(',.-')
-                    if base_comp:
-                        parsed_components.append(base_comp)
-
-                from collections import Counter
-                comp_counts = Counter(parsed_components)
-                top_comps = comp_counts.most_common(7)
-                chart_labels = [item[0] for item in top_comps]
-                chart_data = [item[1] for item in top_comps]
+            from collections import Counter
+            comp_counts = Counter(parsed_components)
+            top_comps = comp_counts.most_common(7)
+            chart_labels = [item[0] for item in top_comps]
+            chart_data = [item[1] for item in top_comps]
 
         if total_measured_count > 0 or total_components_count > 0:
             show_data = True
@@ -361,12 +363,15 @@ def global_search():
         return jsonify({'success': False, 'results': []})
 
     try:
-        measured_data = query_db(_db_path, "measured_parameters")
-        if measured_data.empty or 'composition' not in measured_data.columns:
+        like_query = f"%{query}%"
+        results_df = query_db(
+            _db_path,
+            "measured_parameters",
+            query="SELECT composition, q, ad FROM {} WHERE composition LIKE ? LIMIT ?",
+            params=(like_query, 5),
+        )
+        if results_df.empty:
             return jsonify({'success': True, 'results': []})
-
-        mask = measured_data['composition'].astype(str).str.contains(query, case=False, na=False)
-        results_df = measured_data[mask].head(5)
 
         results = []
         for _, row in results_df.iterrows():

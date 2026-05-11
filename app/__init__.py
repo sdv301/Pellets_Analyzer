@@ -66,11 +66,22 @@ def create_app(config=None):
     sessions_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'sessions')
     app.config['SESSION_CACHELIB'] = FileSystemCache(threshold=500, default_timeout=3600, cache_dir=sessions_dir)
     app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', secrets.token_hex(24))
-    app.config['TEMPLATES_AUTO_RELOAD'] = True
-    app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+    default_static_cache_age = int(os.getenv('STATIC_CACHE_MAX_AGE', '3600'))
+    app.config['TEMPLATES_AUTO_RELOAD'] = False
+    app.config['SEND_FILE_MAX_AGE_DEFAULT'] = default_static_cache_age
+    app.config['SESSION_REFRESH_EACH_REQUEST'] = False
 
     if config:
         app.config.update(config)
+
+    # В dev/testing оставляем быструю обратную связь, в остальных режимах —
+    # кэш статики для ускорения переходов между вкладками.
+    if app.config.get('DEBUG') or app.config.get('TESTING'):
+        app.config['TEMPLATES_AUTO_RELOAD'] = True
+        if app.config.get('TESTING'):
+            app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+
+    app.jinja_env.auto_reload = bool(app.config['TEMPLATES_AUTO_RELOAD'])
 
     # ============================================================
     # ЛОГИРОВАНИЕ

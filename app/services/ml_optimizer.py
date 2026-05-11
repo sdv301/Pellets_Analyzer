@@ -582,6 +582,10 @@ class MLCompositionOptimizer:
     def __init__(self, predictor):
         self.predictor = predictor
         self.optimization_history = []
+
+    @staticmethod
+    def _normalize_component_name(name: str) -> str:
+        return str(name).strip().replace(' ', '_')
     
     def optimize_composition(self, target_property: str, maximize: bool = True, constraints: Dict[str, Tuple[float, float]] = None, available_components: List[str] = None) -> Dict:
         if target_property not in self.predictor.models:
@@ -627,6 +631,18 @@ class MLCompositionOptimizer:
                     new_min = max(min_val, bounds_percent[idx][0])
                     new_max = min(max_val, bounds_percent[idx][1])
                     bounds_percent[idx] = (new_min, new_max)
+
+        # Эвристики из docx для вкладки "Поиск" (оптимизация):
+        # q↑ -> высококалорийные добавки, kf/kt↑ -> картон/СМС, ad↓ -> низкозольные добавки
+        preferred_map = {
+            ('q', True): {'Пластик', 'Подсолнечный_жмых', 'Бурый_уголь', 'Отработанное_моторное_масло', 'Рапсовое_масло'},
+            ('kf', True): {'Картон', 'СМС'},
+            ('kt', True): {'Картон', 'СМС'},
+            ('ad', False): {'Пластик', 'Отработанное_моторное_масло', 'Рапсовое_масло'}
+        }
+        preferred_components = preferred_map.get((target_property, maximize), set())
+        preferred_components = {self._normalize_component_name(c) for c in preferred_components}
+        prior_strength = 0.03
         
         def objective(composition):
             try:
@@ -657,6 +673,12 @@ class MLCompositionOptimizer:
                         pred = max_possible - 0.01 
 
                 score = -pred if maximize else pred
+                if preferred_components:
+                    preferred_share = 0.0
+                    for comp_name, percent in comp_dict.items():
+                        if self._normalize_component_name(comp_name) in preferred_components:
+                            preferred_share += float(percent)
+                    score -= prior_strength * preferred_share
                 
                 penalty = 0.0
                 for i, val in enumerate(normalized):
@@ -1273,17 +1295,6 @@ class PelletMLSystem:
                 'density', 'tign', 'tb', 'tau_d1', 'tau_d2', 'tau_b',
                 'co2', 'co', 'so2', 'nox', 'q', 'cd', 'hd', 'nd', 'sd', 'od'
             }
-            high_heat_components = {
-                'Пластик', 'Подсолнечный_жмых', 'Бурый_уголь',
-                'Отработанное_моторное_масло', 'Рапсовое_масло'
-            }
-            mechanical_components = {'Картон', 'СМС'}
-            low_ash_components = {'Пластик', 'Отработанное_моторное_масло', 'Рапсовое_масло'}
-
-            median_q = float(measured_data['q'].dropna().median()) if 'q' in measured_data.columns and measured_data['q'].notna().any() else None
-            median_kf = float(measured_data['kf'].dropna().median()) if 'kf' in measured_data.columns and measured_data['kf'].notna().any() else None
-            median_kt = float(measured_data['kt'].dropna().median()) if 'kt' in measured_data.columns and measured_data['kt'].notna().any() else None
-            median_ad = float(measured_data['ad'].dropna().median()) if 'ad' in measured_data.columns and measured_data['ad'].notna().any() else None
 
             eligible_rows = 0
             for _, row in measured_data.iterrows():
@@ -1332,31 +1343,6 @@ class PelletMLSystem:
                     for comp, val in comp_dict.items():
                         noise = random.uniform(-ci, ci)
                         new_comp[comp] = max(0.1, val * (1 + noise))
-
-                    # Лёгкая эвристика генерации по тех. тезисам:
-                    # - для повышения теплоты слегка усиливаем высококалорийные добавки
-                    # - для механики слегка усиливаем Картон/СМС
-                    # - для снижения золы слегка усиливаем низкозольные компоненты
-                    q_val = row.get('q')
-                    if median_q is not None and pd.notna(q_val) and float(q_val) < median_q:
-                        for comp in high_heat_components:
-                            if comp in new_comp:
-                                new_comp[comp] *= 1.03
-                    kf_val = row.get('kf')
-                    kt_val = row.get('kt')
-                    low_mechanics = (
-                        (median_kf is not None and pd.notna(kf_val) and float(kf_val) < median_kf) or
-                        (median_kt is not None and pd.notna(kt_val) and float(kt_val) < median_kt)
-                    )
-                    if low_mechanics:
-                        for comp in mechanical_components:
-                            if comp in new_comp:
-                                new_comp[comp] *= 1.04
-                    ad_val = row.get('ad')
-                    if median_ad is not None and pd.notna(ad_val) and float(ad_val) > median_ad:
-                        for comp in low_ash_components:
-                            if comp in new_comp:
-                                new_comp[comp] *= 1.03
 
                     total = sum(new_comp.values())
                     if total > 0:

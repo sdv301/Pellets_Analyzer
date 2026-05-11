@@ -785,36 +785,10 @@
     }
 </style>
 
-<!-- Chart.js с fallback -->
+<!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-<script>
-window.addEventListener('load', function() {
-    if (typeof Chart === 'undefined') {
-        console.warn('Chart.js не загрузился, пробуем альтернативный CDN...');
-        var script = document.createElement('script');
-        script.src = 'https://unpkg.com/chart.js@4.4.4/dist/chart.umd.min.js';
-        script.onerror = function() {
-            console.error('Chart.js не удалось загрузить');
-        };
-        document.head.appendChild(script);
-    }
-});
-</script>
-<!-- html2pdf.js с fallback -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.2/html2pdf.bundle.min.js"></script>
-<script>
-window.addEventListener('load', function() {
-    if (typeof html2pdf === 'undefined') {
-        console.warn('html2pdf не загрузился, пробуем альтернативный CDN...');
-        var script = document.createElement('script');
-        script.src = 'https://unpkg.com/html2pdf.js@0.10.2/dist/html2pdf.bundle.min.js';
-        script.onerror = function() {
-            console.error('html2pdf не удалось загрузить');
-        };
-        document.head.appendChild(script);
-    }
-});
-</script>
+<!-- html2pdf.js -->
+<script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.2/dist/html2pdf.bundle.min.js"></script>
 
 <script>
     // Глобальные переменные
@@ -1690,6 +1664,10 @@ window.addEventListener('load', function() {
     function generateFullReport() {
         if (!currentComparisonData) {
             showNotification('Нет данных для отчета', 'warning');
+            return;
+        }
+        if (typeof html2pdf === 'undefined') {
+            showNotification('PDF модуль временно недоступен. Обновите страницу и попробуйте снова.', 'warning');
             return;
         }
 

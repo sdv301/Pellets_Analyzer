@@ -85,6 +85,29 @@
                                         </select>
                                     </div>
                                 </div>
+                                <div class="row mb-3">
+                                    <div class="col-12">
+                                        <label class="form-label fw-bold">Быстрый выбор параметров состава:</label>
+                                        <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                                            <select id="quickParamTarget" class="form-select form-select-sm border-radius-lg" style="max-width: 170px;">
+                                                <option value="x">Применить к оси X</option>
+                                                <option value="y">Применить к оси Y</option>
+                                                <option value="z">Применить к оси Z</option>
+                                            </select>
+                                            <small class="text-muted">Нажмите параметр, чтобы быстро выбрать его в форме</small>
+                                        </div>
+                                        <div id="quickParamButtons" class="d-flex flex-wrap gap-2">
+                                            <button type="button" class="btn btn-sm btn-outline-primary quick-param-btn" data-param="cd">Углерод</button>
+                                            <button type="button" class="btn btn-sm btn-outline-primary quick-param-btn" data-param="nd">Азот</button>
+                                            <button type="button" class="btn btn-sm btn-outline-primary quick-param-btn" data-param="sd">Сера</button>
+                                            <button type="button" class="btn btn-sm btn-outline-primary quick-param-btn" data-param="hd">Водород</button>
+                                            <button type="button" class="btn btn-sm btn-outline-primary quick-param-btn" data-param="od">Кислород</button>
+                                            <button type="button" class="btn btn-sm btn-outline-primary quick-param-btn" data-param="vd">Летучие</button>
+                                            <button type="button" class="btn btn-sm btn-outline-primary quick-param-btn" data-param="ad">Зольность</button>
+                                            <button type="button" class="btn btn-sm btn-outline-primary quick-param-btn" data-param="war">Влажность</button>
+                                        </div>
+                                    </div>
+                                </div>
                                 <hr class="horizontal dark">
                                 <h5 class="mb-3 mt-4"><i class="fas fa-palette text-primary me-2"></i>Дополнительно</h5>
                                 <div class="row mb-3">
@@ -236,6 +259,13 @@
                             <button class="btn btn-sm btn-outline-secondary flex-fill" id="deselectAllCompositions" title="Снять все">
                                 <i class="fas fa-times me-1"></i>Ничего
                             </button>
+                        </div>
+                        <div class="px-2 py-2 border-bottom">
+                            <input
+                                type="text"
+                                id="compositionSearchInput"
+                                class="form-control form-control-sm border-radius-lg"
+                                placeholder="Поиск состава...">
                         </div>
                         <!-- Список составов -->
                         <div id="compositionControls" class="composition-list" style="max-height: 280px; overflow-y: auto;">
@@ -826,6 +856,42 @@
         z-index: 1000 !important;
     }
 
+    #quickParamButtons .quick-param-btn {
+        min-width: 102px;
+    }
+
+    #compositionSearchInput {
+        font-size: 0.82rem;
+    }
+
+    #create-graph-page .sidebar-key-stats {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.4rem;
+    }
+
+    #create-graph-page .sidebar-key-stat {
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        border-radius: 0.5rem;
+        padding: 0.4rem 0.5rem;
+        background: #fff;
+    }
+
+    #create-graph-page .sidebar-key-stat .stat-label {
+        font-size: 0.68rem;
+        color: #6c757d;
+        margin-bottom: 0.15rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    #create-graph-page .sidebar-key-stat .stat-value {
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: #344767;
+    }
+
     /* АНИМАЦИИ SCROLLYTELLING */
     .animate-on-scroll {
         opacity: 0;
@@ -839,22 +905,8 @@
     }
 </style>
 
-<!-- Plotly.js с fallback -->
-<script src="https://cdn.plot.ly/plotly-2.35.0.min.js" charset="utf-8"></script>
-<script>
-// Fallback если Plotly не загрузился
-window.addEventListener('load', function() {
-    if (typeof Plotly === 'undefined') {
-        console.warn('Plotly не загрузился с CDN, пробуем альтернативный CDN...');
-        var script = document.createElement('script');
-        script.src = 'https://unpkg.com/plotly.js@2.35.0/dist/plotly.min.js';
-        script.onerror = function() {
-            console.error('Plotly не удалось загрузить ни с одного CDN');
-        };
-        document.head.appendChild(script);
-    }
-});
-</script>
+<!-- Plotly.js (single CSP-friendly source) -->
+<script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.0/plotly.min.js" charset="utf-8"></script>
 
 <script>
     // Глобальные переменные
@@ -935,6 +987,7 @@ window.addEventListener('load', function() {
             setupEventListeners();
             updateFormOptions();
             setupCompositionControls();
+            setupQuickParameterButtons();
             setupScrollyTelling();
 
         } catch (error) {
@@ -1083,6 +1136,11 @@ window.addEventListener('load', function() {
             graphType.addEventListener('change', updateFormOptions);
         }
 
+        const compositionSearchInput = document.getElementById('compositionSearchInput');
+        if (compositionSearchInput) {
+            compositionSearchInput.addEventListener('input', filterCompositionItems);
+        }
+
         // Горячие клавиши
         document.addEventListener('keydown', handleKeyboardShortcuts);
 
@@ -1092,6 +1150,45 @@ window.addEventListener('load', function() {
         document.addEventListener('msfullscreenchange', handleFullscreenChange);
 
         console.log('=== Обработчики событий настроены ===');
+    }
+
+    function setupQuickParameterButtons() {
+        const buttons = document.querySelectorAll('#quickParamButtons .quick-param-btn');
+        buttons.forEach(button => {
+            button.addEventListener('click', () => {
+                const param = button.dataset.param;
+                const target = document.getElementById('quickParamTarget')?.value || 'x';
+                const targetSelectMap = {
+                    x: document.getElementById('xParam'),
+                    y: document.getElementById('yParam'),
+                    z: document.getElementById('zParam')
+                };
+                const targetSelect = targetSelectMap[target];
+                if (!targetSelect) {
+                    return;
+                }
+
+                const hasParam = Array.from(targetSelect.options).some(option => option.value === param);
+                if (!hasParam) {
+                    showMessage(`Параметр "${param}" отсутствует в текущем наборе данных`, 'warning', 3000);
+                    return;
+                }
+
+                if (target === 'z') {
+                    const graphType = document.getElementById('graphType');
+                    if (graphType && graphType.value !== '3d_scatter') {
+                        graphType.value = '3d_scatter';
+                        updateFormOptions();
+                    }
+                }
+
+                targetSelect.value = param;
+                if (target === 'x' || target === 'y') {
+                    updateFormOptions();
+                }
+                showMessage(`Параметр "${param}" установлен для оси ${target.toUpperCase()}`, 'info', 1800);
+            });
+        });
     }
 
     function handleFullscreenChange() {
@@ -1613,9 +1710,42 @@ window.addEventListener('load', function() {
 
     function updateStatistics(stats) {
         const statsContainer = document.getElementById('dataStats');
+        const keyParams = ['cd', 'nd', 'sd', 'hd', 'od', 'vd', 'ad', 'war'];
 
         if (stats && Object.keys(stats).length > 0) {
+            const orderedEntries = Object.entries(stats).sort((a, b) => {
+                const aPriority = keyParams.indexOf(a[0]);
+                const bPriority = keyParams.indexOf(b[0]);
+
+                if (aPriority !== -1 && bPriority !== -1) return aPriority - bPriority;
+                if (aPriority !== -1) return -1;
+                if (bPriority !== -1) return 1;
+                return a[0].localeCompare(b[0]);
+            });
+
+            const highlightedStats = orderedEntries.filter(([param]) => keyParams.includes(param)).slice(0, 8);
             let html = `
+            <div class="p-3 border-bottom bg-light-subtle">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <small class="text-muted fw-semibold">Ключевые показатели состава</small>
+                    <small class="text-muted">${orderedEntries.length} параметров</small>
+                </div>
+                <div class="sidebar-key-stats">
+        `;
+
+            highlightedStats.forEach(([param, values]) => {
+                const value = values.mean !== null ? values.mean.toFixed(2) : 'N/A';
+                html += `
+                    <div class="sidebar-key-stat" title="${param}">
+                        <div class="stat-label">${param}</div>
+                        <div class="stat-value">${value}</div>
+                    </div>
+                `;
+            });
+
+            html += `
+                </div>
+            </div>
             <div class="table-responsive h-100 w-100">
                 <table class="table table-sm table-hover mb-0">
                     <thead style="position: sticky; top: 0; background: #f8f9fa; z-index: 10;">
@@ -1631,7 +1761,7 @@ window.addEventListener('load', function() {
                     <tbody>
         `;
 
-            for (const [param, values] of Object.entries(stats)) {
+            for (const [param, values] of orderedEntries) {
                 html += `
                 <tr>
                     <td><small class="fw-bold text-dark">${param}</small></td>
@@ -1647,6 +1777,17 @@ window.addEventListener('load', function() {
             html += '</tbody></table></div>';
             statsContainer.innerHTML = html;
         }
+    }
+
+    function filterCompositionItems() {
+        const searchInput = document.getElementById('compositionSearchInput');
+        const query = (searchInput?.value || '').trim().toLowerCase();
+        const items = document.querySelectorAll('#compositionControls .composition-item');
+
+        items.forEach(item => {
+            const value = (item.getAttribute('data-composition') || '').toLowerCase();
+            item.style.display = (!query || value.includes(query)) ? '' : 'none';
+        });
     }
 
     function resetForm() {
@@ -1926,6 +2067,7 @@ window.addEventListener('load', function() {
 
         controlsContainer.innerHTML = html;
         controlsCard.style.display = 'flex'; // Меняем на flex
+        filterCompositionItems();
 
         // Обновляем счетчик
         updateCompositionsCounter();

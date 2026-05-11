@@ -1,6 +1,8 @@
 # app/routes/graphs.py — Создание графиков
 from flask import Blueprint, render_template, request, jsonify, session
 import json
+import logging
+import time
 from app.auth.auth import login_required
 from app.database.database import query_db
 from app.services.gui import (
@@ -9,6 +11,7 @@ from app.services.gui import (
 )
 
 graphs_bp = Blueprint('graphs', __name__)
+logger = logging.getLogger(__name__)
 
 _db_path = 'pellets_data.db'
 
@@ -21,9 +24,10 @@ def set_db_path(path):
 @login_required
 def create_graph():
     from app.routes.main import get_uploaded_files
+    started_at = time.perf_counter()
     uploaded_files = get_uploaded_files()
-    measured_data = query_db(_db_path, "measured_parameters")
-    parameters = measured_data.columns.tolist() if not measured_data.empty else []
+    measured_preview = query_db(_db_path, "measured_parameters", query="SELECT * FROM {} LIMIT 1")
+    parameters = measured_preview.columns.tolist() if not measured_preview.empty else []
 
     selected_viz_type = request.form.get('viz_type', 'matplotlib') if request.method == 'POST' else 'matplotlib'
 
@@ -36,6 +40,7 @@ def create_graph():
 
     if request.method == 'POST':
         try:
+            measured_data = query_db(_db_path, "measured_parameters")
             viz_type = request.form.get('viz_type', 'matplotlib')
             graph_type = request.form.get('graph_type', 'scatter')
             x_param = request.form.get('x_param', 'ad')
@@ -100,7 +105,7 @@ def create_graph():
                     'available_compositions': available_compositions
                 })
 
-            return jsonify({
+            response = jsonify({
                 'success': True,
                 'message': graph_message,
                 'graph': graph,
@@ -108,14 +113,18 @@ def create_graph():
                 'stats': stats,
                 'available_compositions': available_compositions
             })
+            logger.info("graphs_create_post elapsed_ms=%.2f rows=%s", (time.perf_counter() - started_at) * 1000.0, len(measured_data))
+            return response
         except Exception as e:
             import traceback
             traceback.print_exc()
             return jsonify({'success': False, 'message': f'Ошибка при создании графика: {str(e)}', 'stats': get_data_statistics(measured_data)})
 
     # GET request
-    graph, message, compositions = generate_graph(measured_data)
-    stats = get_data_statistics(measured_data)
+    # Ленивая инициализация: не строим график и статистику на открытии вкладки.
+    # Это существенно ускоряет переключение между вкладками при больших таблицах.
+    graph = None
+    stats = {}
 
     param_labels = {
         'composition': 'Составы', 'density': 'Плотность, кг/м³', 'kf': 'Ударопрочность, %',
@@ -131,7 +140,7 @@ def create_graph():
         'component': 'Компоненты',
     }
 
-    return render_template(
+    response = render_template(
         'create_graph.html',
         segment='Создание графика',
         uploaded_files=uploaded_files,
@@ -144,3 +153,5 @@ def create_graph():
         components_sheet_name=session.get('components_sheet_name', 'Таблица компонентов'),
         stats=stats
     )
+    logger.info("graphs_create_get elapsed_ms=%.2f", (time.perf_counter() - started_at) * 1000.0)
+    return response
