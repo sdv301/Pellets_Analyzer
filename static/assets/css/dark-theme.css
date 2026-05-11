@@ -663,3 +663,15 @@
 [data-theme="dark"] * {
   transition: background-color 0.15s ease, color 0.1s ease, border-color 0.15s ease, box-shadow 0.15s ease !important;
 }
+
+/* === RESPONSIVE SUPPORT === */
+[data-theme="dark"] #globalSearchResults.responsive-search-results {
+  background-color: var(--bg-secondary) !important;
+  border: 1px solid var(--border-primary) !important;
+}
+
+@media (max-width: 991.98px) {
+  [data-theme="dark"] .navbar-main {
+    border-radius: 12px !important;
+  }
+}

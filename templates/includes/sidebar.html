@@ -492,5 +492,31 @@
             visibility: visible !important;
             width: auto !important;
         }
+
+        @media (hover: none), (pointer: coarse) {
+            .g-sidenav-hidden .sidenav:hover {
+                width: 64px !important;
+            }
+
+            .g-sidenav-hidden .sidenav:hover .nav-link {
+                justify-content: center;
+                padding: 10px 0;
+            }
+
+            .g-sidenav-hidden .sidenav:hover .nav-link .nav-link-text,
+            .g-sidenav-hidden .sidenav:hover .sidenav-user-info,
+            .g-sidenav-hidden .sidenav:hover .sidenav-section-label {
+                opacity: 0;
+                visibility: hidden;
+                width: 0;
+            }
+        }
+
+        @media (max-width: 1199.98px) {
+            .sidenav-footer {
+                position: static !important;
+                padding: 8px 10px 10px !important;
+            }
+        }
     </style>
 </aside>

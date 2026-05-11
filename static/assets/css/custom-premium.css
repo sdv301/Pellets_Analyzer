@@ -888,3 +888,111 @@ body.theme-loading .form-select,
 body.theme-loading .btn {
     transition: none !important;
 }
+
+/* ==========================================================================
+   GLOBAL RESPONSIVE LAYER
+   ========================================================================== */
+:root {
+    --app-navbar-offset: 84px;
+}
+
+.app-shell {
+    min-height: 100dvh;
+    overflow-x: hidden;
+}
+
+.app-main-content {
+    min-height: 100dvh;
+    overflow-x: hidden;
+}
+
+img,
+svg,
+canvas,
+video {
+    max-width: 100%;
+}
+
+.table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+#globalSearchResults.responsive-search-results {
+    position: absolute;
+    top: calc(100% + 0.35rem);
+    left: 0;
+    z-index: 1050;
+    border-radius: 12px;
+    max-height: min(46vh, 320px);
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.w-45 {
+    width: 45% !important;
+}
+
+.w-30 {
+    width: 30% !important;
+}
+
+@media (max-width: 991.98px) {
+    :root {
+        --app-navbar-offset: 76px;
+    }
+
+    .main-content {
+        margin-left: 0 !important;
+    }
+
+    .navbar-main {
+        margin-left: 0.75rem !important;
+        margin-right: 0.75rem !important;
+    }
+
+    .responsive-navbar-collapse {
+        display: flex !important;
+        flex-wrap: wrap;
+        row-gap: 0.75rem;
+    }
+
+    .responsive-search-wrap {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .responsive-search-wrap .input-group {
+        width: 100%;
+    }
+
+    .responsive-search-wrap #globalSearchInput {
+        min-width: 0;
+    }
+
+    .w-45,
+    .w-30 {
+        width: 100% !important;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .navbar-main {
+        margin-left: 0.5rem !important;
+        margin-right: 0.5rem !important;
+    }
+
+    .breadcrumb {
+        flex-wrap: wrap;
+        row-gap: 0.2rem;
+    }
+
+    .navbar-main .container-fluid {
+        padding-left: 0.4rem !important;
+        padding-right: 0.4rem !important;
+    }
+
+    .card {
+        border-radius: 14px !important;
+    }
+}

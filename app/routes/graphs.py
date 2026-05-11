@@ -20,6 +20,20 @@ def set_db_path(path):
     _db_path = path
 
 
+def _resolve_3d_z_param(data, x_param, y_param, z_param):
+    if data.empty:
+        return z_param, []
+
+    numeric_columns = data.select_dtypes(include='number').columns.tolist()
+    candidates = [col for col in numeric_columns if col not in {x_param, y_param}]
+
+    if z_param and z_param in candidates:
+        return z_param, candidates
+    if candidates:
+        return candidates[0], candidates
+    return z_param, candidates
+
+
 @graphs_bp.route('/create_graph', methods=['GET', 'POST'])
 @login_required
 def create_graph():
@@ -65,6 +79,19 @@ def create_graph():
 
             if measured_data.empty:
                 return jsonify({'success': False, 'message': 'Нет данных для построения графика. Сначала загрузите файл.', 'stats': stats})
+
+            if graph_type == '3d_scatter':
+                z_param, z_candidates = _resolve_3d_z_param(measured_data, x_param, y_param, z_param)
+                if not z_param or z_param in {x_param, y_param} or z_param not in measured_data.columns:
+                    candidates_text = ', '.join(z_candidates) if z_candidates else 'нет'
+                    return jsonify({
+                        'success': False,
+                        'message': (
+                            'Для 3D Scatter выберите корректный параметр Z. '
+                            f'Доступные параметры Z: {candidates_text}'
+                        ),
+                        'stats': stats
+                    })
 
             if selected_compositions is not None and len(selected_compositions) == 0:
                 if 'composition' in measured_data.columns:

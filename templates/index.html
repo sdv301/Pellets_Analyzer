@@ -212,9 +212,9 @@
             </div>
 
             <!-- Сообщения (Top Toasts) -->
-            <div class="position-fixed top-0 start-50 translate-middle-x p-3" style="z-index: 9999; margin-top: 15px;">
+            <div class="position-fixed top-0 start-50 translate-middle-x p-3 dashboard-alerts-wrap" style="z-index: 9999; margin-top: 15px;">
                 {% for message in get_flashed_messages(with_categories=true) %}
-                <div class="alert alert-{{ message[0] }} alert-dismissible fade show mb-2 shadow-sm text-white auto-hide-alert" role="alert" style="min-width: 300px; text-align: center;">
+                <div class="alert alert-{{ message[0] }} alert-dismissible fade show mb-2 shadow-sm text-white auto-hide-alert dashboard-alert" role="alert" style="text-align: center;">
                     {{ message[1] }}
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
@@ -310,6 +310,30 @@
 
     .toast {
         min-width: 300px;
+    }
+
+    .dashboard-alert {
+        width: min(92vw, 460px);
+    }
+
+    @media (max-width: 767.98px) {
+        .dashboard-alerts-wrap {
+            padding-left: 0.5rem !important;
+            padding-right: 0.5rem !important;
+        }
+
+        .dashboard-alert {
+            width: min(94vw, 420px);
+            margin-inline: auto;
+        }
+
+        .container-fluid.py-4 .d-flex.gap-2 {
+            flex-wrap: wrap;
+        }
+
+        .container-fluid.py-4 .d-flex.gap-2 .btn {
+            width: 100%;
+        }
     }
 </style>
 

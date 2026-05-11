@@ -291,6 +291,46 @@
     [data-theme="dark"] .glass-card .bg-gray-100 {
         background-color: var(--bg-tertiary, #1a1d24) !important;
     }
+
+    @media (max-width: 991.98px) {
+        #ml-tabs .ml-tab-btn {
+            padding: 0.65rem 0.55rem;
+            font-size: 0.86rem;
+        }
+
+        #ml-tabs .step-icon {
+            width: 20px;
+            height: 20px;
+            margin-right: 4px;
+        }
+
+        #sandboxSlidersContainer {
+            max-height: 300px !important;
+        }
+    }
+
+    @media (max-width: 767.98px) {
+        #ml-tabs {
+            display: grid !important;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.35rem;
+        }
+
+        #ml-tabs .nav-item {
+            width: 100%;
+        }
+
+        #optimization-form .d-flex.justify-content-between,
+        #step2-train .border-top.d-flex.justify-content-between {
+            flex-direction: column;
+            align-items: stretch !important;
+            gap: 0.5rem !important;
+        }
+
+        #step4-sandbox .alert .d-flex.gap-2 {
+            flex-direction: column;
+        }
+    }
 </style>
 {% endblock extrastyle %}
 

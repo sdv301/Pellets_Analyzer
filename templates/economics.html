@@ -1,5 +1,25 @@
 {% extends "base.html" %}
 
+{% block extrastyle %}
+<style>
+    @media (max-width: 767.98px) {
+        #economics-form .row > [class*="col-"] {
+            margin-bottom: 0.75rem;
+        }
+
+        #economics-form .btn,
+        #economics-form .w-45,
+        #economics-form .w-30 {
+            width: 100% !important;
+        }
+
+        #results-content .chart-container {
+            height: 220px !important;
+        }
+    }
+</style>
+{% endblock extrastyle %}
+
 {% block content %}
 <div class="container-fluid py-4">
     <div class="row ">

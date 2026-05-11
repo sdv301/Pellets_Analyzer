@@ -783,6 +783,44 @@
         transform: translateY(-2px);
         box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
     }
+
+    @media (max-width: 991.98px) {
+        .category-title {
+            width: 120px;
+            font-size: 12px;
+        }
+
+        .comparison-values {
+            height: 26px;
+        }
+    }
+
+    @media (max-width: 767.98px) {
+        .comparison-table {
+            font-size: 12px;
+        }
+
+        .comparison-table th,
+        .comparison-table td {
+            padding: 8px 6px;
+            white-space: nowrap;
+        }
+
+        .total-score {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .category-title {
+            width: 96px;
+            font-size: 11px;
+        }
+
+        .composition-value {
+            min-width: 34px;
+        }
+    }
 </style>
 
 <!-- Chart.js -->

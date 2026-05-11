@@ -11,7 +11,7 @@
                     <p class="text-muted text-lg mb-5">Выберите движок визуализации и тип графика, который вы хотите
                         построить</p>
 
-                    <div class="card bank-card p-5 mx-auto" style="max-width: 800px;">
+                    <div class="card bank-card p-5 mx-auto graph-step-card">
                         <div class="row">
                             <div class="col-md-6 text-start mb-4 mb-md-0">
                                 <label class="form-label fw-bold text-dark fs-5">Движок визуализации</label>
@@ -44,7 +44,7 @@
                             </div>
                         </div>
                         <div class="mt-5 text-center">
-                            <a href="#section-2" class="btn btn-premium btn-lg w-50">Далее <i
+                            <a href="#section-2" class="btn btn-premium btn-lg next-step-btn">Далее <i
                                     class="fas fa-arrow-down ms-2"></i></a>
                         </div>
                     </div>
@@ -89,7 +89,7 @@
                                     <div class="col-12">
                                         <label class="form-label fw-bold">Быстрый выбор параметров состава:</label>
                                         <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-                                            <select id="quickParamTarget" class="form-select form-select-sm border-radius-lg" style="max-width: 170px;">
+                                            <select id="quickParamTarget" class="form-select form-select-sm border-radius-lg quick-target-select">
                                                 <option value="x">Применить к оси X</option>
                                                 <option value="y">Применить к оси Y</option>
                                                 <option value="z">Применить к оси Z</option>
@@ -227,7 +227,7 @@
                                     <i class="fas fa-chart-pie opacity-10"></i>
                                 </div>
                                 <h4 class="text-dark">График еще не сгенерирован</h4>
-                                <p class="text-muted w-50 text-center">Заполните настройки на предыдущих шагах и нажмите
+                                <p class="text-muted text-center default-state-note">Заполните настройки на предыдущих шагах и нажмите
                                     "Создать график". Визуализация появится здесь.</p>
                                 <a href="#section-1" class="btn btn-outline-primary mt-3">Вернуться к настройкам</a>
                             </div>
@@ -240,17 +240,23 @@
             </div>
 
             <!-- Боковая панель результатов (Легенда, Статистика) -->
-            <div class="col-lg-3 h-100 d-flex flex-column ps-lg-2 mt-4 mt-lg-0">
+            <div class="col-lg-3 h-100 d-flex flex-column ps-lg-2 mt-4 mt-lg-0 results-sidebar">
                 <!-- Управление составами — ПЕРЕРАБОТАННАЯ ПАНЕЛЬ -->
-                <div class="card bank-card mb-3 flex-shrink-0" id="compositionControlsCard" style="display: none;">
-                    <div class="card-header bg-white border-bottom py-2 d-flex align-items-center justify-content-between">
-                        <h6 class="mb-0 text-dark d-flex align-items-center">
+                <div class="card bank-card mb-3 flex-shrink-0 results-panel" id="compositionControlsCard" style="display: none;">
+                    <div class="card-header bg-white border-bottom py-2 px-3 d-flex align-items-center justify-content-between">
+                        <button
+                            type="button"
+                            class="btn btn-link text-decoration-none p-0 d-flex align-items-center text-dark fw-semibold"
+                            id="toggleLegendPanelBtn"
+                            aria-expanded="false"
+                            aria-controls="compositionControlsCollapse">
+                            <i class="fas fa-chevron-right me-2 legend-chevron"></i>
                             <i class="fas fa-layer-group text-primary me-2"></i>
-                            <span>Составы</span>
-                        </h6>
+                            <span>Легенда составов</span>
+                        </button>
                         <span class="badge bg-primary rounded-pill" id="compositionCounter">0/0</span>
                     </div>
-                    <div class="card-body p-0">
+                    <div id="compositionControlsCollapse" class="collapse">
                         <!-- Кнопки управления -->
                         <div class="d-flex border-bottom py-2 px-2 gap-1">
                             <button class="btn btn-sm btn-outline-primary flex-fill" id="selectAllCompositions" title="Выбрать все">
@@ -275,10 +281,17 @@
                 </div>
 
                 <!-- Статистика -->
-                <div class="card bank-card flex-grow-1 overflow-hidden">
-                    <div class="card-header bg-white border-bottom py-3">
-                        <h6 class="mb-0 text-dark"><i class="fas fa-calculator text-primary me-2"></i>Статистика выборки
-                        </h6>
+                <div class="card bank-card flex-grow-1 overflow-hidden results-panel">
+                    <div class="card-header bg-white border-bottom py-2 d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0 text-dark"><i class="fas fa-calculator text-primary me-2"></i>Статистика выборки</h6>
+                        <div class="d-flex gap-1">
+                            <button class="btn btn-sm btn-outline-primary" id="toggleSidebarMiniBtn">
+                                Мини-режим
+                            </button>
+                            <button class="btn btn-sm btn-outline-secondary" id="toggleStatsTableBtn">
+                                Показать таблицу
+                            </button>
+                        </div>
                     </div>
                     <div class="card-body p-0 custom-scrollbar" style="overflow-y: auto;">
                         <div id="dataStats" class="p-3">
@@ -344,7 +357,7 @@
 <style>
     /* CSS SCROLL SNAP И SCROLLYTELLING */
     .scroll-container {
-        height: calc(100vh - 80px) !important;
+        height: calc(100dvh - var(--app-navbar-offset, 84px)) !important;
         /* Учитываем высоту верхнего меню */
         overflow-y: auto !important;
         overflow-x: hidden !important;
@@ -353,9 +366,9 @@
     }
 
     .scroll-section {
-        height: calc(100vh - 80px) !important;
+        height: calc(100dvh - var(--app-navbar-offset, 84px)) !important;
         width: 100% !important;
-        min-height: 600px !important;
+        min-height: clamp(420px, 70dvh, 620px) !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
@@ -501,7 +514,7 @@
     @media (max-width: 992px) {
         #create-graph-page .container-fluid {
             height: auto !important;
-            min-height: calc(100vh - 80px) !important;
+            min-height: calc(100dvh - var(--app-navbar-offset, 84px)) !important;
         }
 
         #create-graph-page .col-lg-4,
@@ -832,12 +845,12 @@
 
     #create-graph-page .table {
         margin-bottom: 0 !important;
-        font-size: 0.75rem !important;
+        font-size: 0.78rem !important;
     }
 
     #create-graph-page .table th,
     #create-graph-page .table td {
-        padding: 0.25rem 0.15rem !important;
+        padding: 0.35rem 0.25rem !important;
         white-space: nowrap !important;
     }
 
@@ -864,16 +877,68 @@
         font-size: 0.82rem;
     }
 
+    .results-sidebar {
+        gap: 0.25rem;
+    }
+
+    .results-sidebar.is-mini #compositionControlsCollapse {
+        display: none !important;
+    }
+
+    .results-sidebar.is-mini #toggleStatsTableBtn {
+        display: none !important;
+    }
+
+    .results-sidebar.is-mini #dataStats .stats-detailed-table {
+        display: none !important;
+    }
+
+    .results-sidebar.is-mini .sidebar-key-stats {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .results-sidebar.is-mini .results-panel .card-body {
+        max-height: 45vh;
+    }
+
+    .results-panel {
+        border: 1px solid rgba(94, 114, 228, 0.14);
+        box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
+        border-radius: 0.95rem;
+    }
+
+    .results-panel .card-header {
+        background: linear-gradient(180deg, rgba(94, 114, 228, 0.06), rgba(94, 114, 228, 0.02));
+    }
+
+    #toggleLegendPanelBtn {
+        color: #344767 !important;
+    }
+
+    #toggleLegendPanelBtn:hover {
+        color: #2d3f96 !important;
+    }
+
+    .legend-chevron {
+        transition: transform 0.22s ease;
+        font-size: 0.72rem;
+        color: #6c757d;
+    }
+
+    .legend-chevron.is-open {
+        transform: rotate(90deg);
+    }
+
     #create-graph-page .sidebar-key-stats {
         display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 0.4rem;
+        grid-template-columns: 1fr;
+        gap: 0.35rem;
     }
 
     #create-graph-page .sidebar-key-stat {
-        border: 1px solid rgba(0, 0, 0, 0.08);
+        border: 1px solid rgba(0, 0, 0, 0.06);
         border-radius: 0.5rem;
-        padding: 0.4rem 0.5rem;
+        padding: 0.45rem 0.55rem;
         background: #fff;
     }
 
@@ -887,9 +952,106 @@
     }
 
     #create-graph-page .sidebar-key-stat .stat-value {
-        font-size: 0.78rem;
+        font-size: 0.82rem;
         font-weight: 600;
         color: #344767;
+    }
+
+    #dataStats .stats-detailed-table.hidden {
+        display: none !important;
+    }
+
+    /* RESPONSIVE STABILITY OVERRIDES */
+    #create-graph-page.scroll-container {
+        height: calc(100dvh - var(--app-navbar-offset, 84px)) !important;
+    }
+
+    #create-graph-page .scroll-section {
+        min-height: calc(100dvh - var(--app-navbar-offset, 84px)) !important;
+        height: auto !important;
+    }
+
+    #create-graph-page .graph-step-card {
+        max-width: min(800px, 100%) !important;
+        padding: clamp(1rem, 2.5vw, 2.4rem) !important;
+    }
+
+    #create-graph-page .next-step-btn {
+        width: clamp(200px, 55%, 420px) !important;
+        max-width: 100%;
+    }
+
+    #create-graph-page .quick-target-select {
+        width: min(100%, 220px);
+    }
+
+    #create-graph-page .default-state-note {
+        width: min(100%, 520px);
+        margin-inline: auto;
+    }
+
+    #create-graph-page #graphArea,
+    #create-graph-page #dynamicGraphContainer,
+    #create-graph-page #dynamicGraphContainer .js-plotly-plot,
+    #create-graph-page #dynamicGraphContainer .plotly,
+    #create-graph-page #dynamicGraphContainer .plot-container,
+    #create-graph-page #dynamicGraphContainer .svg-container {
+        min-height: clamp(280px, 46vh, 450px) !important;
+    }
+
+    @media (max-width: 1199.98px) {
+        #create-graph-page .results-sidebar {
+            margin-top: 0.75rem !important;
+        }
+
+        #create-graph-page .results-sidebar .results-panel {
+            min-height: auto !important;
+        }
+    }
+
+    @media (max-width: 991.98px) {
+        #create-graph-page.scroll-container {
+            height: auto !important;
+            min-height: calc(100dvh - var(--app-navbar-offset, 84px));
+            scroll-snap-type: none !important;
+        }
+
+        #create-graph-page .scroll-section {
+            min-height: auto !important;
+            padding: 0.75rem !important;
+        }
+
+        #create-graph-page .scroll-section .display-4,
+        #create-graph-page .scroll-section .display-5 {
+            font-size: clamp(1.6rem, 5vw, 2.3rem);
+        }
+
+        #create-graph-page .results-sidebar,
+        #create-graph-page .results-sidebar .card,
+        #create-graph-page .results-panel {
+            height: auto !important;
+        }
+
+        #create-graph-page #dataStats .table th,
+        #create-graph-page #dataStats .table td {
+            white-space: normal !important;
+            min-width: 95px;
+        }
+    }
+
+    @media (max-width: 767.98px) {
+        #create-graph-page .next-step-btn {
+            width: 100% !important;
+        }
+
+        #create-graph-page .btn-group {
+            flex-wrap: wrap;
+            row-gap: 0.35rem;
+        }
+
+        #create-graph-page #graphControls .btn {
+            width: 100%;
+        }
     }
 
     /* АНИМАЦИИ SCROLLYTELLING */
@@ -914,6 +1076,11 @@
     let currentGraphType = 'matplotlib';
     let availableCompositions = [];
     let selectedCompositions = [];
+    let legendPanelVisible = false;
+    let detailedStatsVisible = false;
+    let sidebarMiniMode = false;
+    const LEGEND_STATE_KEY = 'create_graph.legend_open';
+    const SIDEBAR_MINI_KEY = 'create_graph.sidebar_mini';
 
     // Списки графиков для каждого типа визуализации
     const GRAPHS_BY_TYPE = {
@@ -983,11 +1150,15 @@
 
             availableCompositions = [];
             selectedCompositions = [];
+            legendPanelVisible = localStorage.getItem(LEGEND_STATE_KEY) === '1';
+            sidebarMiniMode = localStorage.getItem(SIDEBAR_MINI_KEY) === '1';
             initializeForm();
             setupEventListeners();
             updateFormOptions();
             setupCompositionControls();
             setupQuickParameterButtons();
+            setLegendPanelVisibility(legendPanelVisible);
+            applySidebarMiniMode(sidebarMiniMode);
             setupScrollyTelling();
 
         } catch (error) {
@@ -1107,6 +1278,9 @@
         const resetBtn = document.getElementById('resetFormBtn');
         const downloadBtn = document.getElementById('downloadGraphBtn');
         const fullscreenBtn = document.getElementById('fullscreenBtn');
+        const toggleLegendBtn = document.getElementById('toggleLegendPanelBtn');
+        const toggleStatsBtn = document.getElementById('toggleStatsTableBtn');
+        const toggleSidebarMiniBtn = document.getElementById('toggleSidebarMiniBtn');
 
         if (helpBtn) {
             helpBtn.addEventListener('click', () => {
@@ -1120,6 +1294,9 @@
         if (resetBtn) resetBtn.addEventListener('click', resetForm);
         if (downloadBtn) downloadBtn.addEventListener('click', downloadGraph);
         if (fullscreenBtn) fullscreenBtn.addEventListener('click', toggleFullscreen);
+        if (toggleLegendBtn) toggleLegendBtn.addEventListener('click', toggleLegendPanel);
+        if (toggleStatsBtn) toggleStatsBtn.addEventListener('click', toggleStatsTable);
+        if (toggleSidebarMiniBtn) toggleSidebarMiniBtn.addEventListener('click', toggleSidebarMiniMode);
 
         // Изменения в форме
         const vizType = document.getElementById('vizType');
@@ -1150,6 +1327,92 @@
         document.addEventListener('msfullscreenchange', handleFullscreenChange);
 
         console.log('=== Обработчики событий настроены ===');
+    }
+
+    function toggleSidebarMiniMode() {
+        applySidebarMiniMode(!sidebarMiniMode);
+    }
+
+    function applySidebarMiniMode(enabled) {
+        sidebarMiniMode = !!enabled;
+        localStorage.setItem(SIDEBAR_MINI_KEY, sidebarMiniMode ? '1' : '0');
+
+        const sidebar = document.querySelector('.results-sidebar');
+        const miniBtn = document.getElementById('toggleSidebarMiniBtn');
+        if (sidebar) {
+            sidebar.classList.toggle('is-mini', sidebarMiniMode);
+        }
+        if (miniBtn) {
+            miniBtn.textContent = sidebarMiniMode ? 'Полный режим' : 'Мини-режим';
+        }
+
+        if (sidebarMiniMode) {
+            detailedStatsVisible = false;
+            const tableBlock = document.querySelector('#dataStats .stats-detailed-table');
+            if (tableBlock) {
+                tableBlock.classList.add('hidden');
+            }
+        }
+
+        setLegendPanelVisibility(legendPanelVisible);
+        const statsBtn = document.getElementById('toggleStatsTableBtn');
+        if (statsBtn) {
+            statsBtn.textContent = detailedStatsVisible ? 'Скрыть таблицу' : 'Показать таблицу';
+        }
+    }
+
+    function toggleLegendPanel() {
+        if (!availableCompositions.length) {
+            showMessage('Сначала создайте график, затем можно открыть легенду составов', 'warning', 2600);
+            return;
+        }
+        setLegendPanelVisibility(!legendPanelVisible);
+    }
+
+    function setLegendPanelVisibility(visible) {
+        const controlsCard = document.getElementById('compositionControlsCard');
+        const toggleBtn = document.getElementById('toggleLegendPanelBtn');
+        const chevron = toggleBtn?.querySelector('.legend-chevron');
+        const collapseEl = document.getElementById('compositionControlsCollapse');
+        legendPanelVisible = !!visible;
+        localStorage.setItem(LEGEND_STATE_KEY, legendPanelVisible ? '1' : '0');
+
+        if (controlsCard) {
+            controlsCard.style.display = availableCompositions.length ? 'flex' : 'none';
+        }
+
+        if (collapseEl && sidebarMiniMode) {
+            collapseEl.classList.remove('show');
+        } else if (collapseEl && typeof bootstrap !== 'undefined' && bootstrap.Collapse) {
+            const collapse = bootstrap.Collapse.getOrCreateInstance(collapseEl, { toggle: false });
+            if (legendPanelVisible) {
+                collapse.show();
+            } else {
+                collapse.hide();
+            }
+        } else if (collapseEl) {
+            collapseEl.classList.toggle('show', legendPanelVisible);
+        }
+
+        if (toggleBtn) {
+            toggleBtn.setAttribute('aria-expanded', legendPanelVisible ? 'true' : 'false');
+        }
+        if (chevron) {
+            chevron.classList.toggle('is-open', legendPanelVisible);
+        }
+    }
+
+    function toggleStatsTable() {
+        detailedStatsVisible = !detailedStatsVisible;
+        const toggleBtn = document.getElementById('toggleStatsTableBtn');
+        const tableBlock = document.querySelector('#dataStats .stats-detailed-table');
+
+        if (toggleBtn) {
+            toggleBtn.textContent = detailedStatsVisible ? 'Скрыть таблицу' : 'Показать таблицу';
+        }
+        if (tableBlock) {
+            tableBlock.classList.toggle('hidden', !detailedStatsVisible);
+        }
     }
 
     function setupQuickParameterButtons() {
@@ -1189,6 +1452,52 @@
                 showMessage(`Параметр "${param}" установлен для оси ${target.toUpperCase()}`, 'info', 1800);
             });
         });
+    }
+
+    function refreshZOptionsFor3D() {
+        const xSelect = document.getElementById('xParam');
+        const ySelect = document.getElementById('yParam');
+        const zSelect = document.getElementById('zParam');
+
+        if (!xSelect || !ySelect || !zSelect) {
+            return [];
+        }
+
+        const xValue = xSelect.value;
+        const yValue = ySelect.value;
+        const currentZ = zSelect.value;
+
+        Array.from(zSelect.options).forEach(option => {
+            if (!option.value) {
+                option.disabled = false;
+                return;
+            }
+            option.disabled = option.value === xValue || option.value === yValue;
+        });
+
+        const candidates = Array.from(zSelect.options)
+            .map(option => option.value)
+            .filter(value => value && value !== xValue && value !== yValue);
+
+        const preferredZ = candidates.includes(currentZ) ? currentZ : (candidates[0] || '');
+        zSelect.value = preferredZ;
+        return candidates;
+    }
+
+    function ensureValid3DZParam() {
+        const graphType = document.getElementById('graphType')?.value;
+        if (graphType !== '3d_scatter') {
+            return true;
+        }
+
+        const candidates = refreshZOptionsFor3D();
+        const zValue = document.getElementById('zParam')?.value || '';
+
+        if (!zValue || !candidates.includes(zValue)) {
+            showMessage('Для 3D Scatter выберите корректный параметр Z из выпадающего списка', 'warning', 3200);
+            return false;
+        }
+        return true;
     }
 
     function handleFullscreenChange() {
@@ -1247,8 +1556,10 @@
         // Опции для 3D графиков
         if (graphType === '3d_scatter') {
             zParamGroup.style.display = 'flex';
+            refreshZOptionsFor3D();
         } else {
             zParamGroup.style.display = 'none';
+            document.getElementById('zParam').value = '';
         }
     }
 
@@ -1266,7 +1577,12 @@
             return;
         }
 
+        if (!ensureValid3DZParam()) {
+            return;
+        }
+
         const formData = new FormData(form);
+        formData.set('z_param', document.getElementById('zParam')?.value || '');
 
         // ВАЖНОЕ ИСПРАВЛЕНИЕ: Добавляем selected_compositions в formData
         let compositionsInput = document.getElementById('selectedCompositionsInput');
@@ -1588,17 +1904,19 @@
 
         plotlyGraphs.forEach((graph, index) => {
             if (typeof Plotly !== 'undefined') {
+                const width = Math.max(graph.clientWidth || 0, 260);
+                const height = Math.max(graph.clientHeight || 0, 280);
+                const compact = width < 768;
+                const margin = compact
+                    ? { l: 44, r: 16, t: 40, b: 52 }
+                    : { l: 72, r: 36, t: 50, b: 72 };
+
                 // Получаем текущий layout
                 Plotly.relayout(graph, {
                     'autosize': true,
-                    'margin': {
-                        'l': 80,   // левый отступ
-                        'r': 80,   // правый отступ
-                        't': 50,   // верхний отступ
-                        'b': 80    // нижний отступ
-                    },
-                    'width': graph.clientWidth,
-                    'height': graph.clientHeight
+                    'margin': margin,
+                    'width': width,
+                    'height': height
                 }).then(() => {
                     console.log(`✅ Layout графика ${index + 1} настроен`);
                 });
@@ -1746,7 +2064,7 @@
             html += `
                 </div>
             </div>
-            <div class="table-responsive h-100 w-100">
+            <div class="table-responsive h-100 w-100 stats-detailed-table ${detailedStatsVisible ? '' : 'hidden'}">
                 <table class="table table-sm table-hover mb-0">
                     <thead style="position: sticky; top: 0; background: #f8f9fa; z-index: 10;">
                         <tr>
@@ -1776,6 +2094,17 @@
 
             html += '</tbody></table></div>';
             statsContainer.innerHTML = html;
+            const toggleBtn = document.getElementById('toggleStatsTableBtn');
+            if (toggleBtn) {
+                toggleBtn.textContent = detailedStatsVisible ? 'Скрыть таблицу' : 'Показать таблицу';
+            }
+        } else {
+            statsContainer.innerHTML = `
+                <div class="text-center text-muted my-5">
+                    <i class="fas fa-info-circle fa-2x mb-3 text-light"></i>
+                    <p class="text-sm">Нет данных для анализа.<br>Сгенерируйте график.</p>
+                </div>
+            `;
         }
     }
 
@@ -1806,6 +2135,17 @@
 
         // Сбрасываем график к состоянию по умолчанию
         showDefaultState();
+        availableCompositions = [];
+        selectedCompositions = [];
+        const controlsCard = document.getElementById('compositionControlsCard');
+        if (controlsCard) {
+            controlsCard.style.display = 'none';
+        }
+        const searchInput = document.getElementById('compositionSearchInput');
+        if (searchInput) {
+            searchInput.value = '';
+        }
+        updateCompositionsCounter();
 
         showMessage('Форма сброшена', 'info');
     }
@@ -1823,11 +2163,13 @@
                 const plotlyGraph = dynamicContainer.querySelector('.js-plotly-plot');
 
                 if (plotlyGraph) {
+                    const exportWidth = Math.max(Math.round(plotlyGraph.clientWidth || 900), 900);
+                    const exportHeight = Math.max(Math.round(plotlyGraph.clientHeight || 600), 600);
                     Plotly.downloadImage(plotlyGraph, {
                         format: 'png',
                         filename: 'plotly_graph',
-                        width: 800,
-                        height: 600
+                        width: exportWidth,
+                        height: exportHeight
                     });
                     showMessage('График Plotly скачан', 'success');
                 } else {
@@ -2031,7 +2373,9 @@
         console.log('🔄 Обновление панели составов:', compositions);
 
         if (!compositions || compositions.length === 0) {
-            controlsCard.style.display = 'none';
+            if (controlsCard) {
+                controlsCard.style.display = 'none';
+            }
             if (controlsContainer) controlsContainer.innerHTML = '<p class="text-muted text-center small">Нет доступных составов</p>';
             return;
         }
@@ -2066,7 +2410,7 @@
         });
 
         controlsContainer.innerHTML = html;
-        controlsCard.style.display = 'flex'; // Меняем на flex
+        setLegendPanelVisibility(legendPanelVisible);
         filterCompositionItems();
 
         // Обновляем счетчик
@@ -2285,18 +2629,14 @@
     }
 
     function updateCompositionsCounter() {
-        const cardHeader = document.querySelector('#compositionControlsCard .card-header h6');
-        if (cardHeader) {
-            const total = availableCompositions.length;
-            const selected = selectedCompositions.length;
-
-            if (total > 0) {
-                cardHeader.innerHTML = `
-                <i class="fas fa-layer-group me-2"></i>
-                Составы на графике
-                <small class="badge bg-primary ms-2">${selected}/${total}</small>
-            `;
-            }
+        const counter = document.getElementById('compositionCounter');
+        const total = availableCompositions.length;
+        const selected = selectedCompositions.length;
+        if (counter) {
+            counter.textContent = `${selected}/${total}`;
+            counter.classList.toggle('bg-warning', selected === 0 && total > 0);
+            counter.classList.toggle('text-dark', selected === 0 && total > 0);
+            counter.classList.toggle('bg-primary', !(selected === 0 && total > 0));
         }
     }
 

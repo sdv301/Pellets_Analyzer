@@ -1,9 +1,16 @@
 <!--   Core JS Files   -->
-<!-- jQuery FIRST — required by bootstrap-notify -->
+<!-- jQuery (optional dependency for legacy plugins) -->
 <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="{{ url_for('static', filename='assets/js/plugins/perfect-scrollbar.min.js') }}"></script>
-<script src="{{ url_for('static', filename='assets/js/plugins/bootstrap-notify.js') }}"></script>
+<script>
+    // Load jQuery-based notify plugin only when jQuery is available.
+    if (window.jQuery) {
+        const notifyScript = document.createElement('script');
+        notifyScript.src = "{{ url_for('static', filename='assets/js/plugins/bootstrap-notify.js') }}";
+        document.head.appendChild(notifyScript);
+    }
+</script>
 
 <!-- ЗАЩИТНЫЙ ПАТЧ: предотвращает ошибку removeChild в soft-ui-dashboard.min.js -->
 <script>
