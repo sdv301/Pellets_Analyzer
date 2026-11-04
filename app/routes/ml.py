@@ -7,6 +7,7 @@ from collections import deque
 from flask import Blueprint, render_template, request, jsonify, session
 from app.auth.auth import login_required
 from app.database.database import query_db
+from app.services.ml_v2.switch import model_version, predict_one
 
 ml_bp = Blueprint('ml', __name__)
 logger = logging.getLogger(__name__)
@@ -95,6 +96,48 @@ def _get_ml_system():
     return _resolve_ml_system()
 
 
+def _legacy_predict(ml_system, composition, target_property):
+    return ml_system.predictor.predict(composition, target_property)
+
+
+def _contract_fields(contract):
+    if not contract:
+        return {}
+    return {
+        "std": contract.get("std"),
+        "lo90": contract.get("lo90"),
+        "hi90": contract.get("hi90"),
+        "in_domain": contract.get("in_domain"),
+        "informative": contract.get("informative"),
+        "note": contract.get("note") or "",
+        "model_name": contract.get("model_name"),
+        "model_version": "v2",
+    }
+
+
+def _v2_training_refused_payload():
+    """v2 не переобучается на БД продукта и не пишет туда прогнозы."""
+    from app.services.ml_v2.predictor import v2_system_status
+
+    status = v2_system_status()
+    message = (
+        "Режим v2 использует зафиксированный артефакт. "
+        "Переобучение на данных продукта не выполняется, прогнозы в БД не пишутся. "
+        "Метрики — nested CV из manifest."
+    )
+    _training_status["is_training"] = False
+    _training_status["progress"] = 100
+    _training_status["message"] = message
+    _training_status["error"] = None
+    _training_status["result"] = {
+        "success": True,
+        "message": message,
+        "model_version": "v2",
+        "metrics": status["model_metrics"],
+    }
+    return message
+
+
 def _train_async_task(target_properties, algorithm, input_features, user_id=None):
     """Фоновая задача обучения."""
     global _training_status
@@ -159,8 +202,9 @@ def _train_async_task(target_properties, algorithm, input_features, user_id=None
 @ml_bp.route('/ml_dashboard')
 @login_required
 def ml_dashboard():
-    # Минимальная загрузка — данные подгружаются асинхронно через JS
-    _ensure_ml_warmup()
+    # В режиме v2 legacy-прогрев не нужен: он мог бы обучить старую модель и записать её на диск.
+    if model_version() != "v2":
+        _ensure_ml_warmup()
     return render_template(
         'ml_dashboard.html',
         segment='ML Анализ'
@@ -174,6 +218,10 @@ def ml_system_train():
     started_at = time.perf_counter()
     if _training_status['is_training']:
         return jsonify({'success': False, 'error': 'Обучение уже запущено. Дождитесь завершения.'})
+
+    if model_version() == "v2":
+        message = _v2_training_refused_payload()
+        return jsonify({"success": True, "message": message, "task_id": "ml_train", "model_version": "v2"})
 
     try:
         target_properties = request.form.getlist('target_properties[]')
@@ -242,6 +290,15 @@ def ml_augment_database():
 @login_required
 def ml_optimize():
     started_at = time.perf_counter()
+    if model_version() == "v2":
+        return jsonify({
+            "success": False,
+            "model_version": "v2",
+            "error": (
+                "В режиме v2 оптимизация не запускается: она записала бы прогноз в обучающую таблицу. "
+                "Откат к прежнему оптимизатору — MODEL_VERSION=legacy."
+            ),
+        })
     try:
         ml_system = _get_ml_system()
         target_property = request.form.get('target_property')
@@ -275,7 +332,6 @@ def ml_optimize():
 @login_required
 def ml_predict():
     try:
-        ml_system = _get_ml_system()
         data = request.get_json(silent=True) or {}
         if not isinstance(data, dict):
             return jsonify({'success': False, 'error': 'Некорректный формат запроса'})
@@ -285,11 +341,27 @@ def ml_predict():
         if not composition or not target_property:
             return jsonify({'success': False, 'error': 'Не указаны состав или свойство'})
 
-        prediction = ml_system.predictor.predict(composition, target_property)
-        if prediction is not None:
-            return jsonify({'success': True, 'prediction': prediction, 'property': target_property})
+        if model_version() == "v2":
+            result = predict_one(composition, target_property, legacy_predict=lambda *_args: None)
         else:
-            return jsonify({'success': False, 'error': 'Не удалось сделать предсказание'})
+            ml_system = _get_ml_system()
+            result = predict_one(
+                composition,
+                target_property,
+                legacy_predict=lambda comp, prop: _legacy_predict(ml_system, comp, prop),
+            )
+        prediction = result["prediction"]
+        if prediction is None:
+            return jsonify({'success': False, 'error': 'Не удалось сделать предсказание', 'model_version': result['model_version']})
+        body = {
+            'success': True,
+            'prediction': float(prediction),
+            'property': target_property,
+            'model_version': result['model_version'],
+        }
+        if result.get('contract'):
+            body['contract'] = result['contract']
+        return jsonify(body)
     except Exception as e:
         return jsonify({'success': False, 'error': f'Ошибка предсказания: {str(e)}'})
 
@@ -297,6 +369,12 @@ def ml_predict():
 @ml_bp.route('/ml_system_status')
 @login_required
 def ml_system_status():
+    if model_version() == "v2":
+        try:
+            from app.services.ml_v2.predictor import v2_system_status
+            return jsonify({'success': True, 'system_status': v2_system_status()})
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e), 'model_version': 'v2'})
     try:
         ml_system = _get_ml_system()
         # Не перезагружаем данные каждый раз — используем кэш
@@ -316,6 +394,23 @@ def api_predict_composition():
         composition = data.get('composition', {})
         if not isinstance(composition, dict) or not composition:
             return jsonify({'success': False, 'error': 'Не указан состав для предсказания'})
+        if model_version() == "v2":
+            from app.services.ml_v2.predictor import get_predictor
+            from app.services.ml_v2.properties import TRAINABLE_TARGETS, display_name
+
+            predictor = get_predictor()
+            results = {}
+            for prop in TRAINABLE_TARGETS:
+                contract = predictor.predict_contract(composition, prop)
+                if contract is None:
+                    continue
+                results[prop] = {
+                    'value': round(float(contract['value']), 3),
+                    'display_name': display_name(prop),
+                    **_contract_fields(contract),
+                }
+            return jsonify({'success': True, 'model_version': 'v2', 'results': results})
+
         ml_system = _get_ml_system()
 
         if not ml_system.predictor.is_trained:
@@ -324,12 +419,17 @@ def api_predict_composition():
         results = {}
         target_props = ml_system.predictor.main_target_properties
         for prop in target_props:
-            pred = ml_system.predictor.predict(composition, prop)
+            outcome = predict_one(
+                composition,
+                prop,
+                legacy_predict=lambda comp, target: _legacy_predict(ml_system, comp, target),
+            )
+            pred = outcome['prediction']
             if pred is not None:
                 display_name = ml_system.predictor.target_properties_mapping.get(prop, prop)
                 results[prop] = {'value': round(float(pred), 3), 'display_name': display_name}
 
-        return jsonify({'success': True, 'results': results})
+        return jsonify({'success': True, 'model_version': 'legacy', 'results': results})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
@@ -337,6 +437,12 @@ def api_predict_composition():
 @ml_bp.route('/ml_auto_retrain', methods=['POST'])
 @login_required
 def ml_auto_retrain():
+    if model_version() == "v2":
+        return jsonify({
+            'success': False,
+            'model_version': 'v2',
+            'error': 'v2 не переобучается на данных продукта и не записывает прогнозы в БД.',
+        })
     try:
         ml_system = _get_ml_system()
         result = ml_system.retrain_on_new_data()
