@@ -118,6 +118,7 @@
                     </div>
                     
                     <form method="post" enctype="multipart/form-data" id="dataForm">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <div class="row align-items-end">
                             <div class="col-md-5 mb-3 mb-md-0">
                                 <label for="file" class="form-label text-sm font-weight-bold text-muted">Или выберите файл с диска</label>
