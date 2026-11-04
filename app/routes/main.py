@@ -143,9 +143,28 @@ def upload_file():
     if file.filename == '':
         return jsonify({'success': False, 'message': 'Файл не выбран.', 'uploaded_files': uploaded_files})
 
-    upload_folder = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'Uploads')
-    if file and (file.filename.endswith('.csv') or file.filename.endswith('.xlsx')):
-        file_path = os.path.join(upload_folder, file.filename)
+    from werkzeug.utils import secure_filename
+    from flask import current_app
+    from app.utils.security import is_safe_path
+
+    upload_folder = current_app.config.get('UPLOAD_FOLDER') or os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'Uploads')
+    clean_filename = secure_filename(file.filename)
+    if not clean_filename:
+        flash('Недопустимое имя файла.', 'danger')
+        return jsonify({'success': False, 'message': 'Недопустимое имя файла.', 'uploaded_files': uploaded_files}), 400
+
+    ext = os.path.splitext(clean_filename)[1].lower()
+    if ext not in ('.csv', '.xlsx', '.xls'):
+        flash('Недопустимый формат файла.', 'danger')
+        return jsonify({'success': False, 'message': 'Недопустимый формат файла.', 'uploaded_files': uploaded_files}), 400
+
+    file_path = os.path.join(upload_folder, clean_filename)
+    if not is_safe_path(upload_folder, file_path):
+        flash('Недопустимый путь к файлу.', 'danger')
+        return jsonify({'success': False, 'message': 'Недопустимый путь к файлу.', 'uploaded_files': uploaded_files}), 400
+
+    os.makedirs(upload_folder, exist_ok=True)
+    if file:
         file.save(file_path)
         try:
             messages, components_sheet_name, sheet_data = process_data_source(file_path, _db_path)
@@ -195,10 +214,18 @@ def load_file():
     if not selected_file:
         return jsonify({'success': False, 'message': 'Файл не выбран.', 'uploaded_files': uploaded_files})
 
-    upload_folder = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'Uploads')
-    file_path = os.path.join(upload_folder, selected_file)
-    if not os.path.exists(file_path):
-        return jsonify({'success': False, 'message': f'Файл {selected_file} не найден.', 'uploaded_files': uploaded_files})
+    from werkzeug.utils import secure_filename
+    from flask import current_app
+    from app.utils.security import is_safe_path
+
+    clean_file = secure_filename(selected_file)
+    if not clean_file or clean_file != selected_file:
+        return jsonify({'success': False, 'message': f'Недопустимое имя файла: {selected_file}', 'uploaded_files': uploaded_files}), 400
+
+    upload_folder = current_app.config.get('UPLOAD_FOLDER') or os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'Uploads')
+    file_path = os.path.join(upload_folder, clean_file)
+    if not is_safe_path(upload_folder, file_path) or not os.path.exists(file_path):
+        return jsonify({'success': False, 'message': f'Файл {clean_file} не найден.', 'uploaded_files': uploaded_files}), 404
 
     try:
         process_messages, components_sheet_name, sheet_data = process_data_source(file_path, _db_path)

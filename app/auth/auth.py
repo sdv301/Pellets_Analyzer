@@ -184,10 +184,10 @@ def init_auth_tables(db_path: str = 'pellets_data.db'):
             (role_name, role_desc)
         )
 
-    # Создание/обновление администратора по умолчанию
+    # Инициализация администратора (только если задан ADMIN_PASSWORD в env и админ ещё не создан)
     admin_username = os.environ.get('ADMIN_USERNAME', 'admin')
     admin_email = os.environ.get('ADMIN_EMAIL', 'sdv300@bk.ru')
-    admin_password = os.environ.get('ADMIN_PASSWORD', 'admin2180')
+    admin_password = os.environ.get('ADMIN_PASSWORD')
 
     cursor.execute('SELECT id, password_hash FROM users WHERE email = ? OR username = ?', (admin_email, admin_username))
     existing_admin = cursor.fetchone()
@@ -197,21 +197,16 @@ def init_auth_tables(db_path: str = 'pellets_data.db'):
     role_id = admin_role[0] if admin_role else 2
 
     if existing_admin:
-        # Обновляем пароль и email существующего админа
-        password_hash = hash_password(admin_password)
-        cursor.execute('''
-            UPDATE users SET email = ?, password_hash = ?, role_id = ?, is_active = 1, is_verified = 1, full_name = 'Администратор'
-            WHERE id = ?
-        ''', (admin_email, password_hash, role_id, existing_admin[0]))
-        logger.info(f"Обновлён администратор: {admin_email}")
-    else:
-        # Создаём нового админа
+        logger.debug(f"Администратор уже существует: id={existing_admin[0]}")
+    elif admin_password:
         password_hash = hash_password(admin_password)
         cursor.execute('''
             INSERT INTO users (username, email, password_hash, role_id, is_active, is_verified, full_name)
             VALUES (?, ?, ?, ?, 1, 1, ?)
         ''', (admin_username, admin_email, password_hash, role_id, 'Администратор'))
-        logger.info(f"Создан администратор: {admin_email}")
+        logger.info(f"Создан администратор из переменной окружения ADMIN_PASSWORD: {admin_email}")
+    else:
+        logger.info("Учётная запись администратора не создана (ADMIN_PASSWORD не задан). Используйте 'flask create-admin'.")
 
     # Индексы для оптимизации
     indexes = [
@@ -1195,5 +1190,39 @@ def resend_verification_email(email: str, db_path: str, base_url: str) -> Dict[s
         conn.rollback()
         logger.error(f"Ошибка повторной отправки email: {e}")
         return {'success': False, 'error': str(e)}
+    finally:
+        conn.close()
+
+
+def create_admin_user(db_path, username, email, password, full_name='Администратор'):
+    """Создаёт или обновляет учётную запись администратора."""
+    if not username or not email or not password:
+        raise ValueError("Имя пользователя, email и пароль обязательны")
+
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    try:
+        cursor.execute('SELECT id FROM roles WHERE name = ?', ('admin',))
+        role_row = cursor.fetchone()
+        role_id = role_row[0] if role_row else 2
+
+        pwd_hash = hash_password(password)
+        cursor.execute('SELECT id FROM users WHERE email = ? OR username = ?', (email, username))
+        existing = cursor.fetchone()
+
+        if existing:
+            cursor.execute('''
+                UPDATE users SET email = ?, username = ?, password_hash = ?, role_id = ?, is_active = 1, is_verified = 1, full_name = ?
+                WHERE id = ?
+            ''', (email, username, pwd_hash, role_id, full_name, existing[0]))
+            conn.commit()
+            return existing[0], False
+        else:
+            cursor.execute('''
+                INSERT INTO users (username, email, password_hash, role_id, is_active, is_verified, full_name)
+                VALUES (?, ?, ?, ?, 1, 1, ?)
+            ''', (username, email, pwd_hash, role_id, full_name))
+            conn.commit()
+            return cursor.lastrowid, True
     finally:
         conn.close()

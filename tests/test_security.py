@@ -213,3 +213,172 @@ class TestIPBlocklist:
         """Разблокировка несуществующего IP не вызывает ошибок."""
         blocklist = IPBlocklist()
         blocklist.unblock('10.0.0.1')  # Не должно вызвать ошибку
+
+
+class TestPathTraversalSecurity:
+    """D4: Тесты защиты от Path Traversal."""
+
+    def test_safe_path_valid(self, tmp_path):
+        from app.utils.security import is_safe_path
+        base = tmp_path / "uploads"
+        base.mkdir()
+        target = base / "valid_file.csv"
+        assert is_safe_path(str(base), str(target)) is True
+
+    def test_safe_path_rejects_traversal(self, tmp_path):
+        from app.utils.security import is_safe_path
+        base = tmp_path / "uploads"
+        base.mkdir()
+        target = base / ".." / "secret.txt"
+        assert is_safe_path(str(base), str(target)) is False
+
+    def test_safe_path_handles_none_and_empty(self):
+        from app.utils.security import is_safe_path
+        assert is_safe_path("", "test") is False
+        assert is_safe_path("base", "") is False
+        assert is_safe_path(None, "test") is False
+
+
+class TestStoredXSSInCompare:
+    """D1: Тест предотвращения XSS в таблице сравнения."""
+
+    def test_compare_escapes_script_in_composition(self, authenticated_client, db_path):
+        import sqlite3
+        from app.database.database import init_db
+        init_db(db_path)
+        conn = sqlite3.connect(db_path)
+        xss_name = '<script>alert("xss")</script> 100% Опилки'
+        comp2 = '100% Солома'
+        conn.execute("""
+            INSERT OR REPLACE INTO measured_parameters 
+            (composition, war, ad, vd, q, cd, hd, nd, sd, od, density, tign, tb, mass_loss, kt, h, co2, co, so2, nox)
+            VALUES (?, 10.0, 5.0, 75.0, 17.5, 45.0, 5.5, 0.5, 0.1, 40.0, 1100.0, 250.0, 300.0, 80.0, 1.2, 0.5, 12.0, 0.05, 0.01, 0.02)
+        """, (xss_name,))
+        conn.execute("""
+            INSERT OR REPLACE INTO measured_parameters 
+            (composition, war, ad, vd, q, cd, hd, nd, sd, od, density, tign, tb, mass_loss, kt, h, co2, co, so2, nox)
+            VALUES (?, 12.0, 4.0, 70.0, 16.5, 42.0, 5.0, 0.4, 0.1, 38.0, 1050.0, 260.0, 310.0, 78.0, 1.1, 0.4, 11.0, 0.04, 0.01, 0.02)
+        """, (comp2,))
+        conn.commit()
+        conn.close()
+
+        resp = authenticated_client.post('/compare', data={
+            'comp1': xss_name,
+            'comp2': comp2,
+            'paramGroup': 'all'
+        })
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data['success'] is True
+        comparison_html = data.get('comparison', '')
+        assert '<script>alert("xss")</script>' not in comparison_html
+        assert '&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;' in comparison_html or '&lt;script&gt;' in comparison_html
+
+
+class TestAdminSecurity:
+    """D2: Тесты пароля администратора."""
+
+    def test_no_hardcoded_admin_password_on_init(self, tmp_path, monkeypatch):
+        from app.auth.auth import init_auth_tables
+        import sqlite3
+        test_db = str(tmp_path / "auth_test.db")
+        monkeypatch.delenv('ADMIN_PASSWORD', raising=False)
+        init_auth_tables(test_db)
+
+        conn = sqlite3.connect(test_db)
+        cursor = conn.cursor()
+        cursor.execute("SELECT id FROM users WHERE username = 'admin'")
+        admin = cursor.fetchone()
+        conn.close()
+        # Без ADMIN_PASSWORD в env админ не должен создаваться со статическим паролем
+        assert admin is None
+
+    def test_admin_password_not_overwritten_on_restart(self, tmp_path, monkeypatch):
+        from app.auth.auth import init_auth_tables, create_admin_user
+        import sqlite3
+        test_db = str(tmp_path / "auth_restart.db")
+        init_auth_tables(test_db)
+
+        # Создаём админа с первым паролем
+        create_admin_user(test_db, 'admin', 'admin@example.com', 'initial_pass_123')
+        conn = sqlite3.connect(test_db)
+        cursor = conn.cursor()
+        cursor.execute("SELECT password_hash FROM users WHERE username = 'admin'")
+        first_hash = cursor.fetchone()[0]
+        conn.close()
+
+        # Эмулируем перезапуск с другим ADMIN_PASSWORD
+        monkeypatch.setenv('ADMIN_PASSWORD', 'different_password')
+        init_auth_tables(test_db)
+
+        conn = sqlite3.connect(test_db)
+        cursor = conn.cursor()
+        cursor.execute("SELECT password_hash FROM users WHERE username = 'admin'")
+        second_hash = cursor.fetchone()[0]
+        conn.close()
+
+        # Существующий хеш не должен быть перезаписан
+        assert first_hash == second_hash
+
+    def test_create_admin_cli_command(self, app, runner):
+        res = runner.invoke(args=['create-admin', '--username', 'superadmin', '--email', 'super@example.com', '--password', 'SecretPass123!'])
+        assert res.exit_code == 0
+        assert 'superadmin' in res.output
+
+
+class TestConfigAndDebugSecurity:
+    """D3: Тесты конфигурации безопасности и скрытия трейсбеков."""
+
+    def test_secret_key_required_outside_testing(self, monkeypatch):
+        from app import create_app
+        monkeypatch.delenv('SECRET_KEY', raising=False)
+        with pytest.raises(RuntimeError, match="SECRET_KEY"):
+            create_app({'TESTING': False})
+
+    def test_traceback_hidden_when_debug_false(self):
+        from app import create_app
+        test_app = create_app({'TESTING': True, 'DEBUG': False, 'SECRET_KEY': 'k', 'PROPAGATE_EXCEPTIONS': False})
+
+        @test_app.route('/trigger-500-test')
+        def trigger_500():
+            raise ValueError("Secret database credentials leaked!")
+
+        client = test_app.test_client()
+        res = client.get('/trigger-500-test')
+        assert res.status_code == 500
+        html = res.get_data(as_text=True)
+        assert "Secret database credentials leaked!" not in html
+        assert "Traceback" not in html
+
+
+class TestFileUploadSecurityRoutes:
+    """D4: Тесты валидации загрузок и защиты от Path Traversal в роутах."""
+
+    def test_upload_rejects_path_traversal_filename(self, authenticated_client):
+        import io
+        data = {'file': (io.BytesIO(b"dummy,content\n1,2"), '../evil.csv')}
+        res = authenticated_client.post('/', data=data, content_type='multipart/form-data')
+        # secure_filename превращает '../evil.csv' в 'evil.csv' (безопасно) или отклоняет
+        assert res.status_code in (200, 400)
+        json_data = res.get_json()
+        if res.status_code == 400:
+            assert json_data['success'] is False
+
+    def test_upload_rejects_disallowed_extension(self, authenticated_client):
+        import io
+        data = {'file': (io.BytesIO(b"print('hack')"), 'exploit.py')}
+        res = authenticated_client.post('/', data=data, content_type='multipart/form-data')
+        assert res.status_code == 400
+        assert res.get_json()['success'] is False
+
+    def test_load_file_rejects_traversal(self, authenticated_client):
+        res = authenticated_client.post('/load_file', data={'selected_file': '../../etc/passwd'})
+        assert res.status_code == 400
+        assert res.get_json()['success'] is False
+
+    def test_upload_economics_rejects_disallowed_extension(self, authenticated_client):
+        import io
+        data = {'file': (io.BytesIO(b"malicious script"), 'payload.sh')}
+        res = authenticated_client.post('/api/upload_economics', data=data, content_type='multipart/form-data')
+        assert res.status_code == 400
+        assert res.get_json()['success'] is False

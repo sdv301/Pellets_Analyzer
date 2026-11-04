@@ -65,7 +65,23 @@ def create_app(config=None):
     # Используем новый подход с FileSystemCache вместо устаревшего SESSION_FILE_DIR
     sessions_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'sessions')
     app.config['SESSION_CACHELIB'] = FileSystemCache(threshold=500, default_timeout=3600, cache_dir=sessions_dir)
-    app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', secrets.token_hex(24))
+    # Проверка и установка SECRET_KEY (D3)
+    secret_key = None
+    if config and 'SECRET_KEY' in config:
+        secret_key = config['SECRET_KEY']
+    else:
+        secret_key = os.getenv('SECRET_KEY')
+
+    if not secret_key:
+        if config and config.get('TESTING'):
+            secret_key = 'test-secret-key-fallback'
+        else:
+            raise RuntimeError(
+                "SECRET_KEY не установлен! Задайте надёжный SECRET_KEY в файле .env или переменных окружения перед запуском."
+            )
+
+    app.config['SECRET_KEY'] = secret_key
+    app.config['MAX_CONTENT_LENGTH'] = int(os.getenv('MAX_CONTENT_LENGTH', 10 * 1024 * 1024))  # 10 МБ лимит (D4)
     default_static_cache_age = int(os.getenv('STATIC_CACHE_MAX_AGE', '3600'))
     app.config['TEMPLATES_AUTO_RELOAD'] = False
     app.config['SEND_FILE_MAX_AGE_DEFAULT'] = default_static_cache_age
@@ -128,11 +144,16 @@ def create_app(config=None):
                         cause = line.split(':', 1)[-1].strip()
                         break
 
+        is_debug = bool(app.config.get('DEBUG'))
+        safe_traceback = traceback_str if is_debug else None
+        safe_message = error_str if is_debug else 'Внутренняя ошибка сервера. Пожалуйста, обратитесь к администратору.'
+        safe_cause = cause if (is_debug and cause) else 'Внутренняя ошибка сервиса'
+
         return {
-            'error_type': error_type,
-            'error_message': error_str,
-            'traceback': traceback_str,
-            'cause': cause if cause else 'Неизвестная ошибка',
+            'error_type': error_type if is_debug else 'ServerError',
+            'error_message': safe_message,
+            'traceback': safe_traceback,
+            'cause': safe_cause,
             'url': request.url if request else 'N/A',
             'method': request.method if request else 'N/A',
             'endpoint': request.endpoint if request else 'N/A',
@@ -174,6 +195,21 @@ def create_app(config=None):
         app.logger.error(f"НЕОБРАБОТАННОЕ ИСКЛЮЧЕНИЕ:\n{ctx['traceback']}")
         return render_template('errors/500.html', **ctx), 500
 
+
+    @app.errorhandler(413)
+    def handle_request_entity_too_large(e):
+        from flask import jsonify, request, flash, render_template
+        app.logger.warning(f"413 Payload Too Large: {request.url if request else 'N/A'}")
+        if request and (request.is_json or request.path.startswith('/api/')):
+            return jsonify({
+                'success': False,
+                'message': 'Размер загружаемого файла превышает допустимый лимит (10 МБ).',
+                'error': 'Payload Too Large'
+            }), 413
+        flash('Размер загружаемого файла превышает допустимый лимит (10 МБ).', 'danger')
+        ctx = _build_error_context(e)
+        return render_template('errors/500.html', **ctx), 413
+
     # ============================================================
     # КОНТЕКСТНЫЙ ПРОЦЕССОР
     # ============================================================
@@ -202,6 +238,7 @@ def create_app(config=None):
     # ============================================================
     _initialize_extensions(app)
     _check_pellet_lab(app)
+    _register_cli(app)
 
     return app
 
@@ -267,3 +304,27 @@ def _initialize_extensions(app):
 
     # Глобальный экземпляр ML-анализатора
     app.config['AI_ML_ANALYZER'] = AIMLAnalyzer(db_path)
+
+
+def _register_cli(app):
+    """Регистрирует CLI-команды приложения."""
+    import click
+
+    @app.cli.command('create-admin')
+    @click.option('--username', prompt=True, default='admin', help='Логин администратора')
+    @click.option('--email', prompt=True, default='admin@example.com', help='Email администратора')
+    @click.option('--password', prompt=True, hide_input=True, confirmation_prompt=True, help='Пароль администратора')
+    def create_admin_command(username, email, password):
+        """Создать или обновить учётную запись администратора."""
+        from app.auth.auth import create_admin_user
+        db_path = app.config.get('DATABASE_PATH') or os.path.join(
+            os.path.dirname(os.path.dirname(__file__)), 'data', 'pellets_data.db'
+        )
+        try:
+            user_id, created = create_admin_user(db_path, username, email, password)
+            if created:
+                click.echo(f"Администратор {username} ({email}) успешно создан (id={user_id}).")
+            else:
+                click.echo(f"Данные администратора {username} ({email}) успешно обновлены (id={user_id}).")
+        except Exception as err:
+            click.echo(f"Ошибка создания администратора: {err}", err=True)

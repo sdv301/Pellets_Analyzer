@@ -80,7 +80,7 @@ def compare_data():
         return jsonify({
             'success': True,
             'message': f'Сравнение {len(found_compositions)} составов выполнено успешно.',
-            'comparison': filtered_data.to_html(classes='table table-striped table-sm comparison-table', index=False, escape=False, na_rep='N/A'),
+            'comparison': filtered_data.to_html(classes='table table-striped table-sm comparison-table', index=False, escape=True, na_rep='N/A'),
             'compositions': found_compositions,
             'stats': get_comparison_stats(filtered_data)
         })

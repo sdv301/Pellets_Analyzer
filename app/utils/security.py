@@ -329,3 +329,15 @@ def log_security_event(event_type, details, ip=None):
     security_logger.warning(
         f"[{event_type}] IP: {ip or request.remote_addr} | {details}"
     )
+
+def is_safe_path(base_dir, path, follow_symlinks=True):
+    """Проверяет, что путь path действительно находится внутри base_dir (защита от path traversal)."""
+    if not path or not base_dir:
+        return False
+    try:
+        resolved_base = os.path.realpath(base_dir) if follow_symlinks else os.path.abspath(base_dir)
+        resolved_path = os.path.realpath(path) if follow_symlinks else os.path.abspath(path)
+        return os.path.commonpath([resolved_base, resolved_path]) == resolved_base
+    except (ValueError, Exception):
+        return False
+

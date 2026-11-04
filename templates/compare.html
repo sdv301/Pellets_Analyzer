@@ -835,6 +835,16 @@
     let comparisonChart = null;
     let differenceChart = null;
 
+    function escapeHtml(str) {
+        if (str === null || str === undefined) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
 
     function updateCheckboxIcons() {
         document.querySelectorAll('.form-check-input').forEach(checkbox => {
@@ -1343,7 +1353,7 @@
                                             <span class="rank-badge">#${index + 1}</span>
                                             ${index === 0 ? '<span class="best-badge"><i class="fas fa-crown me-1"></i>Лучший</span>' : ''}
                                         </div>
-                                        <h5 class="composition-name">${comp.substring(0, 25)}${comp.length > 25 ? '...' : ''}</h5>
+                                        <h5 class="composition-name">${escapeHtml(comp.substring(0, 25))}${comp.length > 25 ? '...' : ''}</h5>
                                     </div>
                                     
                                     <div class="total-score">
@@ -1401,7 +1411,7 @@
                 return `
                                                     <div class="composition-value ${isBest ? 'best-value' : ''}" 
                                                          style="width: ${(score / 10) * 100}%"
-                                                         title="${comp}: ${score.toFixed(1)}">
+                                                         title="${escapeHtml(comp)}: ${score.toFixed(1)}">
                                                         <span class="value-text">${score.toFixed(1)}</span>
                                                     </div>
                                                     `;
@@ -1529,7 +1539,7 @@
         container.innerHTML = `
         <div class="alert alert-success">
             <h6><i class="fas fa-check-circle me-2"></i>Рекомендация на основе выбранных критериев</h6>
-            <p class="mb-2">На основе анализа <strong>${selectedCriteria.length} критериев</strong> рекомендуется <strong>${compositions[0]}</strong>.</p>
+            <p class="mb-2">На основе анализа <strong>${selectedCriteria.length} критериев</strong> рекомендуется <strong>${escapeHtml(compositions[0])}</strong>.</p>
             <small class="text-muted">Учитывались: ${criteriaText}</small>
         </div>
         <div class="row mt-3">
@@ -1779,7 +1789,7 @@
                         ${compositions.map((comp, index) => `
                             <div style="margin-bottom: 5px; padding: 3px 0;">
                                 <span style="font-weight: bold; color: #333;">${index + 1}.</span> 
-                                ${comp.length > 40 ? comp.substring(0, 40) + '...' : comp}
+                                ${escapeHtml(comp.length > 40 ? comp.substring(0, 40) + '...' : comp)}
                             </div>
                         `).join('')}
                     </div>
@@ -1792,7 +1802,7 @@
                     </h3>
                     <div style="font-size: 11px;">
                         <div style="font-weight: bold; color: #d35400; margin-bottom: 5px;">
-                            ${compositions[0] || 'Не определен'}
+                            ${escapeHtml(compositions[0] || 'Не определен')}
                         </div>
                         <div style="color: #856404;">
                             Оптимальный состав по совокупности характеристик
@@ -1857,7 +1867,7 @@
                                 ${score}/10
                             </div>
                             <div style="font-size: 10px; color: #666; height: 30px; overflow: hidden;">
-                                ${comp.length > 25 ? comp.substring(0, 25) + '...' : comp}
+                                ${escapeHtml(comp.length > 25 ? comp.substring(0, 25) + '...' : comp)}
                             </div>
                             <div style="background: #ecf0f1; height: 4px; border-radius: 2px; margin-top: 5px;">
                                 <div style="
@@ -1896,11 +1906,11 @@
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                         <div>
                             <div style="font-weight: 600; margin-bottom: 3px;">Лучший по теплоте:</div>
-                            <div>${compositions[0] || 'Н/Д'}</div>
+                            <div>${escapeHtml(compositions[0] || 'Н/Д')}</div>
                         </div>
                         <div>
                             <div style="font-weight: 600; margin-bottom: 3px;">Экологичность:</div>
-                            <div>${compositions[0] || 'Н/Д'}</div>
+                            <div>${escapeHtml(compositions[0] || 'Н/Д')}</div>
                         </div>
                     </div>
                 </div>

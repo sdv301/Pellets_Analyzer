@@ -327,14 +327,7 @@
                 <i class="fas fa-exclamation-triangle me-1"></i> {{ cause }}
             </div>
             {% endif %}
-            {% if traceback %}
-            <details>
-                <summary style="cursor: pointer; color: #ef4444; font-size: 12px; margin-bottom: 8px;">
-                    <i class="fas fa-code me-1"></i> Показать полный traceback
-                </summary>
-                <pre class="error-trace">{{ traceback }}</pre>
-            </details>
-            {% endif %}
+            {# Трейсбеки скрыты в целях безопасности продакшена (D3) #}
             {% else %}
             <i class="fas fa-info-circle"></i>
             Ошибка записана в лог. Если проблема повторяется, сообщите нам:
