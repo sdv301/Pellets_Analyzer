@@ -92,16 +92,16 @@ def admin_database():
         rows = []
         total_rows = 0
 
-        if selected_table:
-            cursor.execute(f'SELECT COUNT(*) AS cnt FROM "{selected_table}"')
+        if selected_table and selected_table in table_names:
+            cursor.execute(f'SELECT COUNT(*) AS cnt FROM "{selected_table}"')  # nosec: B608
             total_rows = int(cursor.fetchone()['cnt'])
 
             offset = (page - 1) * per_page
-            cursor.execute(f'SELECT * FROM "{selected_table}" LIMIT ? OFFSET ?', (per_page, offset))
+            cursor.execute(f'SELECT * FROM "{selected_table}" LIMIT ? OFFSET ?', (per_page, offset))  # nosec: B608
             rows = [dict(row) for row in cursor.fetchall()]
             columns = list(rows[0].keys()) if rows else []
             if not columns:
-                cursor.execute(f'PRAGMA table_info("{selected_table}")')
+                cursor.execute(f'PRAGMA table_info("{selected_table}")')  # nosec: B608
                 columns = [row['name'] for row in cursor.fetchall()]
 
         total_pages = max(1, (total_rows + per_page - 1) // per_page) if selected_table else 1
@@ -272,7 +272,7 @@ def admin_bulk_users_action():
             FROM users u
             LEFT JOIN roles r ON r.id = u.role_id
             WHERE u.id IN ({placeholders})
-        ''', tuple(user_ids))
+        ''', tuple(user_ids))  # nosec: B608
         selected_users = cursor.fetchall()
 
         if not selected_users:
@@ -295,7 +295,7 @@ def admin_bulk_users_action():
                 return jsonify({'success': False, 'error': 'Роль отсутствует в базе'})
 
             cursor.execute(
-                f'UPDATE users SET role_id = ? WHERE id IN ({placeholders})',
+                f'UPDATE users SET role_id = ? WHERE id IN ({placeholders})',  # nosec: B608
                 (role_id, *user_ids),
             )
             conn.commit()

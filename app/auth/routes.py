@@ -24,14 +24,23 @@ def set_db_path(path):
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     """Вход в систему."""
+    from app.utils.security import brute_force
     if request.method == 'POST':
+        client_ip = request.remote_addr or '127.0.0.1'
         email_or_username = request.form.get('email_or_username', '').strip()
         password = request.form.get('password', '')
         remember = request.form.get('remember') == 'on'
 
+        identifier = f"{client_ip}:{email_or_username.lower()}"
+        if brute_force.is_locked(identifier) or brute_force.is_locked(client_ip):
+            flash('Слишком много неудачных попыток входа. Пожалуйста, подождите 15 минут.', 'danger')
+            return render_template('auth/login.html'), 429
+
         result = authenticate_user(_db_path, email_or_username, password)
 
         if result['success']:
+            brute_force.clear_attempts(identifier)
+            brute_force.clear_attempts(client_ip)
             user = result['user']
             session['user_id'] = user['id']
             session['username'] = user['username']
@@ -44,6 +53,11 @@ def login():
             flash(f'Добро пожаловать, {user["username"]}!', 'success')
             return redirect(url_for('main.dashboard'))
         else:
+            locked_ident = brute_force.record_attempt(identifier)
+            locked_ip = brute_force.record_attempt(client_ip)
+            if locked_ident or locked_ip:
+                flash('Слишком много неудачных попыток входа. Пожалуйста, подождите 15 минут.', 'danger')
+                return render_template('auth/login.html'), 429
             flash(result['error'], 'danger')
 
     return render_template('auth/login.html')
@@ -52,7 +66,13 @@ def login():
 @auth_bp.route('/register', methods=['GET', 'POST'])
 def register():
     """Регистрация нового пользователя."""
+    from app.utils.security import rate_limiter
     if request.method == 'POST':
+        client_ip = request.remote_addr or '127.0.0.1'
+        if not rate_limiter.is_allowed(f"register:{client_ip}", max_requests=10, window=60):
+            flash('Слишком много попыток регистрации. Попробуйте позже.', 'danger')
+            return render_template('auth/register.html'), 429
+
         username = request.form.get('username', '').strip()
         email = request.form.get('email', '').strip()
         password = request.form.get('password', '')
@@ -109,7 +129,13 @@ def verify_email(token):
 @auth_bp.route('/resend-verification', methods=['GET', 'POST'])
 def resend_verification():
     """Повторная отправка email подтверждения."""
+    from app.utils.security import rate_limiter
     if request.method == 'POST':
+        client_ip = request.remote_addr or '127.0.0.1'
+        if not rate_limiter.is_allowed(f"resend_verif:{client_ip}", max_requests=10, window=60):
+            flash('Слишком много запросов. Попробуйте позже.', 'danger')
+            return render_template('auth/resend_verification.html'), 429
+
         email = request.form.get('email', '').strip()
         if not email:
             flash('Введите email!', 'danger')
@@ -141,7 +167,13 @@ def logout():
 @auth_bp.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():
     """Запрос сброса пароля."""
+    from app.utils.security import rate_limiter
     if request.method == 'POST':
+        client_ip = request.remote_addr or '127.0.0.1'
+        if not rate_limiter.is_allowed(f"forgot:{client_ip}", max_requests=10, window=60):
+            flash('Слишком много запросов на сброс пароля. Попробуйте позже.', 'danger')
+            return render_template('auth/forgot_password.html'), 429
+
         email = request.form.get('email', '').strip()
         result = request_password_reset(_db_path, email)
 

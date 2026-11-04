@@ -421,7 +421,8 @@ def update_user_profile(db_path: str, user_id: int, **kwargs) -> Dict[str, Any]:
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     try:
-        cursor.execute(f'UPDATE users SET {set_clause} WHERE id = ?', values)
+        # Поля set_clause строго валидируются через allowed_fields
+        cursor.execute(f'UPDATE users SET {set_clause} WHERE id = ?', values)  # nosec: B608
         conn.commit()
         log_activity(db_path, user_id, 'update_profile', f'Обновление профиля: {list(updates.keys())}')
         return {'success': True}

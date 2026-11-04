@@ -382,3 +382,109 @@ class TestFileUploadSecurityRoutes:
         res = authenticated_client.post('/api/upload_economics', data=data, content_type='multipart/form-data')
         assert res.status_code == 400
         assert res.get_json()['success'] is False
+
+
+class TestSecurityHeadersAndCSP:
+    """D5: Тесты заголовков безопасности и Content Security Policy."""
+
+    def test_security_headers_present(self, client):
+        res = client.get('/login')
+        assert res.status_code == 200
+        assert res.headers.get('X-Frame-Options') == 'SAMEORIGIN'
+        assert res.headers.get('X-Content-Type-Options') == 'nosniff'
+        assert res.headers.get('X-XSS-Protection') == '1; mode=block'
+        assert res.headers.get('Referrer-Policy') == 'strict-origin-when-cross-origin'
+        assert 'Content-Security-Policy' in res.headers
+
+    def test_csp_does_not_contain_unsafe_eval(self, client):
+        res = client.get('/login')
+        csp = res.headers.get('Content-Security-Policy', '')
+        assert "script-src" in csp
+        assert "'unsafe-eval'" not in csp
+
+
+class TestBruteForceProtection:
+    """D5: Тесты защиты от перебора паролей (10 попыток -> 429)."""
+
+    def test_ten_failed_logins_return_429(self, client):
+        from app.utils.security import brute_force
+        brute_force.reset()
+
+        # Первые 9 неудачных попыток возвращают 200 (страница с ошибкой)
+        for i in range(9):
+            res = client.post('/login', data={
+                'email_or_username': 'brutetestuser',
+                'password': f'wrongpass{i}'
+            })
+            assert res.status_code == 200
+
+        # 10-я попытка блокирует и возвращает 429
+        res10 = client.post('/login', data={
+            'email_or_username': 'brutetestuser',
+            'password': 'wrongpass10'
+        })
+        assert res10.status_code == 429
+
+        # Последующие попытки сразу получают 429
+        res11 = client.post('/login', data={
+            'email_or_username': 'brutetestuser',
+            'password': 'wrongpass11'
+        })
+        assert res11.status_code == 429
+
+        brute_force.reset()
+
+
+class TestCSRFProtection:
+    """D5: Тесты CSRF-защиты при WTF_CSRF_ENABLED=True."""
+
+    def test_post_without_csrf_returns_400(self, app):
+        from app.utils.security import generate_csrf_token
+        app.config['WTF_CSRF_ENABLED'] = True
+        client = app.test_client()
+
+        # Устанавливаем сессию с токеном
+        with client.session_transaction() as sess:
+            sess['csrf_token'] = 'valid-token-12345'
+
+        # POST без токена -> 400
+        res = client.post('/login', data={
+            'email_or_username': 'admin',
+            'password': 'password'
+        })
+        assert res.status_code == 400
+
+        # POST с неверным токеном -> 400
+        res_wrong = client.post('/login', data={
+            'csrf_token': 'wrong-token',
+            'email_or_username': 'admin',
+            'password': 'password'
+        })
+        assert res_wrong.status_code == 400
+
+        # POST с верным токеном в форме не даёт 400 CSRF
+        res_valid = client.post('/login', data={
+            'csrf_token': 'valid-token-12345',
+            'email_or_username': 'admin',
+            'password': 'wrongpassword'
+        })
+        assert res_valid.status_code != 400
+
+        # POST с верным токеном в заголовке X-CSRFToken не даёт 400 CSRF
+        res_header = client.post(
+            '/login',
+            data={'email_or_username': 'admin', 'password': 'wrongpassword'},
+            headers={'X-CSRFToken': 'valid-token-12345'}
+        )
+        assert res_header.status_code != 400
+
+        app.config['WTF_CSRF_ENABLED'] = False
+
+
+class TestSessionCookieHardening:
+    """D6: Тесты конфигурации и флагов cookie сессии."""
+
+    def test_session_cookie_flags(self, app):
+        assert app.config['SESSION_COOKIE_HTTPONLY'] is True
+        assert app.config['SESSION_COOKIE_SAMESITE'] == 'Lax'
+        assert app.config['PERMANENT_SESSION_LIFETIME'] == 7 * 24 * 3600

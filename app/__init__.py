@@ -1,4 +1,4 @@
-﻿# app/__init__.py
+# app/__init__.py
 """
 Pellets Analyzer — Flask Application Package.
 
@@ -82,6 +82,11 @@ def create_app(config=None):
 
     app.config['SECRET_KEY'] = secret_key
     app.config['MAX_CONTENT_LENGTH'] = int(os.getenv('MAX_CONTENT_LENGTH', 10 * 1024 * 1024))  # 10 МБ лимит (D4)
+    # Настройки куки сессии (D6)
+    app.config['SESSION_COOKIE_HTTPONLY'] = True
+    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+    app.config['SESSION_COOKIE_SECURE'] = os.getenv('SESSION_COOKIE_SECURE', '0').lower() in ('1', 'true', 'yes')
+    app.config['PERMANENT_SESSION_LIFETIME'] = int(os.getenv('PERMANENT_SESSION_LIFETIME', 7 * 24 * 3600))
     default_static_cache_age = int(os.getenv('STATIC_CACHE_MAX_AGE', '3600'))
     app.config['TEMPLATES_AUTO_RELOAD'] = False
     app.config['SEND_FILE_MAX_AGE_DEFAULT'] = default_static_cache_age
@@ -196,6 +201,14 @@ def create_app(config=None):
         return render_template('errors/500.html', **ctx), 500
 
 
+    @app.errorhandler(400)
+    def handle_bad_request(e):
+        from flask import request, jsonify
+        msg = getattr(e, 'description', 'Неверный запрос (Bad Request)')
+        if request and (request.is_json or request.path.startswith('/api/')):
+            return jsonify({'success': False, 'error': msg}), 400
+        return msg, 400
+
     @app.errorhandler(413)
     def handle_request_entity_too_large(e):
         from flask import jsonify, request, flash, render_template
@@ -211,8 +224,32 @@ def create_app(config=None):
         return render_template('errors/500.html', **ctx), 413
 
     # ============================================================
+    # БЕЗОПАСНОСТЬ: CSRF И ЗАГОЛОВКИ (D5)
+    # ============================================================
+    @app.before_request
+    def check_csrf_protection():
+        from app.utils.security import check_csrf
+        check_csrf()
+
+    @app.after_request
+    def apply_security_headers(response):
+        from app.utils.security import add_security_headers
+        return add_security_headers(response)
+
+    # ============================================================
     # КОНТЕКСТНЫЙ ПРОЦЕССОР
     # ============================================================
+    @app.context_processor
+    def inject_csrf():
+        from app.utils.security import generate_csrf_token
+
+        class _CSRFTokenString(str):
+            def __call__(self):
+                return str(self)
+
+        token = generate_csrf_token()
+        return {'csrf_token': _CSRFTokenString(token)}
+
     @app.context_processor
     def inject_user():
         if 'user_id' in session:
