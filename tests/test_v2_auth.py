@@ -1,6 +1,8 @@
 """ML-роуты закрыты login_required. v2 отдаёт интервал и не пишет прогнозы в БД."""
 import pytest
 
+from tests.lab_support import lab_root, small_artifact
+
 ML_ROUTES = [
     ("GET", "/ml_dashboard"),
     ("POST", "/ml_system_train"),
@@ -19,6 +21,7 @@ ML_ROUTES = [
 
 @pytest.fixture()
 def isolated_app(tmp_path, monkeypatch):
+    lab_root()
     import app as app_module
 
     def _light(flask_app):
@@ -73,7 +76,12 @@ def test_ml_views_are_wrapped_with_login_required(isolated_app):
         assert hasattr(view, "__wrapped__"), name
 
 
-def test_v2_predict_keeps_value_and_adds_interval(authed, monkeypatch):
+def test_v2_predict_keeps_value_and_adds_interval(authed, monkeypatch, tmp_path_factory):
+    artifact = small_artifact(tmp_path_factory)
+    monkeypatch.setenv("PELLET_MODEL_DIR", str(artifact))
+    from app.services.ml_v2.predictor import reset_predictor
+
+    reset_predictor()
     monkeypatch.setenv("MODEL_VERSION", "v2")
     writes = []
     monkeypatch.setattr(

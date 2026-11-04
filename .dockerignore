@@ -66,11 +66,17 @@ nginx.prod.conf
 *.example.json
 .env.example
 
-# ML models (загружаются отдельно, только в корне)
+# ML models (v2 собирается командой RUN внутри образа, не копируется)
 *.joblib
 *.pkl
 *.h5
 /models/
+
+# data/ выше не должен вырезать CSV субмодуля
+!lab/
+!lab/**
+!lab/data/
+!lab/data/**
 
 # Test files
 test_*.py

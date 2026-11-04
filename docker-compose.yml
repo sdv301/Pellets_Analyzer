@@ -19,6 +19,9 @@ services:
     environment:
       - SECRET_KEY=${SECRET_KEY:-change-me-to-random-string}
       - FLASK_ENV=production
+      - MODEL_VERSION=${MODEL_VERSION:-legacy}
+      - PELLET_LAB_PATH=/app/lab
+      - PELLET_MODEL_DIR=/app/models/v2
       - DATABASE_URL=sqlite:////app/data/pellets_data.db
       - MAIL_SERVER=${MAIL_SERVER:-smtp.gmail.com}
       - MAIL_PORT=${MAIL_PORT:-587}

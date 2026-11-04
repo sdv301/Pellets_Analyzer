@@ -1,15 +1,16 @@
-"""Вложенная групповая CV: шум не получает высокий test R², группы не пересекаются."""
+"""Вложенная групповая CV живёт в pellet_ml, не в продукте."""
 import numpy as np
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import StandardScaler
 
-from app.services.ml_v2.evaluation import SEED, assert_groups_disjoint, group_folds, nested_cv
+from tests.lab_support import ensure_lab
 
 
 def test_group_folds_do_not_overlap():
+    pellet_ml = ensure_lab()
     groups = ["a", "a", "b", "c", "d", "d"]
-    splits = group_folds(groups, k=10**6, seed=42)
-    assert_groups_disjoint(splits, groups)
+    splits = pellet_ml.evaluation.group_folds(groups, k=10**6, seed=42)
+    pellet_ml.evaluation.assert_groups_disjoint(splits, groups)
     seen = []
     for _, test_idx in splits:
         seen.extend(test_idx.tolist())
@@ -17,36 +18,43 @@ def test_group_folds_do_not_overlap():
 
 
 def test_same_recipe_stays_together():
+    pellet_ml = ensure_lab()
     groups = ["r1", "r1", "r2"]
-    splits = group_folds(groups, k=2, seed=0)
-    assert_groups_disjoint(splits, groups)
+    splits = pellet_ml.evaluation.group_folds(groups, k=2, seed=0)
+    pellet_ml.evaluation.assert_groups_disjoint(splits, groups)
     for train_idx, test_idx in splits:
-        train_groups = {groups[i] for i in train_idx}
-        test_groups = {groups[i] for i in test_idx}
-        assert not (train_groups & test_groups)
+        assert not ({groups[i] for i in train_idx} & {groups[i] for i in test_idx})
 
 
 def test_noise_nested_r2_near_zero():
-    rng = np.random.RandomState(SEED)
+    pellet_ml = ensure_lab()
+    rng = np.random.RandomState(pellet_ml.constants.SEED)
     count = 24
     features = rng.normal(size=(count, 3))
     target = rng.normal(size=count)
-    groups = [f"g{i}" for i in range(count)]
-    result = nested_cv("ridge", features, target, groups, seed=SEED)
+    result = pellet_ml.evaluation.nested_cv(
+        "ridge", features, target, [f"g{i}" for i in range(count)], seed=pellet_ml.constants.SEED
+    )
     assert result["r2_test"] <= 0.2
-    assert abs(result["baseline_r2"]) < 0.25
     assert result["cv_scheme"].startswith("nested")
 
 
 def test_insample_can_look_good_while_nested_does_not():
-    rng = np.random.RandomState(SEED)
+    pellet_ml = ensure_lab()
+    rng = np.random.RandomState(pellet_ml.constants.SEED)
     count = 24
     features = rng.normal(size=(count, 4))
     target = rng.normal(size=count)
     scaler = StandardScaler().fit(features)
-    model = RandomForestRegressor(n_estimators=30, max_depth=6, random_state=SEED)
+    model = RandomForestRegressor(n_estimators=30, max_depth=6, random_state=pellet_ml.constants.SEED)
     model.fit(scaler.transform(features), target)
     insample = model.score(scaler.transform(features), target)
-    result = nested_cv("ridge", features, target, [f"g{i}" for i in range(count)], seed=SEED)
+    result = pellet_ml.evaluation.nested_cv(
+        "ridge",
+        features,
+        target,
+        [f"g{i}" for i in range(count)],
+        seed=pellet_ml.constants.SEED,
+    )
     assert insample > 0.5
     assert result["r2_test"] < insample

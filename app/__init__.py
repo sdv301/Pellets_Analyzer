@@ -201,8 +201,21 @@ def create_app(config=None):
     # ИНИЦИАЛИЗАЦИЯ (БД, email, ML)
     # ============================================================
     _initialize_extensions(app)
+    _check_pellet_lab(app)
 
     return app
+
+
+def _check_pellet_lab(app):
+    """Проверяет мажор API лаборатории. Ошибка v2 не останавливает legacy."""
+    try:
+        from app.services.ml_v2.lab_import import check_lab_at_startup
+
+        check_lab_at_startup()
+    except Exception:
+        app.logger.exception(
+            "Проверка pellet_ml не удалась. Приложение запущено, режим v2 выключен, legacy работает."
+        )
 
 
 def _register_blueprints(app):

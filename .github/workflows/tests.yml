@@ -1,0 +1,56 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lab-and-product:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout product without the private submodule
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+          persist-credentials: false
+
+      - name: Checkout Tolko_model submodule
+        env:
+          LAB_DEPLOY_KEY: ${{ secrets.LAB_DEPLOY_KEY }}
+          LAB_READ_TOKEN: ${{ secrets.LAB_READ_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          ssh-keyscan -t ed25519,rsa github.com >> ~/.ssh/known_hosts
+          if [ -n "${LAB_DEPLOY_KEY}" ]; then
+            printf '%s\n' "$LAB_DEPLOY_KEY" > ~/.ssh/lab_deploy_key
+            chmod 600 ~/.ssh/lab_deploy_key
+            git config url."git@github.com:".insteadOf "https://github.com/"
+            GIT_SSH_COMMAND="ssh -i ~/.ssh/lab_deploy_key -o IdentitiesOnly=yes" git submodule update --init lab
+          elif [ -n "${LAB_READ_TOKEN}" ]; then
+            git config url."https://x-access-token:${LAB_READ_TOKEN}@github.com/".insteadOf "https://github.com/"
+            git submodule update --init lab
+          else
+            echo "Нет секрета LAB_DEPLOY_KEY или LAB_READ_TOKEN. Инструкция: docs/LAB_SUBMODULE.md"
+            exit 1
+          fi
+          test -f lab/pellet_ml/__init__.py
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install product and pellet_ml dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r lab/requirements-ml.txt
+
+      - name: Lab contract and product tests
+        env:
+          PELLET_LAB_PATH: ${{ github.workspace }}/lab
+          PYTHONPATH: ${{ github.workspace }}/lab
+        run: |
+          python -m pytest lab/tests/test_public_api.py \
+            tests/test_v2_parser.py tests/test_v2_contract.py tests/test_v2_switch.py \
+            tests/test_v2_auth.py tests/test_v2_evaluation.py tests/test_v2_submodule.py \
+            -q --tb=short

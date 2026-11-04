@@ -395,18 +395,17 @@ def api_predict_composition():
         if not isinstance(composition, dict) or not composition:
             return jsonify({'success': False, 'error': 'Не указан состав для предсказания'})
         if model_version() == "v2":
+            from app.services.ml_v2.lab_import import require_lab
             from app.services.ml_v2.predictor import get_predictor
-            from app.services.ml_v2.properties import TRAINABLE_TARGETS, display_name
 
             predictor = get_predictor()
+            pellet_ml = require_lab()
+            contracts = predictor.predict_all(composition)
             results = {}
-            for prop in TRAINABLE_TARGETS:
-                contract = predictor.predict_contract(composition, prop)
-                if contract is None:
-                    continue
+            for prop, contract in contracts.items():
                 results[prop] = {
                     'value': round(float(contract['value']), 3),
-                    'display_name': display_name(prop),
+                    'display_name': pellet_ml.properties.display_name(prop),
                     **_contract_fields(contract),
                 }
             return jsonify({'success': True, 'model_version': 'v2', 'results': results})

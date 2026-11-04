@@ -269,15 +269,14 @@ COMPLETION_CHECKLIST.md
 ENV_SETUP_INSTRUCTIONS.txt
 GITIGNORE_DOCS.md
 test-project/
-.github/workflows/
 
-# v2: данные и честный артефакт (правила data/ и *.joblib выше иначе их прячут).
-!app/services/ml_v2/data/
-!app/services/ml_v2/data/**
-!app/services/ml_v2/model_store/
-!app/services/ml_v2/model_store/**
-!app/services/ml_v2/model_store/pellet_models.joblib
-!app/services/ml_v2/model_store/manifest.json
+# CI должен попасть в репозиторий. Секретов в workflow нет.
+!.github/
+!.github/workflows/
+!.github/workflows/*.yml
+
+# Скрипт обновления пина для Windows. Остальные *.ps1 по-прежнему скрыты.
+!scripts/update_lab.ps1
 
 # Тесты интеграции. Корневые test_*.py по-прежнему игнорируются.
 !tests/

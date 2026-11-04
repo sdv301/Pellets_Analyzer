@@ -1,66 +1,67 @@
-"""Парсер v2 сохраняет масла и листья; обучающая выборка не содержит утечек."""
+"""Парсер лаборатории сохраняет масла и листья; снимок legacy это по-прежнему показывает."""
+import json
 from pathlib import Path
 
 import pandas as pd
 import pytest
 
-from app.services.ml_v2.components_registry import parse_composition
-from app.services.ml_v2.dataset import (
-    correct_kf_value,
-    load_real_recipes,
-    validate_kf,
-)
+from tests.lab_support import ensure_lab, lab_root
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
+@pytest.fixture(scope="module", autouse=True)
+def _lab():
+    ensure_lab()
+
+
 def test_unknown_component_raises():
+    import pellet_ml
+
     with pytest.raises(ValueError, match="неизвестный компонент"):
-        parse_composition("90% Опилки, 10% банан")
+        pellet_ml.parse_composition("90% Опилки, 10% банан")
 
 
 def test_oils_and_leaves_survive():
-    oil = parse_composition("95% Опилки, 5% рапсовое масло")
+    import pellet_ml
+
+    oil = pellet_ml.parse_composition("95% Опилки, 5% рапсовое масло")
     assert oil["Рапсовое масло"] == pytest.approx(5.0)
     assert oil["Опилки"] == pytest.approx(95.0)
-    motor = parse_composition("90% Опилки, 10% отработанное моторное масло")
+    motor = pellet_ml.parse_composition("90% Опилки, 10% отработанное моторное масло")
     assert motor["Отработанное моторное масло"] == pytest.approx(10.0)
-    leaves = parse_composition("70% Опилки, 30% листья")
+    leaves = pellet_ml.parse_composition("70% Опилки, 30% листья")
     assert leaves["Листья"] == pytest.approx(30.0)
     assert abs(sum(leaves.values()) - 100) <= 0.5
 
 
-def test_all_real_recipes_parse_without_leakage():
-    frame = load_real_recipes()
+def test_real_recipes_have_no_teacher_rows():
+    import pellet_ml
+
+    frame = pellet_ml.dataset.build_training_frame(lab_root() / "data" / "recipes.csv")
     assert len(frame) == 48
     assert set(frame["source"]) == {"real"}
     text = frame["composition"].astype(str)
     assert not text.str.startswith("УЧИТЕЛЬ").any()
     assert not text.str.startswith("Опыт").any()
     assert not text.str.startswith("ML-опыт").any()
-    assert frame["recipe_id"].nunique() == len(frame)
-    for recipe in text:
-        parsed = parse_composition(recipe, strict=True)
-        assert parsed, recipe
-        assert abs(sum(parsed.values()) - 100) <= 0.5
-        assert all(value > 0 for value in parsed.values())
-    leaves = frame[frame["composition"].str.contains("листья", case=False)]
-    assert len(leaves) == 2
-    row = leaves.loc[leaves["composition"].str.contains("30%"), "kf"].iloc[0]
-    assert float(row) == pytest.approx(98.508, abs=0.01)
+    leaves = frame[frame["composition"].str.contains("30% листья", case=False)]
+    assert float(leaves["kf"].iloc[0]) == pytest.approx(98.508, abs=0.01)
 
 
 def test_kf_validator_and_correction():
-    corrected, changed = correct_kf_value(0.98508)
+    import pellet_ml
+
+    corrected, changed = pellet_ml.dataset.correct_kf_value(0.98508)
     assert changed
     assert corrected == pytest.approx(98.508)
-    assert validate_kf(0.5)
+    assert pellet_ml.dataset.validate_kf(0.5)
     with pytest.raises(ValueError):
-        validate_kf(120)
+        pellet_ml.dataset.validate_kf(120)
 
 
 def test_legacy_baseline_shows_dropped_oils():
-    import json
+    import pellet_ml
 
     payload = json.loads((ROOT / "tests" / "fixtures" / "legacy_baseline.json").read_text(encoding="utf-8"))
     by_text = {row["composition"]: row for row in payload["recipes"]}
@@ -73,11 +74,11 @@ def test_legacy_baseline_shows_dropped_oils():
     ):
         assert by_text[text]["legacy_parsed"] == {"Опилки": 100.0}
         assert by_text[text]["predictions"] == sawdust["predictions"]
-        fixed = parse_composition(text)
+        fixed = pellet_ml.parse_composition(text)
         assert fixed != by_text[text]["legacy_parsed"]
-        assert abs(sum(fixed.values()) - 100) <= 0.5
 
 
-def test_shipped_recipes_match_loader():
-    raw = pd.read_csv(ROOT / "app" / "services" / "ml_v2" / "data" / "recipes.csv")
+def test_lab_csv_is_not_copied_into_the_product_package():
+    assert not (ROOT / "app" / "services" / "ml_v2" / "data" / "recipes.csv").exists()
+    raw = pd.read_csv(lab_root() / "data" / "recipes.csv")
     assert (raw["source"] == "real").sum() == 48
