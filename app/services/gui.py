@@ -223,6 +223,10 @@ def generate_plotly_graph(data, x_param='ad', y_param='q', graph_type='scatter',
         
         # Обработка разных типов графиков
         try:
+            if graph_type not in ['pie', 'histogram', 'radar', 'heatmap']:
+                if not y_param or y_param not in filtered_data.columns or filtered_data[y_param].dropna().empty:
+                    return None, f"Отсутствует или неверный параметр Y ({y_param})", available_compositions
+                    
             if graph_type == 'scatter':
                 if y_param not in filtered_data.columns or filtered_data[y_param].dropna().empty:
                     return None, f"Неверный параметр Y ({y_param}) или нет данных", available_compositions
@@ -287,12 +291,16 @@ def generate_plotly_graph(data, x_param='ad', y_param='q', graph_type='scatter',
                     return None, f"Неверный параметр Y ({y_param}) или нет данных", available_compositions
                 
                 if filtered_data[x_param].dtype == 'object' or len(filtered_data[x_param].unique()) <= 20:
-                    grouped = filtered_data.groupby(['composition', x_param])[y_param].mean().reset_index() if 'composition' in filtered_data.columns else filtered_data.groupby(x_param)[y_param].mean().reset_index()
+                    color_col = 'composition' if 'composition' in filtered_data.columns else (color_param if color_param and color_param in filtered_data.columns else None)
+                    if color_col:
+                        grouped = filtered_data.groupby([color_col, x_param])[y_param].mean().reset_index()
+                    else:
+                        grouped = filtered_data.groupby(x_param)[y_param].mean().reset_index()
                     fig = px.bar(
                         grouped,
                         x=x_param,
                         y=y_param,
-                        color='composition' if 'composition' in filtered_data.columns else (color_param if color_param and color_param in filtered_data.columns else None),
+                        color=color_col,
                         barmode='group',
                         hover_name='composition' if 'composition' in filtered_data.columns else None,
                         title=title or f"Среднее {get_param_display_name(y_param)} по {get_param_display_name(x_param)}",
@@ -651,6 +659,10 @@ def generate_seaborn_plot(data, x_param='ad', y_param='q', plot_type='scatter',
                 return None, "Нет данных для выбранных составов", available_compositions
     
     try:
+        if plot_type not in ['pie', 'histogram', 'radar', 'heatmap']:
+            if not y_param or y_param not in filtered_data.columns or filtered_data[y_param].dropna().empty:
+                return None, f"Отсутствует или неверный параметр Y ({y_param})", available_compositions
+                
         # Применяем тему Seaborn (локально, без глобального состояния)
         sns.set_theme(style=get_seaborn_style(theme))
         
@@ -970,6 +982,10 @@ def generate_graph(data, x_param='ad', y_param='q', graph_type='scatter',
         return None, "Нет данных для построения графика", available_compositions
     
     try:
+        if graph_type not in ['pie', 'histogram', 'radar', 'heatmap', '3d_scatter', 'animated_scatter']:
+            if not y_param or y_param not in filtered_data.columns or filtered_data[y_param].dropna().empty:
+                return None, f"Отсутствует или неверный параметр Y ({y_param})", available_compositions
+                
         # Применяем тему
         apply_theme(theme)
         
@@ -996,10 +1012,21 @@ def generate_graph(data, x_param='ad', y_param='q', graph_type='scatter',
                               c=[color_map[composition]], label=composition,
                               alpha=0.7, s=50)
             elif color_param and color_param in filtered_data.columns:
-                scatter = ax.scatter(filtered_data[x_param], filtered_data[y_param], 
-                                    c=filtered_data[color_param], cmap='viridis', 
-                                    alpha=0.7, s=50)
-                plt.colorbar(scatter, label=PARAM_NAMES.get(color_param, color_param))
+                import pandas as pd
+                if pd.api.types.is_numeric_dtype(filtered_data[color_param]):
+                    scatter = ax.scatter(filtered_data[x_param], filtered_data[y_param], 
+                                        c=filtered_data[color_param], cmap='viridis', 
+                                        alpha=0.7, s=50)
+                    plt.colorbar(scatter, label=PARAM_NAMES.get(color_param, color_param))
+                else:
+                    unique_vals = filtered_data[color_param].unique()
+                    colors = plt.cm.viridis(np.linspace(0, 1, len(unique_vals)))
+                    color_map = dict(zip(unique_vals, colors))
+                    for val in unique_vals:
+                        val_data = filtered_data[filtered_data[color_param] == val]
+                        ax.scatter(val_data[x_param], val_data[y_param], 
+                                  c=[color_map[val]], label=val, alpha=0.7, s=50)
+                    ax.legend(title=PARAM_NAMES.get(color_param, color_param), bbox_to_anchor=(1.05, 1), loc='upper left')
             else:
                 ax.scatter(filtered_data[x_param], filtered_data[y_param], alpha=0.7, s=50)
                 
