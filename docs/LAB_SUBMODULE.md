@@ -2,7 +2,7 @@
 
 `lab/` — git-субмодуль [sdv301/Tolko_model](https://github.com/sdv301/Tolko_model.git). В продукте зафиксирован конкретный коммит. Частые коммиты в лаборатории не меняют прод, пока пин не сдвинут отдельной командой и не попал в PR продукта.
 
-Сейчас пин: тег `lab-v0.1.0`, коммит `959e545d1649c1acfa4ef108a64a45d843ca20f4`, пакет `pellet_ml` 0.1.0, `API_VERSION` 1.0.0. Тот же коммит записан в `app/services/ml_v2/PIN`.
+Сейчас пин: тег `lab-v0.2.0`, коммит `f001dead23564d5cae97bb8b42ac0b81b0bf2791`, пакет `pellet_ml` 0.2.0, `API_VERSION` 1.0.0. Тот же коммит записан в `app/services/ml_v2/PIN`. Набор честных моделей снова включает gradient boosting. Предыдущий пин — `lab-v0.1.0`, `959e545d1649c1acfa4ef108a64a45d843ca20f4`.
 
 HTTPS в `.gitmodules`:
 
@@ -62,17 +62,17 @@ $env:PYTHONPATH = $env:PELLET_LAB_PATH
 Bash:
 
 ```bash
-bash scripts/update_lab.sh lab-v0.2.0
+bash scripts/update_lab.sh lab-v0.3.0
 git status
-git commit -m "Bump lab submodule to lab-v0.2.0"
+git commit -m "Bump lab submodule to lab-v0.3.0"
 ```
 
 PowerShell из корня репозитория:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts\update_lab.ps1 lab-v0.2.0
+powershell -ExecutionPolicy Bypass -File scripts\update_lab.ps1 lab-v0.3.0
 git status
-git commit -m "Bump lab submodule to lab-v0.2.0"
+git commit -m "Bump lab submodule to lab-v0.3.0"
 ```
 
 Скрипт сам делает `git fetch` внутри `lab/` и `git add lab` плюс `app/services/ml_v2/PIN`. Коммит не создаёт.
@@ -139,3 +139,41 @@ docker compose up -d
 Workflow `.github/workflows/tests.yml` по этому ключу делает `git submodule update --init lab` через SSH и гоняет тесты на Python 3.11. Запасной секрет — `LAB_READ_TOKEN` (fine-grained PAT только с чтением Tolko_model). Если заданы оба, используется ключ.
 
 Локальный снимок архива для отладки в репозиторий не коммитится.
+
+## Локально, без сервера (Windows)
+
+Хватает Git и Python 3.11 на своём компьютере. Docker, сервер и секрет CI не нужны: `LAB_DEPLOY_KEY` нужен только GitHub Actions.
+
+```powershell
+git clone --recurse-submodules https://github.com/sdv301/Pellets_Analyzer.git
+cd Pellets_Analyzer
+git fetch
+git submodule update --init lab
+
+py -3.11 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install -r requirements.txt -r lab\requirements-ml.txt
+
+$env:PELLET_LAB_PATH = (Resolve-Path .\lab).Path
+$env:PYTHONPATH = $env:PELLET_LAB_PATH
+$env:PELLET_MODEL_DIR = Join-Path (Get-Location) "models\v2"
+python scripts\build_v2_artifact.py --out $env:PELLET_MODEL_DIR
+
+# Ответ API остаётся legacy, v2 считается рядом и пишется в лог.
+$env:MODEL_VERSION = "legacy"
+$env:ML_SHADOW_V2 = "1"
+# Чтобы ответом был v2:
+# $env:MODEL_VERSION = "v2"
+# Remove-Item Env:\ML_SHADOW_V2
+
+python main.py
+```
+
+Тесты в том же окне, где заданы переменные:
+
+```powershell
+python -m pytest lab\tests\test_public_api.py tests\test_v2_parser.py tests\test_v2_contract.py tests\test_v2_switch.py tests\test_v2_auth.py tests\test_v2_evaluation.py tests\test_v2_submodule.py -q
+```
+
+Если `git submodule update` не достаёт приватный Tolko_model, склонируйте лабораторию отдельно туда, куда есть доступ, и укажите её каталог: `$env:PELLET_LAB_PATH = "C:\src\Tolko_model"`. Этот каталог в продукт не коммитится.

@@ -10,7 +10,7 @@ from scripts.compare_v2_baseline import compare_payload
 from tests.lab_support import ensure_lab
 
 ROOT = Path(__file__).resolve().parents[1]
-PIN = "959e545d1649c1acfa4ef108a64a45d843ca20f4"
+PIN = "f001dead23564d5cae97bb8b42ac0b81b0bf2791"
 
 
 def test_gitmodules_and_pin_file():
