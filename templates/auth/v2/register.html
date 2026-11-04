@@ -1,0 +1,159 @@
+{% extends "base_public.html" %}
+
+{% block title %}Регистрация — Pellets Analyzer{% endblock %}
+
+{% block nav_links %}
+<a href="{{ url_for('main.index') }}" class="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">← На главную</a>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-[85vh] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+  <div class="max-w-md w-full space-y-8 aw-card p-8 sm:p-10 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md shadow-xl border border-gray-200 dark:border-slate-800">
+    <!-- Header -->
+    <div class="text-center">
+      <div class="mx-auto w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white shadow-md shadow-blue-500/20 mb-4">
+        <i class="fa-solid fa-user-plus text-lg"></i>
+      </div>
+      <h2 class="text-2xl sm:text-3xl font-extrabold text-heading tracking-tight">Создание аккаунта</h2>
+      <p class="mt-2 text-xs sm:text-sm text-muted">
+        Уже есть аккаунт? <a href="{{ url_for('auth.login') }}" class="font-semibold text-blue-600 dark:text-blue-400 hover:underline">Войти</a>
+      </p>
+    </div>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="space-y-2">
+          {% for category, message in messages %}
+            <div class="p-3 rounded-xl text-xs font-medium flex items-start gap-2.5 
+                        {% if category == 'danger' or category == 'error' %}
+                          bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-900/60
+                        {% elif category == 'success' %}
+                          bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/60
+                        {% elif category == 'warning' %}
+                          bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-900/60
+                        {% else %}
+                          bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-900/60
+                        {% endif %}">
+              <i class="fa-solid fa-circle-exclamation mt-0.5"></i>
+              <span>{{ message|safe }}</span>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <!-- Registration Form -->
+    <form class="mt-6 space-y-4" action="{{ url_for('auth.register') }}" method="POST">
+      <!-- CSRF Token -->
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <!-- Username -->
+      <div>
+        <label for="username" class="block text-xs font-semibold uppercase tracking-wider text-muted mb-1">
+          Логин
+        </label>
+        <div class="relative">
+          <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-muted text-sm">
+            <i class="fa-regular fa-user"></i>
+          </span>
+          <input id="username" name="username" type="text" autocomplete="username" required autofocus
+                 class="block w-full pl-10 pr-3.5 py-2.5 text-sm rounded-xl border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-heading placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                 placeholder="ivanov">
+        </div>
+      </div>
+
+      <!-- Email -->
+      <div>
+        <label for="email" class="block text-xs font-semibold uppercase tracking-wider text-muted mb-1">
+          Электронная почта
+        </label>
+        <div class="relative">
+          <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-muted text-sm">
+            <i class="fa-regular fa-envelope"></i>
+          </span>
+          <input id="email" name="email" type="email" autocomplete="email" required
+                 class="block w-full pl-10 pr-3.5 py-2.5 text-sm rounded-xl border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-heading placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                 placeholder="user@example.com">
+        </div>
+      </div>
+
+      <!-- Full Name -->
+      <div>
+        <label for="full_name" class="block text-xs font-semibold uppercase tracking-wider text-muted mb-1">
+          ФИО (необязательно)
+        </label>
+        <div class="relative">
+          <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-muted text-sm">
+            <i class="fa-regular fa-id-card"></i>
+          </span>
+          <input id="full_name" name="full_name" type="text" autocomplete="name"
+                 class="block w-full pl-10 pr-3.5 py-2.5 text-sm rounded-xl border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-heading placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                 placeholder="Иван Иванов">
+        </div>
+      </div>
+
+      <!-- Password -->
+      <div>
+        <label for="password" class="block text-xs font-semibold uppercase tracking-wider text-muted mb-1">
+          Пароль (минимум 6 символов)
+        </label>
+        <div class="relative">
+          <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-muted text-sm">
+            <i class="fa-solid fa-key"></i>
+          </span>
+          <input id="password" name="password" type="password" autocomplete="new-password" required minlength="6"
+                 class="block w-full pl-10 pr-10 py-2.5 text-sm rounded-xl border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-heading placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                 placeholder="••••••••">
+          <button type="button" id="togglePasswordBtn" aria-label="Показать пароль"
+                  class="absolute inset-y-0 right-0 pr-3 flex items-center text-muted hover:text-heading">
+            <i class="fa-regular fa-eye text-sm" id="togglePasswordIcon"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Confirm Password -->
+      <div>
+        <label for="confirm_password" class="block text-xs font-semibold uppercase tracking-wider text-muted mb-1">
+          Подтверждение пароля
+        </label>
+        <div class="relative">
+          <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-muted text-sm">
+            <i class="fa-solid fa-check-double"></i>
+          </span>
+          <input id="confirm_password" name="confirm_password" type="password" autocomplete="new-password" required minlength="6"
+                 class="block w-full pl-10 pr-3.5 py-2.5 text-sm rounded-xl border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-heading placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                 placeholder="••••••••">
+        </div>
+      </div>
+
+      <!-- Submit Button -->
+      <div class="pt-2">
+        <button type="submit" class="w-full btn btn-primary py-3 text-sm font-semibold shadow-md shadow-blue-500/20">
+          Зарегистрироваться <i class="fa-solid fa-arrow-right ml-2"></i>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  const pwdInput = document.getElementById('password');
+  const toggleBtn = document.getElementById('togglePasswordBtn');
+  const toggleIcon = document.getElementById('togglePasswordIcon');
+
+  toggleBtn?.addEventListener('click', function() {
+    if (pwdInput.type === 'password') {
+      pwdInput.type = 'text';
+      toggleIcon.classList.remove('fa-eye');
+      toggleIcon.classList.add('fa-eye-slash');
+    } else {
+      pwdInput.type = 'password';
+      toggleIcon.classList.remove('fa-eye-slash');
+      toggleIcon.classList.add('fa-eye');
+    }
+  });
+</script>
+{% endblock %}

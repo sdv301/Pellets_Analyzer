@@ -87,6 +87,8 @@ def create_app(config=None):
     app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
     app.config['SESSION_COOKIE_SECURE'] = os.getenv('SESSION_COOKIE_SECURE', '0').lower() in ('1', 'true', 'yes')
     app.config['PERMANENT_SESSION_LIFETIME'] = int(os.getenv('PERMANENT_SESSION_LIFETIME', 7 * 24 * 3600))
+    # Флаг AstroWind UI v2 (Фаза E)
+    app.config['UI_V2'] = os.getenv('UI_V2', '0').lower() in ('1', 'true', 'yes')
     default_static_cache_age = int(os.getenv('STATIC_CACHE_MAX_AGE', '3600'))
     app.config['TEMPLATES_AUTO_RELOAD'] = False
     app.config['SEND_FILE_MAX_AGE_DEFAULT'] = default_static_cache_age
@@ -249,6 +251,11 @@ def create_app(config=None):
 
         token = generate_csrf_token()
         return {'csrf_token': _CSRFTokenString(token)}
+
+    @app.context_processor
+    def inject_ui_version():
+        from flask import current_app
+        return {'ui_v2': current_app.config.get('UI_V2', False)}
 
     @app.context_processor
     def inject_user():

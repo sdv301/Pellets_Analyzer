@@ -1,0 +1,129 @@
+{% extends "base_public.html" %}
+
+{% block title %}Вход — Pellets Analyzer{% endblock %}
+
+{% block nav_links %}
+<a href="{{ url_for('main.index') }}" class="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">← На главную</a>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-[80vh] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+  <div class="max-w-md w-full space-y-8 aw-card p-8 sm:p-10 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md shadow-xl border border-gray-200 dark:border-slate-800">
+    <!-- Header -->
+    <div class="text-center">
+      <div class="mx-auto w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white shadow-md shadow-blue-500/20 mb-4">
+        <i class="fa-solid fa-lock text-lg"></i>
+      </div>
+      <h2 class="text-2xl sm:text-3xl font-extrabold text-heading tracking-tight">Вход в систему</h2>
+      <p class="mt-2 text-xs sm:text-sm text-muted">
+        Или <a href="{{ url_for('auth.register') }}" class="font-semibold text-blue-600 dark:text-blue-400 hover:underline">зарегистрируйтесь</a>, если у вас ещё нет учётной записи
+      </p>
+    </div>
+
+    <!-- Flash Messages (Errors / Info) -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="space-y-2">
+          {% for category, message in messages %}
+            <div class="p-3 rounded-xl text-xs font-medium flex items-start gap-2.5 
+                        {% if category == 'danger' or category == 'error' %}
+                          bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-900/60
+                        {% elif category == 'success' %}
+                          bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/60
+                        {% elif category == 'warning' %}
+                          bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-900/60
+                        {% else %}
+                          bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-900/60
+                        {% endif %}">
+              <i class="fa-solid fa-circle-exclamation mt-0.5"></i>
+              <span>{{ message|safe }}</span>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <!-- Login Form -->
+    <form class="mt-6 space-y-5" action="{{ url_for('auth.login') }}" method="POST">
+      <!-- CSRF Token -->
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <!-- Identifier Field -->
+      <div>
+        <label for="email_or_username" class="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">
+          Email или имя пользователя
+        </label>
+        <div class="relative">
+          <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-muted text-sm">
+            <i class="fa-regular fa-user"></i>
+          </span>
+          <input id="email_or_username" name="email_or_username" type="text" autocomplete="username" required autofocus
+                 class="block w-full pl-10 pr-3.5 py-2.5 text-sm rounded-xl border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-heading placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                 placeholder="ivanov или user@example.com">
+        </div>
+      </div>
+
+      <!-- Password Field with Show/Hide Toggle -->
+      <div>
+        <div class="flex items-center justify-between mb-1.5">
+          <label for="password" class="block text-xs font-semibold uppercase tracking-wider text-muted">
+            Пароль
+          </label>
+          <a href="{{ url_for('auth.forgot_password') }}" class="text-xs text-blue-600 dark:text-blue-400 hover:underline">
+            Забыли пароль?
+          </a>
+        </div>
+        <div class="relative">
+          <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-muted text-sm">
+            <i class="fa-solid fa-key"></i>
+          </span>
+          <input id="password" name="password" type="password" autocomplete="current-password" required
+                 class="block w-full pl-10 pr-10 py-2.5 text-sm rounded-xl border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-heading placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                 placeholder="••••••••">
+          <button type="button" id="togglePasswordBtn" aria-label="Показать пароль"
+                  class="absolute inset-y-0 right-0 pr-3 flex items-center text-muted hover:text-heading">
+            <i class="fa-regular fa-eye text-sm" id="togglePasswordIcon"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Remember Me -->
+      <div class="flex items-center justify-between pt-1">
+        <label class="flex items-center gap-2 cursor-pointer text-xs text-muted">
+          <input id="remember" name="remember" type="checkbox"
+                 class="w-4 h-4 rounded text-blue-600 border-gray-300 dark:border-slate-700 focus:ring-blue-500 dark:bg-slate-800">
+          <span>Запомнить сессию</span>
+        </label>
+      </div>
+
+      <!-- Submit Button -->
+      <div>
+        <button type="submit" class="w-full btn btn-primary py-3 text-sm font-semibold shadow-md shadow-blue-500/20">
+          Войти в аккаунт <i class="fa-solid fa-arrow-right-to-bracket ml-2"></i>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  // Show / Hide password toggle
+  const pwdInput = document.getElementById('password');
+  const toggleBtn = document.getElementById('togglePasswordBtn');
+  const toggleIcon = document.getElementById('togglePasswordIcon');
+
+  toggleBtn?.addEventListener('click', function() {
+    if (pwdInput.type === 'password') {
+      pwdInput.type = 'text';
+      toggleIcon.classList.remove('fa-eye');
+      toggleIcon.classList.add('fa-eye-slash');
+    } else {
+      pwdInput.type = 'password';
+      toggleIcon.classList.remove('fa-eye-slash');
+      toggleIcon.classList.add('fa-eye');
+    }
+  });
+</script>
+{% endblock %}

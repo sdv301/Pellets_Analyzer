@@ -75,6 +75,9 @@ def _query_table_page(table_name: str, page: int, per_page: int) -> pd.DataFrame
 @main_bp.route('/landing')
 def index():
     """Лендинг-визитка — доступна без авторизации."""
+    from flask import current_app
+    if current_app.config.get('UI_V2', False) or request.args.get('v2') == '1':
+        return render_template('landing_v2.html')
     return render_template('landing.html')
 
 
