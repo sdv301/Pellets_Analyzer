@@ -51,6 +51,7 @@ class TestUnauthorizedRedirects:
         "/ml/saved_models",
         "/admin/dashboard",
         "/admin/database",
+        "/api/notifications",
     ])
     def test_protected_routes_redirect_to_login(self, client, url):
         response = client.get(url)
@@ -79,6 +80,7 @@ class TestAuthenticatedGetRoutes:
         "/ml/saved_models",
         "/api/get_components_economics",
         "/api/download_economics",
+        "/api/notifications",
     ])
     def test_user_get_pages_200(self, authenticated_client, url):
         response = authenticated_client.get(url)
@@ -153,3 +155,12 @@ class TestBasicPostRoutes:
     def test_admin_clear_cache(self, admin_client):
         res = admin_client.post('/admin/clear_cache')
         assert res.status_code in (200, 302)
+
+    @pytest.mark.smoke
+    def test_notifications_payload_structure(self, authenticated_client):
+        res = authenticated_client.get('/api/notifications')
+        assert res.status_code == 200
+        data = res.get_json()
+        assert data.get('success') is True
+        assert 'notifications' in data
+        assert isinstance(data['notifications'], list)

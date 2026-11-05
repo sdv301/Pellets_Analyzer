@@ -7,10 +7,14 @@
     <!-- Темная тема (Global Loader) -->
   <script>
     (function () {
-      const currentTheme = localStorage.getItem('theme');
+      const currentTheme = localStorage.getItem('theme') || localStorage.getItem('aw-theme');
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
       if (currentTheme === 'dark' || (!currentTheme && prefersDark)) {
         document.documentElement.setAttribute('data-theme', 'dark');
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.removeAttribute('data-theme');
+        document.documentElement.classList.remove('dark');
       }
     })();
   </script>

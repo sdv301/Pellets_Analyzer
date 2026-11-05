@@ -5,9 +5,9 @@
       <ol class="breadcrumb bg-transparent mb-0 pb-0 pt-1 px-0 me-sm-6 me-5">
         <li class="breadcrumb-item text-sm"><a class="opacity-5 text-dark" href="{{ url_for('main.dashboard') }}">Главная</a>
         </li>
-        <li class="breadcrumb-item text-sm text-dark active" aria-current="page">{{ segment|replace("_", " ") }}</li>
+        <li class="breadcrumb-item text-sm text-dark active text-truncate" style="max-width: 220px;" aria-current="page" title="{{ segment|replace('_', ' ') }}">{{ segment|replace("_", " ") }}</li>
       </ol>
-      <h6 class="font-weight-bolder mb-0">{{ segment|replace("_", " ") }}</h6>
+      <h6 class="font-weight-bolder mb-0 text-truncate" style="max-width: 250px;" title="{{ segment|replace('_', ' ') }}">{{ segment|replace("_", " ") }}</h6>
     </nav>
     <div class="collapse navbar-collapse mt-sm-0 mt-2 me-md-0 me-sm-4 responsive-navbar-collapse" id="navbar">
       <div class="ms-md-auto pe-md-3 d-flex align-items-center position-relative responsive-search-wrap">
@@ -23,7 +23,24 @@
         </ul>
       </div>
             <ul class="navbar-nav justify-content-end">
-                <li class="nav-item d-flex align-items-center me-3">
+                <li class="nav-item dropdown d-flex align-items-center me-3" id="notificationsDropdownWrapper">
+          <a href="javascript:;" class="nav-link text-body p-0 position-relative" id="notificationsDropdown" data-bs-toggle="dropdown" aria-expanded="false" title="Уведомления">
+            <i class="fas fa-bell" style="font-size: 1.1rem;"></i>
+            <span id="notificationsBadge" class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle d-none">
+              <span class="visually-hidden">Новые уведомления</span>
+            </span>
+          </a>
+          <ul class="dropdown-menu dropdown-menu-end px-2 py-3 me-sm-n4 shadow-lg border-0" aria-labelledby="notificationsDropdown" style="width: 320px; max-width: 90vw; z-index: 1060;">
+            <li class="d-flex justify-content-between align-items-center px-2 pb-2 border-bottom mb-2">
+              <h6 class="text-sm font-weight-bolder mb-0">Уведомления</h6>
+              <button class="btn btn-link text-xs p-0 text-muted" id="markAllNotificationsRead">Прочитать все</button>
+            </li>
+            <div id="notificationsList" class="px-1" style="max-height: 280px; overflow-y: auto;">
+              <li class="text-center py-3 text-muted text-xs">Загрузка уведомлений...</li>
+            </div>
+          </ul>
+        </li>
+        <li class="nav-item d-flex align-items-center me-3">
           <a href="javascript:;" class="nav-link text-body p-0" id="themeToggleBtn" title="Переключить тему">
             <i class="fas fa-moon" id="moonIcon" style="font-size: 1.1rem;"></i>
             <i class="fas fa-sun d-none" id="sunIcon" style="font-size: 1.1rem;"></i>
@@ -80,16 +97,20 @@
 
     function applyDarkTheme() {
       document.documentElement.setAttribute('data-theme', 'dark');
-      moonIcon.classList.add('d-none');
-      sunIcon.classList.remove('d-none');
+      document.documentElement.classList.add('dark');
+      if (moonIcon) moonIcon.classList.add('d-none');
+      if (sunIcon) sunIcon.classList.remove('d-none');
       localStorage.setItem('theme', 'dark');
+      localStorage.setItem('aw-theme', 'dark');
     }
 
     function applyLightTheme() {
       document.documentElement.removeAttribute('data-theme');
-      moonIcon.classList.remove('d-none');
-      sunIcon.classList.add('d-none');
+      document.documentElement.classList.remove('dark');
+      if (moonIcon) moonIcon.classList.remove('d-none');
+      if (sunIcon) sunIcon.classList.add('d-none');
       localStorage.setItem('theme', 'light');
+      localStorage.setItem('aw-theme', 'light');
     }
 
     if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
@@ -157,6 +178,19 @@
       document.addEventListener('click', function (e) {
         if (!searchInput.contains(e.target) && !resultsContainer.contains(e.target)) {
           resultsContainer.style.display = 'none';
+        }
+      });
+    }
+
+    const iconNavbarSidenav = document.getElementById('iconNavbarSidenav');
+    if (iconNavbarSidenav) {
+      iconNavbarSidenav.addEventListener('click', function () {
+        if (document.body.classList.contains('g-sidenav-pinned')) {
+          document.body.classList.remove('g-sidenav-pinned');
+          document.body.classList.add('g-sidenav-hidden');
+        } else {
+          document.body.classList.add('g-sidenav-pinned');
+          document.body.classList.remove('g-sidenav-hidden');
         }
       });
     }

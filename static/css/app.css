@@ -124,3 +124,146 @@ html, body {
   -webkit-overflow-scrolling: touch;
 }
 
+/* ============================================================
+   Density Modes (Phase 0: Compact / Comfortable)
+   ============================================================ */
+.table-compact th,
+.table-compact td {
+  padding: var(--density-pad-y, 0.4rem) var(--density-pad-x, 0.6rem) !important;
+  font-size: 0.825rem !important;
+}
+
+.card-compact {
+  padding: var(--density-card-pad, 0.75rem) !important;
+}
+
+.card-compact .card-header,
+.card-compact .card-body,
+.card-compact .card-footer {
+  padding: var(--density-card-pad, 0.75rem) !important;
+}
+
+/* Gap utilities for compact layouts */
+.gap-compact {
+  gap: var(--density-gap, 0.75rem) !important;
+}
+
+/* ============================================================
+   Dark Theme Audit Fixes (Eliminating "White Holes")
+   ============================================================ */
+[data-theme="dark"] select,
+[data-theme="dark"] .form-select,
+[data-theme="dark"] select.form-control,
+[data-theme="dark"] option {
+  background-color: var(--aw-color-input-bg, #111827) !important;
+  border-color: var(--aw-color-input-border, #283347) !important;
+  color: var(--aw-color-input-text, #f8fafc) !important;
+}
+
+[data-theme="dark"] .modal-content {
+  background-color: var(--aw-color-modal-bg, #141b2d) !important;
+  border: 1px solid var(--aw-color-modal-border, #283347) !important;
+  color: var(--aw-color-text-default, #cbd5e1) !important;
+}
+
+[data-theme="dark"] .dropdown-menu {
+  background-color: var(--aw-color-dropdown-bg, #141b2d) !important;
+  border: 1px solid var(--aw-color-dropdown-border, #283347) !important;
+  color: var(--aw-color-text-default, #cbd5e1) !important;
+}
+
+[data-theme="dark"] .dropdown-item:hover,
+[data-theme="dark"] .dropdown-item:focus {
+  background-color: var(--aw-color-bg-subtle, #1e2538) !important;
+  color: var(--aw-color-text-heading, #f8fafc) !important;
+}
+
+/* SweetAlert dark theme alignment */
+[data-theme="dark"] .swal2-popup {
+  background-color: var(--aw-color-bg-card, #141b2d) !important;
+  border: 1px solid var(--aw-color-border, #283347) !important;
+  color: var(--aw-color-text-heading, #f8fafc) !important;
+}
+
+/* Fullscreen dark backdrop */
+:fullscreen,
+:-webkit-full-screen,
+:-ms-fullscreen {
+  background-color: var(--aw-color-bg-page, #0b0f19) !important;
+}
+
+/* ============================================================
+   Widget: Notifications Dropdown (Phase 1)
+   ============================================================ */
+.notifications-dropdown-menu {
+  z-index: 1060 !important;
+  min-width: 300px;
+  max-width: 360px;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl) !important;
+}
+
+.notification-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--aw-color-border, #e2e8f0);
+  transition: background-color 0.15s ease-in-out;
+  text-decoration: none;
+}
+
+.notification-item:hover {
+  background-color: var(--aw-color-bg-subtle, #f8fafc);
+}
+
+[data-theme="dark"] .notification-item {
+  border-bottom-color: var(--aw-color-border, #1f293d);
+}
+
+[data-theme="dark"] .notification-item:hover {
+  background-color: var(--aw-color-bg-subtle, #1a2234);
+}
+
+.notification-item.unread {
+  background-color: rgba(1, 97, 239, 0.05);
+}
+
+[data-theme="dark"] .notification-item.unread {
+  background-color: rgba(37, 99, 235, 0.12);
+}
+
+/* ============================================================
+   Widget: Truncated File Names & Breadcrumbs
+   ============================================================ */
+.text-truncate-file {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.text-truncate-nav {
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+
+
+
+/* Contrast box for stats adapting to light/dark */
+.theme-contrast-box {
+  background-color: rgba(59, 130, 246, 0.05);
+  border: 1px solid var(--aw-color-border-subtle, rgba(0,0,0,0.1));
+  border-radius: var(--aw-radius-md, 0.5rem);
+}
+
+[data-theme='dark'] .theme-contrast-box,
+html.dark .theme-contrast-box {
+  background-color: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.1);
+}

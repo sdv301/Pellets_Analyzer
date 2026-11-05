@@ -447,6 +447,58 @@ def global_search():
         return jsonify({'success': False, 'message': str(e)})
 
 
+@main_bp.route('/api/notifications', methods=['GET'])
+@login_required
+def get_notifications():
+    """Возвращает список системных и статусных уведомлений для колокольчика."""
+    notifications = []
+
+    # 1. Текущая модель
+    try:
+        from app.services.ml_v2.switch import model_version
+        active_version = model_version()
+        notifications.append({
+            'id': 'model-status',
+            'title': f'Модель ML: {active_version.upper()}',
+            'message': 'Используется честная валидация v2' if active_version == 'v2' else 'Активна базовая модель legacy',
+            'category': 'info',
+            'time': 'Текущий статус'
+        })
+    except Exception:
+        pass
+
+    # 2. Количество образцов в базе
+    try:
+        df = query_db(_db_path, "measured_parameters", query="SELECT COUNT(*) as cnt FROM {}")
+        cnt = int(df['cnt'].iloc[0]) if not df.empty else 0
+        notifications.append({
+            'id': 'db-samples',
+            'title': 'База данных пеллет',
+            'message': f'В системе зарегистрировано образцов: {cnt}',
+            'category': 'success',
+            'time': 'Актуально'
+        })
+    except Exception:
+        pass
+
+    # 3. Статус обучения
+    try:
+        from app.routes.ml import _read_training_status
+        train_status = _read_training_status()
+        if train_status and train_status.get('status') == 'training':
+            notifications.append({
+                'id': 'ml-training',
+                'title': 'Обучение модели',
+                'message': train_status.get('message', 'Идет обучение модели...'),
+                'category': 'warning',
+                'time': 'В процессе'
+            })
+    except Exception:
+        pass
+
+    return jsonify({'success': True, 'notifications': notifications})
+
+
 @main_bp.route('/add_data', methods=['POST'])
 @login_required
 def add_data():

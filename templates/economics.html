@@ -21,21 +21,21 @@
 {% endblock extrastyle %}
 
 {% block content %}
-<div class="container-fluid py-4">
-    <div class="row ">
+<div class="container-fluid py-2 density-compact">
+    <div class="row">
         <div class="col-12">
-            <div class="card shadow-sm border-0 animate-on-scroll mb-4 position-relative overflow-hidden premium-card">
-                <div class="card-body p-4 position-relative" style="z-index: 1;">
+            <div class="card shadow-sm border-0 animate-on-scroll mb-3 position-relative overflow-hidden premium-card card-compact">
+                <div class="card-body p-3 position-relative" style="z-index: 1;">
                     <div class="row align-items-center">
                         <div class="col-md-8">
-                            <h1 class="display-6 fw-bold mb-2 premium-text">💰 Экономическая часть</h1>
-                            <p class="lead mb-0 text-muted">Оценка стоимости ингредиентов и расчет рентабельности
+                            <h4 class="fw-bold mb-1 premium-text">💰 Экономическая часть</h4>
+                            <p class="text-xs mb-0 text-muted">Оценка стоимости ингредиентов и расчет рентабельности
                                 производства топливных пеллет.</p>
                         </div>
                         <div class="col-md-4 text-end">
-                            <div class="premium-badge px-3 py-2 d-inline-block shadow-sm">
+                            <div class="premium-badge px-3 py-1 d-inline-block shadow-sm">
                                 <i class="fas fa-calculator text-primary me-2"></i>
-                                <span class="fw-bold fs-6">Модуль расчетов</span>
+                                <span class="fw-bold text-xs">Модуль расчетов</span>
                             </div>
                         </div>
                     </div>
@@ -48,7 +48,7 @@
     <div class="row">
         <!-- Блок Ввода Параметров -->
         <div class="col-lg-5 col-md-12 mb-4">
-            <div class="card shadow-sm border-0 animate-on-scroll stagger-1 h-100 premium-card">
+            <div class="card shadow-sm border-0 animate-on-scroll stagger-1 h-100 premium-card card-compact">
                 <div class="card-header bg-transparent py-3 border-0">
                     <h5 class="mb-0 font-weight-bolder premium-text">
                         <i class="fas fa-sliders-h me-2 text-warning"></i>Параметры Заказчика
@@ -64,6 +64,7 @@
                         </button>
                         <input type="file" id="prices-file-input" accept=".xlsx" style="display: none;">
                     </div>
+                    <div id="prices-file-name" class="text-truncate-file text-xs text-muted mt-2 d-none" title=""></div>
                 </div>
                 <div class="card-body pt-0">
                     <form id="economics-form">
@@ -180,7 +181,7 @@
 
         <!-- Блок Результатов Аналитики -->
         <div class="col-lg-7 col-md-12 mb-4">
-            <div class="card shadow-sm border-0 animate-on-scroll stagger-2 h-100 premium-card">
+            <div class="card shadow-sm border-0 animate-on-scroll stagger-2 h-100 premium-card card-compact">
                 <div class="card-header bg-transparent py-3 border-0 d-flex justify-content-between align-items-center">
                     <h5 class="mb-0 font-weight-bolder premium-text">
                         <i class="fas fa-chart-pie me-2 text-info"></i>Результаты Расчета
@@ -202,7 +203,7 @@
                 <div class="card-body pt-0 d-none" id="results-content">
                     <div class="row mb-4">
                         <div class="col-md-6 mb-3">
-                            <div class="p-3 bg-dark rounded-3 border border-secondary border-opacity-25 h-100">
+                            <div class="p-3 theme-contrast-box h-100">
                                 <h6 class="text-uppercase text-muted text-xs font-weight-bolder mb-2">Итоговые Затраты
                                 </h6>
                                 <h3 class="mb-0 text-info font-weight-bolder" id="res-total-cost">0 <span
@@ -212,7 +213,7 @@
                             </div>
                         </div>
                         <div class="col-md-6 mb-3">
-                            <div class="p-3 bg-dark rounded-3 border border-secondary border-opacity-25 h-100">
+                            <div class="p-3 theme-contrast-box h-100">
                                 <h6 class="text-uppercase text-muted text-xs font-weight-bolder mb-2">Необходимая Масса
                                     Топлива</h6>
                                 <h3 class="mb-0 text-info font-weight-bolder" id="res-mass">0 <span
@@ -263,7 +264,7 @@
                     <h6 class="text-uppercase text-body text-xs font-weight-bolder mb-3 mt-4">Характеристики полученной
                         смеси</h6>
                     <div class="table-responsive">
-                        <table class="table align-items-center mb-0 text-sm text-dark">
+                        <table class="table align-items-center mb-0 text-sm text-dark table-compact">
                             <tbody>
                                 <tr>
                                     <td><span class="text-muted"><i class="fas fa-weight-hanging me-2"></i>Плотность
@@ -305,7 +306,7 @@
                 <div class="card-body pt-0 d-none" id="compare-results-content">
                     <h6 class="text-uppercase text-body text-xs font-weight-bolder mb-3">Сравнение сценариев</h6>
                     <div class="table-responsive">
-                        <table class="table align-items-center mb-0 text-sm text-dark">
+                        <table class="table align-items-center mb-0 text-sm text-dark table-compact">
                             <thead>
                                 <tr>
                                     <th>Сценарий</th>
@@ -590,6 +591,13 @@
             const file = e.target.files[0];
             if (!file) return;
 
+            const fileNameBadge = document.getElementById('prices-file-name');
+            if (fileNameBadge) {
+                fileNameBadge.textContent = 'Выбран: ' + file.name;
+                fileNameBadge.title = file.name;
+                fileNameBadge.classList.remove('d-none');
+            }
+
             // Проверка расширения
             const allowedExts = ['.xlsx', '.xls'];
             const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
@@ -598,8 +606,7 @@
                     title: 'Неверный формат',
                     text: 'Поддерживаются только файлы Excel (.xlsx, .xls)',
                     icon: 'warning',
-                    background: '#1e1e2d',
-                    color: '#fff'
+                    
                 });
                 pricesFileInput.value = '';
                 return;
@@ -632,8 +639,7 @@
                             title: 'Успех!',
                             text: data.message,
                             icon: 'success',
-                            background: '#1e1e2d',
-                            color: '#fff'
+                            
                         });
                         loadAvailableComponents();
                     } else {
@@ -641,8 +647,7 @@
                             title: 'Ошибка',
                             text: data.error || 'Ошибка при загрузке цен',
                             icon: 'error',
-                            background: '#1e1e2d',
-                            color: '#fff'
+                            
                         });
                     }
                 })
@@ -729,8 +734,7 @@
                     title: 'Ошибка',
                     text: 'Сумма компонентов должна быть ровно 100%',
                     icon: 'error',
-                    background: '#1e1e2d',
-                    color: '#fff'
+                    
                 });
                 return;
             }
@@ -837,8 +841,7 @@
                             title: 'Ошибка',
                             text: data.error || 'Не удалось выполнить расчёт',
                             icon: 'error',
-                            background: '#1e1e2d',
-                            color: '#fff'
+                            
                         });
                     }
                 })
