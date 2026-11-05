@@ -3,16 +3,32 @@
 {% block title %}Таблицы{% endblock %}
 
 {% block content %}
-<div class="container-fluid py-4">
+<div class="container-fluid py-3 density-compact">
     <div class="row">
         <div class="col-12">
             {% if show_data %}
             <!-- Универсальная форма поиска -->
-            <div class="card shadow-sm border-0 animate-on-scroll mb-4">
-                <div class="card-header bg-white pb-0 pt-4 px-4 text-center border-0">
-                    <h6 class="text-dark font-weight-bolder">Универсальный поиск данных</h6>
+            <div class="card shadow-sm border-0 animate-on-scroll mb-4 card-compact">
+                <div class="card-header bg-transparent pb-0 pt-3 px-4 text-center border-0">
+                    <h6 class="text-heading font-weight-bolder">Универсальный поиск данных</h6>
                 </div>
-                <div class="card-body px-4 pt-4 pb-2">
+                <div class="card-body px-4 pt-3 pb-2">
+                    <!-- Пресеты фильтрации -->
+                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3 p-2 theme-contrast-box">
+                        <div class="d-flex flex-wrap align-items-center gap-1">
+                            <span class="text-xs fw-bold text-muted me-1"><i class="fas fa-bookmark me-1 text-primary"></i>Пресеты:</span>
+                            <button type="button" class="btn btn-xs btn-outline-secondary py-1 px-2 mb-0" onclick="applyFilterPreset('high_q')">Q &ge; 17 МДж</button>
+                            <button type="button" class="btn btn-xs btn-outline-secondary py-1 px-2 mb-0" onclick="applyFilterPreset('low_ash')">Зола Ad &le; 1.5%</button>
+                            <button type="button" class="btn btn-xs btn-outline-secondary py-1 px-2 mb-0" onclick="applyFilterPreset('high_kf')">Прочность Kf &ge; 95%</button>
+                            <button type="button" class="btn btn-xs btn-outline-secondary py-1 px-2 mb-0" onclick="applyFilterPreset('enplus')">ENplus-A1</button>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <select id="userPresetSelect" class="form-select form-select-sm py-1 px-2" style="max-width: 170px;" onchange="loadUserPreset(this.value)">
+                                <option value="">Мои пресеты...</option>
+                            </select>
+                            <button type="button" class="btn btn-xs btn-outline-primary py-1 px-2 mb-0" onclick="saveCurrentPreset()" title="Сохранить текущие фильтры"><i class="fas fa-save me-1"></i>Сохранить</button>
+                        </div>
+                    </div>
                     <form method="post" id="searchForm" class="mb-4">
                         <div class="row search-criterion">
                             <div class="col-md-3">
@@ -103,10 +119,10 @@
                 aria-hidden="true">
                 <div class="modal-dialog modal-dialog-centered modal-lg">
                     <div class="modal-content shadow-sm border-0">
-                        <div class="modal-header bg-light border-bottom-0 pb-3 pt-4 px-4">
-                            <h5 class="modal-title font-weight-bolder text-dark" id="addDataModalLabel">Добавить новый
+                        <div class="modal-header bg-transparent border-bottom pb-3 pt-3 px-4">
+                            <h5 class="modal-title font-weight-bolder text-heading" id="addDataModalLabel">Добавить новый
                                 состав</h5>
-                            <button type="button" class="btn-close text-dark" data-bs-dismiss="modal"
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"
                                 aria-label="Close"></button>
                         </div>
                         <div class="modal-body">
@@ -256,12 +272,12 @@
             {% if show_data %}
             {% for table in tables %}
             <div class="card shadow-sm border-0 animate-on-scroll stagger-{{ loop.index }} mb-4">
-                <div class="card-header bg-white pb-0 pt-4 px-4 border-0">
-                    <h6 class="text-uppercase text-dark font-weight-bolder">{{ table.name }}</h6>
+                <div class="card-header bg-transparent pb-0 pt-3 px-4 border-0">
+                    <h6 class="text-uppercase text-heading font-weight-bolder">{{ table.name }}</h6>
                 </div>
                 <div class="card-body px-4">
                     <div class="table-responsive">
-                        {{ table.data | safe }}
+                        <div class="table-compact">{{ table.data | safe }}</div>
                     </div>
 
                     <!-- Простая пагинация - только выбор количества строк -->
@@ -882,6 +898,127 @@
         }
         clearSearch();
     }
+
+    // Предустановленные пресеты фильтров
+    window.applyFilterPreset = function(type) {
+        resetSearch();
+        const form = document.getElementById('searchForm');
+        if (!form) return;
+
+        if (type === 'high_q') {
+            const col = form.querySelector('[name="search_column"]');
+            const op = form.querySelector('[name="search_operator"]');
+            const val = form.querySelector('[name="search_value"]');
+            if (col && op && val) {
+                col.value = 'q';
+                op.value = '>=';
+                val.value = '17';
+            }
+        } else if (type === 'low_ash') {
+            const col = form.querySelector('[name="search_column"]');
+            const op = form.querySelector('[name="search_operator"]');
+            const val = form.querySelector('[name="search_value"]');
+            if (col && op && val) {
+                col.value = 'ad';
+                op.value = '<=';
+                val.value = '1.5';
+            }
+        } else if (type === 'high_kf') {
+            const col = form.querySelector('[name="search_column"]');
+            const op = form.querySelector('[name="search_operator"]');
+            const val = form.querySelector('[name="search_value"]');
+            if (col && op && val) {
+                col.value = 'kf';
+                op.value = '>=';
+                val.value = '95';
+            }
+        } else if (type === 'enplus') {
+            const col = form.querySelector('[name="search_column"]');
+            const op = form.querySelector('[name="search_operator"]');
+            const val = form.querySelector('[name="search_value"]');
+            if (col && op && val) {
+                col.value = 'ad';
+                op.value = '<=';
+                val.value = '0.7';
+            }
+            // Добавляем второй критерий через addCriterion
+            const addBtn = document.getElementById('addCriterionBtn');
+            if (addBtn) {
+                addBtn.click();
+                setTimeout(() => {
+                    const criteria = form.querySelectorAll('.search-criterion');
+                    if (criteria.length > 1) {
+                        const second = criteria[1];
+                        second.querySelector('[name="search_column"]').value = 'q';
+                        second.querySelector('[name="search_operator"]').value = '>=';
+                        second.querySelector('[name="search_value"]').value = '16.5';
+                    }
+                }, 50);
+            }
+        }
+    };
+
+    window.saveCurrentPreset = function() {
+        const form = document.getElementById('searchForm');
+        if (!form) return;
+        const name = prompt('Введите название пресета:');
+        if (!name || !name.trim()) return;
+
+        const cols = Array.from(form.querySelectorAll('[name="search_column"]')).map(el => el.value);
+        const ops = Array.from(form.querySelectorAll('[name="search_operator"]')).map(el => el.value);
+        const vals = Array.from(form.querySelectorAll('[name="search_value"]')).map(el => el.value);
+        const valMaxes = Array.from(form.querySelectorAll('[name="search_value_max"]')).map(el => el.value);
+
+        const preset = { name: name.trim(), cols, ops, vals, valMaxes };
+        const saved = JSON.parse(localStorage.getItem('pellet_table_presets') || '[]');
+        saved.push(preset);
+        localStorage.setItem('pellet_table_presets', JSON.stringify(saved));
+        updateUserPresetSelect();
+        if (typeof showToast === 'function') showToast('Пресет "' + name + '" сохранен!', 'success');
+    };
+
+    window.loadUserPreset = function(idx) {
+        if (idx === '' || idx === null) return;
+        const saved = JSON.parse(localStorage.getItem('pellet_table_presets') || '[]');
+        const preset = saved[parseInt(idx, 10)];
+        if (!preset) return;
+
+        resetSearch();
+        const form = document.getElementById('searchForm');
+        if (!form) return;
+
+        for (let i = 0; i < preset.cols.length; i++) {
+            if (i > 0) {
+                const addBtn = document.getElementById('addCriterionBtn');
+                if (addBtn) addBtn.click();
+            }
+        }
+
+        setTimeout(() => {
+            const criteria = form.querySelectorAll('.search-criterion');
+            criteria.forEach((row, i) => {
+                if (preset.cols[i]) row.querySelector('[name="search_column"]').value = preset.cols[i];
+                if (preset.ops[i]) {
+                    const opEl = row.querySelector('[name="search_operator"]');
+                    opEl.value = preset.ops[i];
+                    if (typeof toggleSearchInputs === 'function') toggleSearchInputs(row);
+                }
+                if (preset.vals[i]) row.querySelector('[name="search_value"]').value = preset.vals[i];
+                if (preset.valMaxes[i]) row.querySelector('[name="search_value_max"]').value = preset.valMaxes[i];
+            });
+        }, 100);
+    };
+
+    function updateUserPresetSelect() {
+        const select = document.getElementById('userPresetSelect');
+        if (!select) return;
+        const saved = JSON.parse(localStorage.getItem('pellet_table_presets') || '[]');
+        select.innerHTML = '<option value="">Мои пресеты...</option>' + 
+            saved.map((p, i) => `<option value="${i}">${p.name}</option>`).join('');
+    }
+
+    document.addEventListener('DOMContentLoaded', updateUserPresetSelect);
+
 </script>
 {% endblock extra_js %}
 {% endblock %}

@@ -5,7 +5,7 @@
 {% endblock extrastyle %}
 
 {% block content %}
-<div class="container-fluid py-4">
+<div class="container-fluid py-3 density-compact">
     <div class="row">
         <div class="col-12">
             <!-- Заголовок и навигация -->
@@ -13,7 +13,7 @@
                 <div class="border-bottom-0">
                     <div class="row align-items-center">
                         <div class="col-md-8">
-                            <h4 class="mb-1 text-dark font-weight-bolder">Сравнительный анализ составов пеллет</h4>
+                            <h4 class="mb-1 text-heading font-weight-bolder">Сравнительный анализ составов пеллет</h4>
                             <p class="text-sm text-muted mb-0">Детальное сравнение характеристик и свойств различных
                                 составов</p>
                         </div>
@@ -32,7 +32,7 @@
             {% if uploaded_files and compositions %}
             <div class="glass-card p-4 animate-on-scroll stagger-1 mb-4">
                 <div class="border-bottom mb-3 pb-2">
-                    <h5 class="mb-0 text-dark fw-bolder">Выбор составов для сравнения</h5>
+                    <h5 class="mb-0 text-heading fw-bolder">Выбор составов для сравнения</h5>
                 </div>
                 <div class="card-body">
                     <form id="compare-form">
@@ -75,9 +75,9 @@
                                 </div>
                             </div>
                             <!-- Панель выбора критериев -->
-                            <div class="card border-0 bg-white border-radius-lg shadow-sm mb-4">
-                                <div class="card-header bg-gray-100 py-3 border-radius-lg-top">
-                                    <h5 class="mb-0 text-dark font-weight-bolder">
+                            <div class="card border-0 theme-contrast-box border-radius-lg shadow-sm mb-4 card-compact">
+                                <div class="card-header bg-transparent py-3 border-bottom">
+                                    <h5 class="mb-0 text-heading font-weight-bolder">
                                         <i class="fas fa-sliders-h me-2 text-primary"></i>Выбор критериев для сравнения
                                     </h5>
                                 </div>
@@ -196,7 +196,7 @@
                 <!-- Визуальное сравнение -->
                 <div class="glass-card p-4 mb-4">
                     <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5 class="mb-0 text-dark fw-bolder">Визуальное сравнение</h5>
+                        <h5 class="mb-0 text-heading fw-bolder">Визуальное сравнение</h5>
                         <div class="btn-group">
                             <button class="btn btn-sm btn-outline-secondary mb-0" id="toggleCharts">
                                 <i class="fas fa-chart-bar me-1"></i>Переключить вид
@@ -206,9 +206,9 @@
                     <div>
                         <div class="row" id="visualComparison">
                             <div class="col-md-6">
-                                <div class="glass-card h-100 p-3 bg-gray-50 border">
+                                <div class="glass-card h-100 p-3 theme-contrast-box border">
                                     <div class="mb-3 border-bottom pb-2">
-                                        <h6 class="mb-0 text-dark">Сравнительная диаграмма</h6>
+                                        <h6 class="mb-0 text-heading">Сравнительная диаграмма</h6>
                                     </div>
                                     <div>
                                         <canvas id="comparisonChart" width="400" height="250"></canvas>
@@ -216,9 +216,9 @@
                                 </div>
                             </div>
                             <div class="col-md-6">
-                                <div class="glass-card h-100 p-3 bg-gray-50 border">
+                                <div class="glass-card h-100 p-3 theme-contrast-box border">
                                     <div class="mb-3 border-bottom pb-2">
-                                        <h6 class="mb-0 text-dark">Различия в процентах</h6>
+                                        <h6 class="mb-0 text-heading">Различия в процентах</h6>
                                     </div>
                                     <div>
                                         <canvas id="differenceChart" width="400" height="250"></canvas>
@@ -246,10 +246,10 @@
                     <div class="bg-gradient-primary text-white p-3 d-flex justify-content-between align-items-center">
                         <h5 class="mb-0 text-white">Детальное сравнение параметров</h5>
                         <div class="btn-group">
-                            <button class="btn btn-sm btn-white mb-0 text-dark" id="exportTable">
+                            <button class="btn btn-sm btn-white mb-0 text-heading" id="exportTable">
                                 <i class="fas fa-file-excel me-1 text-success"></i>Excel
                             </button>
-                            <button class="btn btn-sm btn-white mb-0 text-dark" id="exportCharts">
+                            <button class="btn btn-sm btn-white mb-0 text-heading" id="exportCharts">
                                 <i class="fas fa-image me-1 text-info"></i>Графики
                             </button>
                         </div>
@@ -298,8 +298,8 @@
 
             <!-- История сравнений -->
             <div class="glass-card p-0 mt-4 overflow-hidden" id="historySection">
-                <div class="bg-gray-200 text-dark p-3 d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0 text-dark fw-bolder">История сравнений</h5>
+                <div class="bg-gray-200 text-heading p-3 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 text-heading fw-bolder">История сравнений</h5>
                     <button class="btn btn-sm btn-outline-danger mb-0" id="clearHistory">
                         <i class="fas fa-trash me-1"></i>Очистить историю
                     </button>

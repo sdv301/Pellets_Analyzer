@@ -3,13 +3,13 @@
 {% block title %}Главная{% endblock %}
 
 {% block content %}
-<div class="container-fluid py-4">
+<div class="container-fluid py-3 density-compact">
     <div class="row">
         <div class="col-12">
             <!-- BankDash Header -->
             <div class="d-flex justify-content-between align-items-center mb-4 animate-on-scroll">
                 <div>
-                    <h2 class="font-weight-bolder text-dark mb-0">Дашборд Аналитики</h2>
+                    <h3 class="font-weight-bolder text-heading mb-0">Дашборд Аналитики</h2>
                     <p class="text-sm text-muted mb-0">Ключевые показатели и графики топливных пеллет</p>
                 </div>
                 <div class="d-flex gap-2">
@@ -26,9 +26,9 @@
             <div class="row mb-4">
                 <!-- Главный график -->
                 <div class="col-lg-8 mb-4 mb-lg-0">
-                    <div class="card shadow-sm border-0 h-100 animate-on-scroll stagger-1">
-                        <div class="card-header bg-white pb-0 pt-4 px-4 border-0 d-flex justify-content-between align-items-center">
-                            <h6 class="mb-0 text-dark font-weight-bolder">Сравнение параметров составов</h6>
+                    <div class="card shadow-sm border-0 h-100 animate-on-scroll stagger-1 card-compact">
+                        <div class="card-header bg-transparent pb-0 pt-3 px-4 border-0 d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0 text-heading font-weight-bolder">Сравнение параметров составов</h6>
                             <span class="badge bg-light text-muted" id="chartBadge">
                                 <i class="fas fa-chart-bar me-1"></i><span id="chartCount">{{ chart_labels | length | default(0) }}</span>
                             </span>
@@ -51,49 +51,65 @@
                 <!-- Быстрые действия -->
                 <div class="col-lg-4">
                     <div class="row">
-                        <div class="col-12 mb-4">
+                        <div class="col-12 mb-3">
                             <a href="{{ url_for('ml.ml_dashboard') }}" class="text-decoration-none w-100">
-                                <div class="card shadow-sm border-0 hover-lift animate-on-scroll stagger-2">
-                                    <div class="card-body p-4 d-flex align-items-center">
+                                <div class="card shadow-sm border-0 hover-lift animate-on-scroll card-compact stagger-2">
+                                    <div class="card-body p-3 d-flex align-items-center">
                                         <div class="icon icon-shape bg-gradient-primary shadow-sm text-center border-radius-md me-3 d-flex align-items-center justify-content-center"
                                             style="width: 50px; height: 50px;">
                                             <i class="fas fa-brain fa-lg text-white"></i>
                                         </div>
                                         <div>
-                                            <h6 class="text-dark font-weight-bolder mb-1">ML Оптимизатор</h6>
+                                            <h6 class="text-heading font-weight-bolder mb-1">ML Оптимизатор</h6>
                                             <p class="text-xs text-muted mb-0">Обучение моделей и предсказания</p>
                                         </div>
                                     </div>
                                 </div>
                             </a>
                         </div>
-                        <div class="col-12 mb-4">
+                        <div class="col-12 mb-3">
                             <a href="{{ url_for('graphs.create_graph') }}" class="text-decoration-none w-100">
-                                <div class="card shadow-sm border-0 hover-lift animate-on-scroll stagger-3">
-                                    <div class="card-body p-4 d-flex align-items-center">
+                                <div class="card shadow-sm border-0 hover-lift animate-on-scroll card-compact stagger-3">
+                                    <div class="card-body p-3 d-flex align-items-center">
                                         <div class="icon icon-shape bg-gradient-info shadow-sm text-center border-radius-md me-3 d-flex align-items-center justify-content-center"
                                             style="width: 50px; height: 50px;">
                                             <i class="fas fa-chart-line fa-lg text-white"></i>
                                         </div>
                                         <div>
-                                            <h6 class="text-dark font-weight-bolder mb-1">Генератор Графиков</h6>
+                                            <h6 class="text-heading font-weight-bolder mb-1">Генератор Графиков</h6>
                                             <p class="text-xs text-muted mb-0">Визуализация данных</p>
                                         </div>
                                     </div>
                                 </div>
                             </a>
                         </div>
-                        <div class="col-12">
+                        <div class="col-12 mb-3">
                             <a href="{{ url_for('main.economics') }}" class="text-decoration-none w-100">
-                                <div class="card shadow-sm border-0 hover-lift animate-on-scroll stagger-4">
-                                    <div class="card-body p-4 d-flex align-items-center">
+                                <div class="card shadow-sm border-0 hover-lift animate-on-scroll card-compact stagger-4">
+                                    <div class="card-body p-3 d-flex align-items-center">
                                         <div class="icon icon-shape bg-gradient-success shadow-sm text-center border-radius-md me-3 d-flex align-items-center justify-content-center"
-                                            style="width: 50px; height: 50px;">
-                                            <i class="fas fa-coins fa-lg text-white"></i>
+                                            style="width: 44px; height: 44px;">
+                                            <i class="fas fa-coins text-white"></i>
                                         </div>
                                         <div>
-                                            <h6 class="text-dark font-weight-bolder mb-1">Экономика</h6>
-                                            <p class="text-xs text-muted mb-0">Расчёт стоимости</p>
+                                            <h6 class="text-heading font-weight-bolder mb-0 text-sm">Экономика</h6>
+                                            <p class="text-xs text-muted mb-0">Расчёт себестоимости</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="col-12">
+                            <a href="{{ url_for('compare.compare') }}" class="text-decoration-none w-100">
+                                <div class="card shadow-sm border-0 hover-lift animate-on-scroll card-compact stagger-4">
+                                    <div class="card-body p-3 d-flex align-items-center">
+                                        <div class="icon icon-shape bg-gradient-warning shadow-sm text-center border-radius-md me-3 d-flex align-items-center justify-content-center"
+                                            style="width: 44px; height: 44px;">
+                                            <i class="fas fa-balance-scale text-white"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="text-heading font-weight-bolder mb-0 text-sm">Сравнение рецептов</h6>
+                                            <p class="text-xs text-muted mb-0">Сопоставление параметров</p>
                                         </div>
                                     </div>
                                 </div>
@@ -105,8 +121,8 @@
 
             <!-- Форма загрузки и выбора файла -->
             <div class="card shadow-sm border-0 animate-on-scroll stagger-4 mb-4">
-                <div class="card-header bg-white pb-0 pt-4 px-4 text-center border-0">
-                    <h6 class="text-dark font-weight-bolder"><i class="fas fa-cloud-upload-alt me-2"></i>Загрузка и Выбор Файла</h6>
+                <div class="card-header bg-transparent pb-0 pt-3 px-4 text-center border-0">
+                    <h6 class="text-heading font-weight-bolder"><i class="fas fa-cloud-upload-alt me-2"></i>Загрузка и Выбор Файла</h6>
                 </div>
                 <div class="card-body px-4 pt-4 pb-4">
                     <!-- Зона drag & drop -->
@@ -164,7 +180,7 @@
                                 </div>
                                 <div class="ms-2">
                                     <p class="text-sm mb-0 text-muted font-weight-bold">Рецептур в базе</p>
-                                    <h4 class="font-weight-bolder text-dark mb-0" id="statRecipes">{{ total_recipes_count | default(0) }}</h4>
+                                    <h4 class="font-weight-bolder text-heading mb-0" id="statRecipes">{{ total_recipes_count | default(0) }}</h4>
                                 </div>
                             </div>
                         </div>
@@ -180,7 +196,7 @@
                                 </div>
                                 <div class="ms-2">
                                     <p class="text-sm mb-0 text-muted font-weight-bold">Измеренных параметров</p>
-                                    <h4 class="font-weight-bolder text-dark mb-0" id="statMeasured">{{ total_measured_count | default(0) }}</h4>
+                                    <h4 class="font-weight-bolder text-heading mb-0" id="statMeasured">{{ total_measured_count | default(0) }}</h4>
                                 </div>
                             </div>
                         </div>
@@ -196,7 +212,7 @@
                                 </div>
                                 <div class="ms-2">
                                     <p class="text-sm mb-0 text-muted font-weight-bold">Компонентов сырья</p>
-                                    <h4 class="font-weight-bolder text-dark mb-0" id="statComponents">{{ total_components_count | default(0) }}</h4>
+                                    <h4 class="font-weight-bolder text-heading mb-0" id="statComponents">{{ total_components_count | default(0) }}</h4>
                                 </div>
                             </div>
                         </div>
@@ -230,9 +246,9 @@
 
             <!-- Последние расчеты и история оптимизаций (F1) -->
             <div class="card shadow-sm border-0 animate-on-scroll stagger-3 mb-4">
-                <div class="card-header bg-white pb-0 pt-4 px-4 border-0 d-flex justify-content-between align-items-center">
+                <div class="card-header bg-transparent pb-0 pt-3 px-4 border-0 d-flex justify-content-between align-items-center">
                     <div>
-                        <h6 class="text-dark font-weight-bolder mb-0"><i class="fas fa-history me-2 text-primary"></i>Последние ML-расчёты и оптимизации</h6>
+                        <h6 class="text-heading font-weight-bolder mb-0"><i class="fas fa-history me-2 text-primary"></i>Последние ML-расчёты и оптимизации</h6>
                         <small class="text-muted">Сводка подбора рецептур и контроля области применимости</small>
                     </div>
                     <a href="{{ url_for('ml.ml_dashboard') }}" class="btn btn-outline-primary btn-sm mb-0">
@@ -242,7 +258,7 @@
                 <div class="card-body px-4 pt-3 pb-4">
                     {% if recent_optimizations and recent_optimizations|length > 0 %}
                     <div class="table-responsive">
-                        <table class="table table-hover align-items-center mb-0">
+                        <table class="table table-hover align-items-center mb-0 table-compact">
                             <thead>
                                 <tr>
                                     <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Дата</th>
