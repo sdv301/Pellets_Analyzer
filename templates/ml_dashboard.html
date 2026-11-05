@@ -258,8 +258,8 @@
         border-color: var(--bank-border-color) !important;
     }
 
-    /* Fix glass-card bg-gray-100 conflict */
-    [data-theme="dark"] .glass-card.bg-gray-100 {
+    /* Fix glass-card theme-contrast-box conflict */
+    [data-theme="dark"] .glass-card.theme-contrast-box {
         background-color: var(--bank-bg-color) !important;
     }
 
@@ -287,8 +287,8 @@
         color: var(--text-primary) !important;
     }
 
-    /* Fix bg-gray-100 inside glass-cards */
-    [data-theme="dark"] .glass-card .bg-gray-100 {
+    /* Fix theme-contrast-box inside glass-cards */
+    [data-theme="dark"] .glass-card .theme-contrast-box {
         background-color: var(--bg-tertiary, #1a1d24) !important;
     }
 
@@ -335,10 +335,10 @@
 {% endblock extrastyle %}
 
 {% block content %}
-<div class="container-fluid py-4">
+<div class="container-fluid py-3 density-compact">
     <div class="row mb-4">
         <div class="col-12 text-center">
-            <h2 class="font-weight-bolder text-dark mb-1">Лаборатория ИИ 🧪</h2>
+            <h3 class="font-weight-bolder text-heading mb-1">Лаборатория ИИ 🧪</h2>
             <p class="text-muted">Интеллектуальный подбор идеального состава топливных пеллет</p>
         </div>
     </div>
@@ -372,31 +372,31 @@
 
                 <div class="tab-pane fade show active" id="step1-status" role="tabpanel">
                     <div class="glass-card p-4">
-                        <h5 class="text-dark font-weight-bolder mb-4">Статус базы данных</h5>
+                        <h5 class="text-heading font-weight-bolder mb-4">Статус базы данных</h5>
                         <div class="row g-4 mb-4">
                             <div class="col-md-4">
-                                <div class="p-3 border-radius-lg bg-gray-100 text-center h-100 border">
+                                <div class="p-3 border-radius-lg theme-contrast-box text-center h-100 border">
                                     <h2 class="text-primary fw-bolder mb-0" id="dataCount">0</h2><span
                                         class="text-sm text-muted">Записей в БД</span>
                                 </div>
                             </div>
                             <div class="col-md-4">
-                                <div class="p-3 border-radius-lg bg-gray-100 text-center h-100 border">
+                                <div class="p-3 border-radius-lg theme-contrast-box text-center h-100 border">
                                     <h2 class="text-success fw-bolder mb-0" id="activeModels">0</h2><span
                                         class="text-sm text-muted">Готовых моделей</span>
                                 </div>
                             </div>
                             <div class="col-md-4">
-                                <div class="p-3 border-radius-lg bg-gray-100 text-center h-100 border">
+                                <div class="p-3 border-radius-lg theme-contrast-box text-center h-100 border">
                                     <h2 class="text-warning fw-bolder mb-0" id="avgAccuracy">0%</h2><span
                                         class="text-sm text-muted" id="avgAccuracyLabel">Средняя точность</span>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="p-3 border-radius-lg bg-gray-100 mb-4"
+                        <div class="p-3 border-radius-lg theme-contrast-box mb-4"
                             style="border-left: 4px solid #0d6efd !important;">
-                            <h6 class="text-dark"><i class="fas fa-file-excel text-primary me-2"></i>Загрузка данных из Excel</h6>
+                            <h6 class="text-heading"><i class="fas fa-file-excel text-primary me-2"></i>Загрузка данных из Excel</h6>
                             <p class="text-sm text-muted mb-3">Автоматически загружает составы и характеристики из файла в папке Uploads/. Это расширит базу для обучения.</p>
                             <button type="button" class="btn btn-sm btn-outline-primary w-100 m-0" id="loadExcelBtn">
                                 <i class="fas fa-file-import me-1"></i><span class="btn-text">Загрузить из Excel</span>
@@ -405,9 +405,9 @@
                             <div id="loadExcelResult" class="mt-2"></div>
                         </div>
 
-                        <div class="p-3 border-radius-lg bg-gray-100 mb-4"
+                        <div class="p-3 border-radius-lg theme-contrast-box mb-4"
                             style="border-left: 4px solid #17ad37 !important;">
-                            <h6 class="text-dark"><i class="fas fa-copy text-success me-2"></i>Масштабирование данных
+                            <h6 class="text-heading"><i class="fas fa-copy text-success me-2"></i>Масштабирование данных
                                 (Аугментация)</h6>
                             <p class="text-sm text-muted mb-3">Если физических опытов мало, ИИ может сгенерировать
                                 виртуальные образцы, используя математические законы смешивания. Это повысит точность
@@ -441,22 +441,23 @@
 
                 <div class="tab-pane fade" id="step2-train" role="tabpanel">
                     <div class="glass-card p-4">
-                        <h5 class="text-dark font-weight-bolder mb-3">Настройка и Обучение Нейросети</h5>
+                        <h5 class="text-heading font-weight-bolder mb-3">Настройка и Обучение Нейросети</h5>
 
+                        {% if current_user.is_authenticated and current_user.role_name == 'admin' %}
                         <form id="ml-training-form">
                             <div class="row mt-4">
                                 <div class="col-md-6 pe-md-4 mb-3 mb-md-0" style="border-right: 1px solid #dee2e6;">
-                                    <label class="fw-bold text-dark text-sm"><i class="fas fa-cogs text-info me-1"></i>
+                                    <label class="fw-bold text-heading text-sm"><i class="fas fa-cogs text-info me-1"></i>
                                         1. Выберите алгоритм ML:</label>
                                     <select name="algorithm"
-                                        class="form-select form-select-sm mb-4 shadow-sm border-0 bg-gray-100">
+                                        class="form-select form-select-sm mb-4 shadow-sm border-0 theme-contrast-box">
                                         <option value="auto">🧠 Автоматически (Умный выбор)</option>
                                         <option value="ridge">📈 Линейная регрессия (Ridge)</option>
                                         <option value="random_forest">🌲 Случайный лес (Random Forest)</option>
                                         <option value="gradient_boosting">🚀 Градиентный бустинг (GBM)</option>
                                     </select>
 
-                                    <label class="fw-bold text-dark text-sm"><i
+                                    <label class="fw-bold text-heading text-sm"><i
                                             class="fas fa-bullseye text-danger me-1"></i> 2. Целевые свойства:</label>
                                     <div class="d-flex flex-column gap-2 mt-2">
                                         <div class="form-check"><input class="form-check-input" type="checkbox"
@@ -476,7 +477,7 @@
                                 </div>
 
                                 <div class="col-md-6 ps-md-4">
-                                    <label class="fw-bold text-dark text-sm"><i
+                                    <label class="fw-bold text-heading text-sm"><i
                                             class="fas fa-puzzle-piece text-success me-1"></i> 3. Из чего будем
                                         собирать?</label>
                                     <p class="text-xs text-muted mb-3">Эти компоненты загружены из вашей базы данных.
@@ -499,6 +500,16 @@
                                 </button>
                             </div>
                         </form>
+                        {% else %}
+                        <div class="p-4 theme-contrast-box rounded text-center my-3">
+                            <i class="fas fa-shield-alt text-primary fa-2x mb-2"></i>
+                            <h6 class="text-heading font-weight-bolder">Режим оператора лаборатории</h6>
+                            <p class="text-muted text-sm mb-3">В системе активна зафиксированная модель <strong>pellet_ml (v2)</strong> с честной GroupKFold/LORO валидацией. Ручная калибровка гиперпараметров и переобучение моделей доступны администратору системы.</p>
+                            <button type="button" class="btn btn-primary btn-sm mb-0" onclick="goToTab('step4-sandbox')">
+                                <i class="fas fa-sliders-h me-1"></i>Перейти к расчету рецепта
+                            </button>
+                        </div>
+                        {% endif %}
                     </div>
 
                     <div id="mlSystemStatus" class="mt-4"></div>
@@ -509,13 +520,13 @@
 
                 <div class="tab-pane fade" id="step3-optimize" role="tabpanel">
                     <div class="glass-card p-4">
-                        <h5 class="text-dark font-weight-bolder mb-2">Генератор идеального рецепта</h5>
+                        <h5 class="text-heading font-weight-bolder mb-2">Генератор идеального рецепта</h5>
                         <p class="text-muted text-sm mb-4">Укажите ИИ цель, и он подберет точные проценты компонентов,
                             учитывая ваши ограничения.</p>
 
                         <div id="optimizationResults" class="mb-4"></div>
 
-                        <form id="optimization-form" class="bg-gray-100 p-4 border-radius-lg border">
+                        <form id="optimization-form" class="theme-contrast-box p-4 border-radius-lg border">
                             <div class="row g-4">
                                 <div class="col-md-6">
                                     <label class="text-xs fw-bold text-dark text-uppercase">Цель оптимизации:</label>
@@ -537,7 +548,7 @@
                                     <div class="form-check form-switch p-0">
                                         <input class="form-check-input ms-0 me-2" type="checkbox"
                                             id="advancedConstraints">
-                                        <label class="form-check-label pt-1 fw-bold text-dark text-sm"
+                                        <label class="form-check-label pt-1 fw-bold text-heading text-sm"
                                             for="advancedConstraints">Установить лимиты сырья (Min/Max %)</label>
                                     </div>
                                 </div>
@@ -598,7 +609,7 @@
                                 <h6 class="fw-bold mb-3 text-dark"><i class="fas fa-sliders-h text-warning me-2"></i>Ваш
                                     Рецепт</h6>
 
-                                <div class="mb-3 p-2 bg-gray-100 rounded text-center border">
+                                <div class="mb-3 p-2 theme-contrast-box rounded text-center border">
                                     <span class="text-xs fw-bold text-muted text-uppercase">Общая сумма</span>
                                     <h4 class="text-success mb-0" id="sandboxTotalText">100.0%</h4>
                                     <div class="total-bar-container">
@@ -616,8 +627,8 @@
                         </div>
 
                         <div class="col-lg-7">
-                            <div class="glass-card p-4 h-100 bg-gray-100">
-                                <h6 class="fw-bold text-dark mb-4"><i
+                            <div class="glass-card p-4 h-100 theme-contrast-box">
+                                <h6 class="fw-bold text-heading mb-4"><i
                                         class="fas fa-tachometer-alt text-primary me-2"></i>Результат смешивания
                                     (Прогноз ИИ)</h6>
 
@@ -625,6 +636,27 @@
                                     <div class="col-12 text-center py-5 text-muted">
                                         <i class="fas fa-spinner fa-spin fa-2x mb-3"></i>
                                         <p>Загрузка прогнозов...</p>
+                                    </div>
+                                </div>
+
+                                <!-- Сверка с фактом лаборатории и экспорт -->
+                                <div class="mt-4 pt-3 border-top">
+                                    <h6 class="fw-bold text-heading text-sm mb-2"><i class="fas fa-vial text-success me-2"></i>Сверка с фактом лаборатории</h6>
+                                    <div class="row g-2 align-items-center mb-2">
+                                        <div class="col-sm-6">
+                                            <input type="number" step="0.01" class="form-control form-control-sm" id="labActualHeat" placeholder="Факт. теплота Q (МДж/кг)">
+                                        </div>
+                                        <div class="col-sm-6">
+                                            <span id="residualDisplay" class="badge bg-light text-muted p-2 w-100 text-truncate">Невязка: —</span>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex gap-2">
+                                        <button type="button" class="btn btn-sm btn-outline-success flex-fill mb-0" id="saveLabRecipeBtn">
+                                            <i class="fas fa-save me-1"></i>Сохранить в сценарии
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-primary flex-fill mb-0" onclick="window.print()">
+                                            <i class="fas fa-print me-1"></i>Печать отчёта
+                                        </button>
                                     </div>
                                 </div>
                             </div>
