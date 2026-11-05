@@ -7,6 +7,8 @@ on:
 
 jobs:
   tests:
+    # paused: private Tolko submodule needs LAB_DEPLOY_KEY; re-enable after secret is set
+    if: false
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -42,6 +44,8 @@ jobs:
           path: coverage.xml
 
   performance-smoke:
+    # paused: private Tolko submodule needs LAB_DEPLOY_KEY; re-enable after secret is set
+    if: false
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

@@ -6,6 +6,8 @@ on:
 
 jobs:
   lab-and-product:
+    # paused: private Tolko submodule needs LAB_DEPLOY_KEY; re-enable after secret is set
+    if: false
     runs-on: ubuntu-latest
     steps:
       - name: Checkout product without the private submodule
