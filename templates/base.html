@@ -20,7 +20,7 @@
   </script>
 </head>
 
-<body class="g-sidenav-show g-sidenav-hidden bg-gray-100 app-shell">
+<body class="g-sidenav-show g-sidenav-hidden bg-gray-100 app-shell" data-user-role="{% if current_user and current_user.is_authenticated %}{{ current_user.role_name }}{% else %}guest{% endif %}">
   {% block sidebar %}
   {% include "includes/sidebar.html" %}
   {% endblock sidebar %}

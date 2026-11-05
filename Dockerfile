@@ -66,11 +66,11 @@ EXPOSE 5000
 
 # Healthcheck
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:5000/', timeout=5)" || exit 1
+    CMD python -c "import requests; requests.get('http://localhost:5000/health', timeout=5)" || exit 1
 
 # Запуск через entrypoint (root -> su-exec appuser)
 ENTRYPOINT ["/entrypoint.sh"]
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "4", "--threads", "2", "--timeout", "120", "main:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--threads", "2", "--preload", "--timeout", "120", "main:app"]
 
 # Для разработки (с автоперезагрузкой):
 # CMD ["python", "main.py"]

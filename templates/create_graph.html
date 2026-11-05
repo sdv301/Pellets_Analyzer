@@ -274,7 +274,7 @@
                                 placeholder="Поиск состава...">
                         </div>
                         <!-- Список составов -->
-                        <div id="compositionControls" class="composition-list" style="max-height: 46vh; overflow-y: auto;">
+                        <div id="compositionControls" class="composition-list custom-scrollbar">
                             <p class="text-muted text-center small m-3">Сначала создайте график, затем здесь появятся составы</p>
                         </div>
                     </div>
@@ -692,28 +692,32 @@
     }
 
     /* АДАПТИВНОСТЬ ДЛЯ УПРАВЛЕНИЯ СОСТАВАМИ */
-    @media (max-width: 768px) {
-        #compositionControlsCard {
-            min-height: 120px !important;
-            max-height: 200px !important;
-        }
+    .results-sidebar #compositionControlsCard {
+        min-height: 0;
+        flex-shrink: 0;
+    }
 
-        #compositionControls {
-            min-height: 80px !important;
+    .composition-list {
+        padding: 0;
+        max-height: 260px;
+        overflow-y: auto;
+    }
+
+    @media (max-width: 768px) {
+        .composition-list {
+            max-height: 180px;
         }
     }
 
     @media (max-height: 700px) {
-        #compositionControlsCard {
-            max-height: 180px !important;
-            min-height: 120px !important;
+        .composition-list {
+            max-height: 160px;
         }
     }
 
-    @media (min-height: 800px) {
-        #compositionControlsCard {
-            max-height: 220px !important;
-            min-height: 180px !important;
+    @media (min-height: 900px) {
+        .composition-list {
+            max-height: 320px;
         }
     }
 
@@ -882,7 +886,7 @@
     }
 
     .results-sidebar #compositionControlsCard {
-        min-height: 52vh;
+        min-height: 0;
     }
 
     .results-sidebar.is-mini #compositionControlsCollapse {
@@ -916,11 +920,37 @@
     }
 
     #toggleLegendPanelBtn {
-        color: #344767 !important;
+        color: inherit !important;
     }
 
     #toggleLegendPanelBtn:hover {
-        color: #2d3f96 !important;
+        color: var(--bs-primary, #5e72e4) !important;
+    }
+
+    [data-theme="dark"] #toggleLegendPanelBtn {
+        color: var(--aw-color-text-page, #f8fafc) !important;
+    }
+
+    [data-theme="dark"] #create-graph-page .sidebar-key-stat {
+        background: rgba(30, 41, 59, 0.7);
+        border-color: rgba(255, 255, 255, 0.08);
+    }
+
+    [data-theme="dark"] #create-graph-page .sidebar-key-stat .stat-label {
+        color: #94a3b8;
+    }
+
+    [data-theme="dark"] #create-graph-page .sidebar-key-stat .stat-value {
+        color: #f1f5f9;
+    }
+
+    [data-theme="dark"] #create-graph-page .stats-detailed-table thead {
+        background: #182030 !important;
+    }
+
+    [data-theme="dark"] #create-graph-page .stats-detailed-table thead th {
+        background: #182030 !important;
+        color: #cbd5e1 !important;
     }
 
     .legend-chevron {
@@ -2086,7 +2116,7 @@
             </div>
             <div class="table-responsive h-100 w-100 stats-detailed-table ${detailedStatsVisible ? '' : 'hidden'}">
                 <table class="table table-sm table-hover mb-0">
-                    <thead style="position: sticky; top: 0; background: #f8f9fa; z-index: 10;">
+                    <thead style="position: sticky; top: 0; background: var(--aw-color-bg-page, #f8f9fa); z-index: 10;">
                         <tr>
                             <th>Параметр</th>
                             <th>Среднее</th>
@@ -2102,7 +2132,7 @@
             for (const [param, values] of orderedEntries) {
                 html += `
                 <tr>
-                    <td><small class="fw-bold text-dark">${param}</small></td>
+                    <td><small class="fw-bold text-body">${param}</small></td>
                     <td><small>${values.mean !== null ? values.mean.toFixed(2) : 'N/A'}</small></td>
                     <td><small>${values.std !== null ? values.std.toFixed(2) : 'N/A'}</small></td>
                     <td><small>${values.min !== null ? values.min.toFixed(2) : 'N/A'}</small></td>

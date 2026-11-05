@@ -338,31 +338,50 @@
 <div class="container-fluid py-3 density-compact">
     <div class="row mb-4">
         <div class="col-12 text-center">
-            <h3 class="font-weight-bolder text-heading mb-1">Лаборатория ИИ 🧪</h2>
+            <h3 class="font-weight-bolder text-heading mb-1">Лаборатория ИИ 🧪</h3>
             <p class="text-muted">Интеллектуальный подбор идеального состава топливных пеллет</p>
         </div>
     </div>
 
         <div class="row mb-4 justify-content-center">
         <div class="col-xl-9 col-lg-10 col-md-12">
+            {% if current_user.role_name == 'admin' %}
             <ul class="nav nav-fill p-2" id="ml-tabs" role="tablist">
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link ml-tab-btn active" data-bs-toggle="tab" data-bs-target="#step1-status" type="button"
-                        role="tab"><span class="step-icon"><i class="fas fa-database"></i></span>1. База</button>
+                    <button class="nav-link ml-tab-btn active" data-bs-toggle="tab" data-bs-target="#step4-sandbox" type="button"
+                        role="tab"><span class="step-icon"><i class="fas fa-sliders-h"></i></span>1. Мастер рецептур (Wizard)</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link ml-tab-btn" data-bs-toggle="tab" data-bs-target="#step1-status" type="button"
+                        role="tab"><span class="step-icon"><i class="fas fa-database"></i></span>2. База данных</button>
                 </li>
                 <li class="nav-item" role="presentation">
                     <button class="nav-link ml-tab-btn" data-bs-toggle="tab" data-bs-target="#step2-train" type="button"
-                        role="tab"><span class="step-icon"><i class="fas fa-brain"></i></span>2. Обучение</button>
+                        role="tab"><span class="step-icon"><i class="fas fa-brain"></i></span>3. Управление моделями</button>
                 </li>
                 <li class="nav-item" role="presentation">
                     <button class="nav-link ml-tab-btn" data-bs-toggle="tab" data-bs-target="#step3-optimize" type="button"
-                        role="tab"><span class="step-icon"><i class="fas fa-magic"></i></span>3. Поиск</button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link ml-tab-btn" data-bs-toggle="tab" data-bs-target="#step4-sandbox" type="button"
-                        role="tab"><span class="step-icon"><i class="fas fa-sliders-h"></i></span>4. Песочница</button>
+                        role="tab"><span class="step-icon"><i class="fas fa-magic"></i></span>4. GridSearch / Поиск</button>
                 </li>
             </ul>
+            {% else %}
+            <!-- Пошаговый Wizard для оператора -->
+            <div class="card p-3 mb-2 shadow-sm border-0 theme-contrast-box">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <span class="text-xs fw-bold text-uppercase text-muted"><i class="fas fa-layer-group text-primary me-1"></i>Поток оператора: Мастер подбора рецептур</span>
+                    <span class="badge bg-primary rounded-pill text-xs" id="wizardActiveStepBadge">Шаг 1 из 4: Состав</span>
+                </div>
+                <div class="progress" style="height: 6px;">
+                    <div class="progress-bar bg-gradient-primary" id="wizardProgressBar" role="progressbar" style="width: 25%;"></div>
+                </div>
+                <div class="d-flex justify-content-between mt-2 text-xs text-muted">
+                    <span class="fw-bold text-primary" id="wStep1Label">1. Состав (100%)</span>
+                    <span id="wStep2Label">2. Прогноз ML v2</span>
+                    <span id="wStep3Label">3. Сверка с фактом</span>
+                    <span id="wStep4Label">4. Рецепт и экспорт</span>
+                </div>
+            </div>
+            {% endif %}
         </div>
     </div>
 
@@ -370,7 +389,7 @@
         <div class="col-xl-9 col-lg-10 col-md-12">
             <div class="tab-content">
 
-                <div class="tab-pane fade show active" id="step1-status" role="tabpanel">
+                <div class="tab-pane fade" id="step1-status" role="tabpanel">
                     <div class="glass-card p-4">
                         <h5 class="text-heading font-weight-bolder mb-4">Статус базы данных</h5>
                         <div class="row g-4 mb-4">
@@ -574,7 +593,7 @@
                                 class="fas fa-arrow-right ms-2"></i></button></div>
                 </div>
 
-                <div class="tab-pane fade" id="step4-sandbox" role="tabpanel">
+                <div class="tab-pane fade show active" id="step4-sandbox" role="tabpanel">
                     <div class="alert alert-light border shadow-sm mb-4 d-flex align-items-center">
                         <i class="fas fa-info-circle fa-2x text-info me-3"></i>
                         <div>
@@ -640,19 +659,37 @@
                                 </div>
 
                                 <!-- Сверка с фактом лаборатории и экспорт -->
-                                <div class="mt-4 pt-3 border-top">
-                                    <h6 class="fw-bold text-heading text-sm mb-2"><i class="fas fa-vial text-success me-2"></i>Сверка с фактом лаборатории</h6>
-                                    <div class="row g-2 align-items-center mb-2">
-                                        <div class="col-sm-6">
-                                            <input type="number" step="0.01" class="form-control form-control-sm" id="labActualHeat" placeholder="Факт. теплота Q (МДж/кг)">
+                                <!-- Сверка с фактом лаборатории (Шаг 3) и Экспорт (Шаг 4) -->
+                                <div class="mt-4 pt-3 border-top" id="labVerificationSection">
+                                    <div class="d-flex align-items-center justify-content-between mb-2">
+                                        <h6 class="fw-bold text-heading text-sm mb-0"><i class="fas fa-vial text-success me-2"></i>Шаг 3: Сверка с фактом лаборатории</h6>
+                                        <span id="teacherNeededBadge" class="badge bg-secondary text-xs">Ожидание замера</span>
+                                    </div>
+                                    <div class="row g-2 mb-2">
+                                        <div class="col-sm-4">
+                                            <label class="form-label text-xs mb-1 text-muted">Факт. теплота Q (МДж/кг)</label>
+                                            <input type="number" step="0.01" class="form-control form-control-sm" id="labActualHeat" placeholder="Напр. 18.5">
+                                            <div id="residualDisplayQ" class="text-xs mt-1 text-muted">Невязка Q: —</div>
                                         </div>
-                                        <div class="col-sm-6">
-                                            <span id="residualDisplay" class="badge bg-light text-muted p-2 w-100 text-truncate">Невязка: —</span>
+                                        <div class="col-sm-4">
+                                            <label class="form-label text-xs mb-1 text-muted">Факт. зольность Ash (%)</label>
+                                            <input type="number" step="0.01" class="form-control form-control-sm" id="labActualAsh" placeholder="Напр. 2.1">
+                                            <div id="residualDisplayAsh" class="text-xs mt-1 text-muted">Невязка Ash: —</div>
+                                        </div>
+                                        <div class="col-sm-4">
+                                            <label class="form-label text-xs mb-1 text-muted">Факт. влажность W (%)</label>
+                                            <input type="number" step="0.01" class="form-control form-control-sm" id="labActualMoisture" placeholder="Напр. 8.0">
+                                            <div id="residualDisplayMoisture" class="text-xs mt-1 text-muted">Невязка W: —</div>
                                         </div>
                                     </div>
-                                    <div class="d-flex gap-2">
+
+                                    <!-- Шаг 4: Экспорт и сохранение -->
+                                    <div class="d-flex flex-wrap gap-2 pt-2 border-top">
                                         <button type="button" class="btn btn-sm btn-outline-success flex-fill mb-0" id="saveLabRecipeBtn">
-                                            <i class="fas fa-save me-1"></i>Сохранить в сценарии
+                                            <i class="fas fa-save me-1"></i>Сохранить рецепт
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-info flex-fill mb-0" id="exportRecipeCsvBtn">
+                                            <i class="fas fa-file-csv me-1"></i>Экспорт CSV
                                         </button>
                                         <button type="button" class="btn btn-sm btn-outline-primary flex-fill mb-0" onclick="window.print()">
                                             <i class="fas fa-print me-1"></i>Печать отчёта
@@ -662,6 +699,7 @@
                             </div>
                         </div>
                     </div>
+                </div>
                 </div>
 
             </div>
@@ -1340,7 +1378,7 @@
                 if (data.success) {
                     // Скрываем предупреждение если ИИ обучен
                     if (alertEl) alertEl.classList.add('d-none');
-                    renderSandboxCards(data.results);
+                    window.currentSandboxPredictions = data.results; window.currentSandboxComposition = comp; renderSandboxCards(data.results); setWizardStep(2, 'Шаг 2 из 4: Прогноз готов'); updateResiduals();
                 } else {
                     // Показываем предупреждение если ИИ не обучен
                     if (alertEl) alertEl.classList.remove('d-none');
@@ -1469,5 +1507,224 @@
             </div>`;
         });
     }
+
+    // --- ML WIZARD, RESIDUAL RECONCILIATION & EXPORT ---
+    window.currentSandboxPredictions = {};
+    window.currentSandboxComposition = {};
+
+    function setWizardStep(step, label) {
+        const pBar = document.getElementById('wizardProgressBar');
+        const badge = document.getElementById('wizardActiveStepBadge');
+        if (pBar) pBar.style.width = (step * 25) + '%';
+        if (badge && label) badge.textContent = label;
+
+        const labels = [
+            document.getElementById('wStep1Label'),
+            document.getElementById('wStep2Label'),
+            document.getElementById('wStep3Label'),
+            document.getElementById('wStep4Label')
+        ];
+        labels.forEach((lbl, idx) => {
+            if (lbl) {
+                if (idx + 1 === step) {
+                    lbl.classList.add('fw-bold', 'text-primary');
+                } else if (idx + 1 < step) {
+                    lbl.classList.remove('text-primary');
+                    lbl.classList.add('text-success');
+                } else {
+                    lbl.classList.remove('fw-bold', 'text-primary', 'text-success');
+                }
+            }
+        });
+    }
+
+    function updateResiduals() {
+        const heatInput = document.getElementById('labActualHeat');
+        const ashInput = document.getElementById('labActualAsh');
+        const moistInput = document.getElementById('labActualMoisture');
+        const teacherBadge = document.getElementById('teacherNeededBadge');
+        const resQ = document.getElementById('residualDisplayQ');
+        const resAsh = document.getElementById('residualDisplayAsh');
+        const resMoist = document.getElementById('residualDisplayMoisture');
+
+        const results = window.currentSandboxPredictions || {};
+        let maxRelDiff = 0;
+        let hasAnyInput = false;
+
+        if (heatInput && resQ) {
+            const factQ = parseFloat(heatInput.value);
+            const predQItem = results['q'] || results['Q'] || results['heat'];
+            if (!isNaN(factQ) && factQ > 0 && predQItem) {
+                hasAnyInput = true;
+                const predQ = Number(predQItem.value);
+                const diff = factQ - predQ;
+                const rel = Math.abs(diff / factQ) * 100;
+                if (rel > maxRelDiff) maxRelDiff = rel;
+                const sign = diff >= 0 ? '+' : '';
+                const color = rel > 10 ? 'text-danger' : rel > 5 ? 'text-warning' : 'text-success';
+                resQ.innerHTML = `<span class="${color} fw-bold">Δ = ${sign}${diff.toFixed(2)} (${rel.toFixed(1)}%)</span>`;
+            } else {
+                resQ.innerHTML = '<span class="text-muted">Невязка Q: —</span>';
+            }
+        }
+
+        if (ashInput && resAsh) {
+            const factAsh = parseFloat(ashInput.value);
+            const predAshItem = results['ash'] || results['Ash'] || results['a'] || results['ad'];
+            if (!isNaN(factAsh) && factAsh >= 0 && predAshItem) {
+                hasAnyInput = true;
+                const predAsh = Number(predAshItem.value);
+                const diff = factAsh - predAsh;
+                const rel = factAsh > 0 ? Math.abs(diff / factAsh) * 100 : Math.abs(diff) * 100;
+                if (rel > maxRelDiff) maxRelDiff = rel;
+                const sign = diff >= 0 ? '+' : '';
+                const color = rel > 10 ? 'text-danger' : rel > 5 ? 'text-warning' : 'text-success';
+                resAsh.innerHTML = `<span class="${color} fw-bold">Δ = ${sign}${diff.toFixed(2)} (${rel.toFixed(1)}%)</span>`;
+            } else {
+                resAsh.innerHTML = '<span class="text-muted">Невязка Ash: —</span>';
+            }
+        }
+
+        if (moistInput && resMoist) {
+            const factW = parseFloat(moistInput.value);
+            const predWItem = results['w'] || results['moisture'] || results['war'] || results['W'];
+            if (!isNaN(factW) && factW >= 0 && predWItem) {
+                hasAnyInput = true;
+                const predW = Number(predWItem.value);
+                const diff = factW - predW;
+                const rel = factW > 0 ? Math.abs(diff / factW) * 100 : Math.abs(diff) * 100;
+                if (rel > maxRelDiff) maxRelDiff = rel;
+                const sign = diff >= 0 ? '+' : '';
+                const color = rel > 10 ? 'text-danger' : rel > 5 ? 'text-warning' : 'text-success';
+                resMoist.innerHTML = `<span class="${color} fw-bold">Δ = ${sign}${diff.toFixed(2)} (${rel.toFixed(1)}%)</span>`;
+            } else {
+                resMoist.innerHTML = '<span class="text-muted">Невязка W: —</span>';
+            }
+        }
+
+        if (teacherBadge) {
+            if (!hasAnyInput) {
+                teacherBadge.className = 'badge bg-secondary text-xs';
+                teacherBadge.textContent = 'Ожидание замера';
+            } else if (maxRelDiff > 10) {
+                teacherBadge.className = 'badge bg-danger text-xs';
+                teacherBadge.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i>Нужен учитель (>10%)';
+                setWizardStep(3, 'Шаг 3: Требуется калибровка');
+            } else if (maxRelDiff > 5) {
+                teacherBadge.className = 'badge bg-warning text-dark text-xs';
+                teacherBadge.innerHTML = '<i class="fas fa-info-circle me-1"></i>Отклонение 5-10%';
+                setWizardStep(3, 'Шаг 3: Умеренное отклонение');
+            } else {
+                teacherBadge.className = 'badge bg-success text-xs';
+                teacherBadge.innerHTML = '<i class="fas fa-check-circle me-1"></i>Высокая точность (<5%)';
+                setWizardStep(3, 'Шаг 3: Допуск соблюдён');
+            }
+        }
+    }
+
+    function exportRecipeCsv() {
+        const comp = window.currentSandboxComposition || {};
+        const results = window.currentSandboxPredictions || {};
+
+        let csv = "\uFEFF=== РЕЦЕПТУРА ТОПЛИВНЫХ ПЕЛЛЕТ (Pellets Analyzer) ===\r\n";
+        csv += "Дата;" + new Date().toLocaleString('ru-RU') + "\r\n\r\n";
+        csv += "КОМПОНЕНТ;ДОЛЯ (%)\r\n";
+
+        Object.entries(comp).forEach(([name, val]) => {
+            if (val > 0) csv += `"${name}";${val.toFixed(1)}\r\n`;
+        });
+
+        csv += "\r\nПАРАМЕТР;ПРОГНОЗ ML (v2);90% ДОВЕРИТЕЛЬНЫЙ ИНТЕРВАЛ;ЛАБ. ФАКТ;НЕВЯЗКА\r\n";
+        const heatFact = document.getElementById('labActualHeat')?.value || '';
+        const ashFact = document.getElementById('labActualAsh')?.value || '';
+        const moistFact = document.getElementById('labActualMoisture')?.value || '';
+
+        Object.keys(results).forEach(key => {
+            const item = results[key];
+            const name = item.display_name || key;
+            const val = Number(item.value).toFixed(2);
+            const interval = (item.lo90 !== undefined && item.hi90 !== undefined)
+                ? `${Number(item.lo90).toFixed(2)} - ${Number(item.hi90).toFixed(2)}`
+                : "—";
+            let fact = "—";
+            let diff = "—";
+            if (key.toLowerCase().includes('q') && heatFact) {
+                fact = heatFact;
+                diff = (parseFloat(heatFact) - Number(item.value)).toFixed(2);
+            } else if (key.toLowerCase().includes('ash') && ashFact) {
+                fact = ashFact;
+                diff = (parseFloat(ashFact) - Number(item.value)).toFixed(2);
+            } else if (key.toLowerCase().includes('w') && moistFact) {
+                fact = moistFact;
+                diff = (parseFloat(moistFact) - Number(item.value)).toFixed(2);
+            }
+            csv += `"${name}";${val};"${interval}";${fact};${diff}\r\n`;
+        });
+
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `pellet_recipe_${new Date().toISOString().slice(0, 10)}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        setWizardStep(4, 'Шаг 4: Экспортировано в CSV');
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'success',
+                title: 'Экспорт CSV',
+                text: 'Файл рецептуры успешно сформирован и сохранён.',
+                timer: 2000,
+                showConfirmButton: false
+            });
+        }
+    }
+
+    function saveRecipeToScenarios() {
+        const comp = window.currentSandboxComposition || {};
+        const results = window.currentSandboxPredictions || {};
+        const saved = JSON.parse(localStorage.getItem('pellet_saved_recipes') || '[]');
+        const recipeRecord = {
+            id: Date.now(),
+            timestamp: new Date().toISOString(),
+            composition: comp,
+            predictions: results,
+            labActuals: {
+                heat: document.getElementById('labActualHeat')?.value || null,
+                ash: document.getElementById('labActualAsh')?.value || null,
+                moisture: document.getElementById('labActualMoisture')?.value || null
+            }
+        };
+        saved.unshift(recipeRecord);
+        localStorage.setItem('pellet_saved_recipes', JSON.stringify(saved.slice(0, 25)));
+        setWizardStep(4, 'Шаг 4: Рецепт сохранён');
+
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'success',
+                title: 'Рецепт сохранён!',
+                text: 'Сценарий добавлен в локальную историю.',
+                timer: 2000,
+                showConfirmButton: false
+            });
+        }
+    }
+
+    // Wiring up listeners
+    document.addEventListener('DOMContentLoaded', function() {
+        ['labActualHeat', 'labActualAsh', 'labActualMoisture'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('input', updateResiduals);
+        });
+
+        const saveBtn = document.getElementById('saveLabRecipeBtn');
+        if (saveBtn) saveBtn.addEventListener('click', saveRecipeToScenarios);
+
+        const exportBtn = document.getElementById('exportRecipeCsvBtn');
+        if (exportBtn) exportBtn.addEventListener('click', exportRecipeCsv);
+    });
+
 </script>
 {% endblock %}
