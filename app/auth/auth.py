@@ -16,7 +16,7 @@ import logging
 import smtplib
 import socket
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from functools import wraps
 from typing import Optional, Dict, Any, List
 
@@ -471,7 +471,7 @@ def request_password_reset(db_path: str, email: str) -> Dict[str, Any]:
             return {'success': True, 'message': 'Если email существует, мы отправили ссылку для сброса'}
 
         reset_token = secrets.token_urlsafe(32)
-        expires = datetime.utcnow() + timedelta(hours=1)
+        expires = (datetime.now(timezone.utc) + timedelta(hours=1)).strftime('%Y-%m-%d %H:%M:%S')
         cursor.execute('''
             UPDATE users SET reset_token = ?, reset_token_expires = ? WHERE id = ?
         ''', (reset_token, expires, row[0]))
@@ -811,108 +811,18 @@ def send_verification_email(email: str, token: str, base_url: str, username: str
     verify_url = f"{base_url}/verify/{token}"
     display_name = username or 'Пользователь'
 
-    html_content = f'''
-    <!DOCTYPE html>
-    <html lang="ru">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <meta http-equiv="X-UA-Compatible" content="IE=edge">
-        <title>Подтверждение регистрации</title>
-    </head>
-    <body style="margin: 0; padding: 0; background-color: #f4f4f7; font-family: Arial, Helvetica, sans-serif;">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f4f7;">
-            <tr>
-                <td align="center" style="padding: 30px 15px;">
-                    <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width: 600px; width: 100%;">
-                        <!-- Header -->
-                        <tr>
-                            <td style="background: linear-gradient(135deg, #5850ec 0%, #3b82f6 100%); border-radius: 16px 16px 0 0; padding: 40px 30px; text-align: center;">
-                                <table role="presentation" cellpadding="0" cellspacing="0" align="center">
-                                    <tr>
-                                        <td style="background-color: rgba(255,255,255,0.2); border-radius: 12px; padding: 12px; text-align: center;">
-                                            <span style="font-size: 32px; color: #ffffff;">&#128300;</span>
-                                        </td>
-                                    </tr>
-                                </table>
-                                <h1 style="color: #ffffff; font-size: 26px; margin: 20px 0 8px; font-weight: 700; letter-spacing: -0.5px;">Pellets Analyzer</h1>
-                                <p style="color: rgba(255,255,255,0.85); font-size: 14px; margin: 0;">Лаборатория анализа топливных пеллет</p>
-                            </td>
-                        </tr>
-                        <!-- Body -->
-                        <tr>
-                            <td style="background-color: #ffffff; padding: 40px 30px;">
-                                <h2 style="color: #1a1a2e; font-size: 22px; margin: 0 0 16px; font-weight: 600;">Добро пожаловать, {display_name}!</h2>
-                                <p style="color: #555555; font-size: 15px; line-height: 1.6; margin: 0 0 24px;">
-                                    Спасибо за регистрацию в <strong>Pellets Analyzer</strong>. Для завершения создания аккаунта и доступа ко всем функциям системы подтвердите свой email, нажав кнопку ниже:
-                                </p>
-                                <!-- CTA Button -->
-                                <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 30px 0;">
-                                    <tr>
-                                        <td style="background: linear-gradient(135deg, #5850ec 0%, #3b82f6 100%); border-radius: 10px; text-align: center;">
-                                            <a href="{verify_url}" target="_blank" style="display: inline-block; padding: 16px 40px; color: #ffffff; font-size: 16px; font-weight: 600; text-decoration: none; border-radius: 10px;">
-                                                &#9989; Подтвердить email
-                                            </a>
-                                        </td>
-                                    </tr>
-                                </table>
-                                <!-- Fallback Link -->
-                                <p style="color: #888888; font-size: 13px; line-height: 1.6; margin: 0 0 8px;">
-                                    Если кнопка не работает, скопируйте ссылку в браузер:
-                                </p>
-                                <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 0 24px;">
-                                    <tr>
-                                        <td style="background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; padding: 12px 16px;">
-                                            <code style="color: #5850ec; font-size: 12px; word-break: break-all;">{verify_url}</code>
-                                        </td>
-                                    </tr>
-                                </table>
-                                <p style="color: #888888; font-size: 13px; line-height: 1.6; margin: 0;">
-                                    <strong>Ссылка действительна в течение 24 часов.</strong>
-                                </p>
-                            </td>
-                        </tr>
-                        <!-- Info Section -->
-                        <tr>
-                            <td style="background-color: #f8f9fa; padding: 24px 30px; border-top: 1px solid #e9ecef;">
-                                <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
-                                    <tr>
-                                        <td style="color: #666666; font-size: 13px; line-height: 1.6;">
-                                            <strong style="color: #333333;">Что вы получите после подтверждения:</strong>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td style="color: #666666; font-size: 13px; line-height: 1.8; padding-top: 8px;">
-                                            &#10003; Загрузку и анализ данных о пеллетах<br>
-                                            &#10003; Построение графиков и сравнительных таблиц<br>
-                                            &#10003; ML-оптимизацию состава топлива<br>
-                                            &#10003; Экономический расчёт производства
-                                        </td>
-                                    </tr>
-                                </table>
-                            </td>
-                        </tr>
-                        <!-- Footer -->
-                        <tr>
-                            <td style="background-color: #1a1a2e; padding: 24px 30px; border-radius: 0 0 16px 16px; text-align: center;">
-                                <p style="color: #888888; font-size: 12px; line-height: 1.6; margin: 0 0 8px;">
-                                    Вы получили это письмо, потому что зарегистрировались на <strong style="color: #aaaaaa;">Pellets Analyzer</strong>.
-                                </p>
-                                <p style="color: #666666; font-size: 12px; margin: 0;">
-                                    Если вы не регистрировались, просто проигнорируйте это письмо.
-                                </p>
-                                <p style="color: #555555; font-size: 11px; margin: 16px 0 0;">
-                                    &copy; 2025 Pellets Analyzer. Все права защищены.
-                                </p>
-                            </td>
-                        </tr>
-                    </table>
-                </td>
-            </tr>
-        </table>
-    </body>
-    </html>
-    '''
+    try:
+        from flask import render_template, has_app_context
+        if has_app_context():
+            html_content = render_template('email/verification.html', display_name=display_name, verify_url=verify_url)
+        else:
+            raise RuntimeError("outside app context")
+    except Exception:
+        html_content = (
+            f"<h2>Здравствуйте, {display_name}!</h2>"
+            f"<p>Для подтверждения email в Pellets Analyzer перейдите по ссылке: "
+            f"<a href='{verify_url}'>{verify_url}</a></p>"
+        )
 
     max_retries = 3
     retry_delay = 2  # секунды между попытками
@@ -995,93 +905,18 @@ def send_reset_email(email: str, token: str, base_url: str):
 
     reset_url = f"{base_url}/reset-password/{token}"
 
-    html_content = f'''
-    <!DOCTYPE html>
-    <html lang="ru">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <meta http-equiv="X-UA-Compatible" content="IE=edge">
-        <title>Сброс пароля</title>
-    </head>
-    <body style="margin: 0; padding: 0; background-color: #f4f4f7; font-family: Arial, Helvetica, sans-serif;">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f4f7;">
-            <tr>
-                <td align="center" style="padding: 30px 15px;">
-                    <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width: 600px; width: 100%;">
-                        <!-- Header -->
-                        <tr>
-                            <td style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); border-radius: 16px 16px 0 0; padding: 40px 30px; text-align: center;">
-                                <table role="presentation" cellpadding="0" cellspacing="0" align="center">
-                                    <tr>
-                                        <td style="background-color: rgba(255,255,255,0.2); border-radius: 12px; padding: 12px; text-align: center;">
-                                            <span style="font-size: 32px; color: #ffffff;">&#128274;</span>
-                                        </td>
-                                    </tr>
-                                </table>
-                                <h1 style="color: #ffffff; font-size: 26px; margin: 20px 0 8px; font-weight: 700; letter-spacing: -0.5px;">Сброс пароля</h1>
-                                <p style="color: rgba(255,255,255,0.85); font-size: 14px; margin: 0;">Pellets Analyzer — Восстановление доступа</p>
-                            </td>
-                        </tr>
-                        <!-- Body -->
-                        <tr>
-                            <td style="background-color: #ffffff; padding: 40px 30px;">
-                                <h2 style="color: #1a1a2e; font-size: 22px; margin: 0 0 16px; font-weight: 600;">Здравствуйте!</h2>
-                                <p style="color: #555555; font-size: 15px; line-height: 1.6; margin: 0 0 24px;">
-                                    Мы получили запрос на сброс пароля для вашего аккаунта. Нажмите кнопку ниже, чтобы создать новый пароль:
-                                </p>
-                                <!-- CTA Button -->
-                                <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 30px 0;">
-                                    <tr>
-                                        <td style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); border-radius: 10px; text-align: center;">
-                                            <a href="{reset_url}" target="_blank" style="display: inline-block; padding: 16px 40px; color: #ffffff; font-size: 16px; font-weight: 600; text-decoration: none; border-radius: 10px;">
-                                                &#128273; Сбросить пароль
-                                            </a>
-                                        </td>
-                                    </tr>
-                                </table>
-                                <!-- Fallback Link -->
-                                <p style="color: #888888; font-size: 13px; line-height: 1.6; margin: 0 0 8px;">
-                                    Если кнопка не работает, скопируйте ссылку в браузер:
-                                </p>
-                                <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 0 24px;">
-                                    <tr>
-                                        <td style="background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; padding: 12px 16px;">
-                                            <code style="color: #dc3545; font-size: 12px; word-break: break-all;">{reset_url}</code>
-                                        </td>
-                                    </tr>
-                                </table>
-                                <p style="color: #888888; font-size: 13px; line-height: 1.6; margin: 0;">
-                                    <strong>Ссылка действительна в течение 1 часа.</strong>
-                                </p>
-                            </td>
-                        </tr>
-                        <!-- Warning Section -->
-                        <tr>
-                            <td style="background-color: #fff3cd; padding: 20px 30px; border-top: 1px solid #ffc107;">
-                                <p style="color: #856404; font-size: 13px; line-height: 1.6; margin: 0;">
-                                    &#9888; <strong>Важно:</strong> Если вы не запрашивали сброс пароля, проигнорируйте это письмо. Ваш аккаунт останется в безопасности.
-                                </p>
-                            </td>
-                        </tr>
-                        <!-- Footer -->
-                        <tr>
-                            <td style="background-color: #1a1a2e; padding: 24px 30px; border-radius: 0 0 16px 16px; text-align: center;">
-                                <p style="color: #888888; font-size: 12px; line-height: 1.6; margin: 0 0 8px;">
-                                    Это автоматическое письмо, пожалуйста, не отвечайте на него.
-                                </p>
-                                <p style="color: #555555; font-size: 11px; margin: 16px 0 0;">
-                                    &copy; 2025 Pellets Analyzer. Все права защищены.
-                                </p>
-                            </td>
-                        </tr>
-                    </table>
-                </td>
-            </tr>
-        </table>
-    </body>
-    </html>
-    '''
+    try:
+        from flask import render_template, has_app_context
+        if has_app_context():
+            html_content = render_template('email/reset_password.html', reset_url=reset_url)
+        else:
+            raise RuntimeError("outside app context")
+    except Exception:
+        html_content = (
+            f"<h2>Сброс пароля</h2>"
+            f"<p>Для сброса пароля в Pellets Analyzer перейдите по ссылке: "
+            f"<a href='{reset_url}'>{reset_url}</a></p>"
+        )
 
     max_retries = 3
     retry_delay = 2
