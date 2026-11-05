@@ -55,7 +55,7 @@ RUN mkdir -p data Uploads sessions static/assets/images app/services/models /app
 
 # Копирование entrypoint скрипта
 COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
 
 # Непривилегированный пользователь
 RUN useradd --create-home --shell /bin/bash appuser && \
