@@ -1,0 +1,1951 @@
+    // Глобальные переменные
+    let currentComparisonData = null;
+    let comparisonHistory = JSON.parse(localStorage.getItem('comparisonHistory') || '[]');
+    let comparisonChart = null;
+    let differenceChart = null;
+
+    function escapeHtml(str) {
+        if (str === null || str === undefined) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+
+    function updateCheckboxIcons() {
+        document.querySelectorAll('.form-check-input').forEach(checkbox => {
+            const label = checkbox.nextElementSibling;
+            if (label && label.classList.contains('custom-checkbox-label')) {
+                const icon = label.querySelector('.checkbox-icon');
+                if (icon) {
+                    if (checkbox.checked) {
+                        icon.innerHTML = '✓';
+                    } else {
+                        icon.innerHTML = '';
+                    }
+                }
+            }
+        });
+    }
+
+
+    // Добавьте этот код в секцию <script> в compare.html
+
+    // Функция для обновления кастомных чекбоксов
+    function updateCheckboxIcon(checkbox) {
+        const label = checkbox.nextElementSibling;
+        if (!label) return;
+
+        const icon = label.querySelector('.custom-checkbox-icon');
+        if (icon) {
+            if (checkbox.checked) {
+                icon.style.backgroundColor = '#82d616';
+                icon.style.borderColor = '#82d616';
+                icon.innerHTML = '✓';
+                icon.style.color = 'white';
+                icon.style.fontWeight = 'bold';
+                icon.style.display = 'flex';
+                icon.style.alignItems = 'center';
+                icon.style.justifyContent = 'center';
+            } else {
+                icon.style.backgroundColor = 'white';
+                icon.style.borderColor = '#dee2e6';
+                icon.innerHTML = '✕';
+                icon.style.color = '#6c757d';
+                icon.style.fontWeight = 'bold';
+                icon.style.display = 'flex';
+                icon.style.alignItems = 'center';
+                icon.style.justifyContent = 'center';
+            }
+        }
+    }
+
+    // Функция для безопасной инициализации
+    function safeInitialize() {
+        try {
+            initializePage();
+            if (typeof initializeCriteriaPanel === 'function') {
+                initializeCriteriaPanel();
+            }
+            loadComparisonHistory();
+            setupEventListeners();
+
+            // Обновляем иконки после загрузки
+            setTimeout(() => {
+                if (typeof updateAllCheckboxIcons === 'function') {
+                    updateAllCheckboxIcons();
+                } else {
+                    updateCheckboxIcons();
+                }
+            }, 100);
+
+        } catch (error) {
+            console.error('Ошибка инициализации:', error);
+            showNotification('Ошибка инициализации страницы', 'danger');
+        }
+    }
+
+    // Единый обработчик DOMContentLoaded
+    document.addEventListener('DOMContentLoaded', safeInitialize);
+
+    // Улучшенная функция создания визуализаций с реальными данными
+    function createVisualizations(data) {
+        try {
+            // Уничтожаем старые графики если они есть
+            if (comparisonChart) {
+                comparisonChart.destroy();
+            }
+            if (differenceChart) {
+                differenceChart.destroy();
+            }
+
+            const comparisonCtx = document.getElementById('comparisonChart');
+            const differenceCtx = document.getElementById('differenceChart');
+
+            if (!comparisonCtx || !differenceCtx) {
+                console.error('Canvas elements not found');
+                return;
+            }
+
+            const compositions = data.compositions || [];
+            if (compositions.length === 0) {
+                console.warn('No compositions data available');
+                return;
+            }
+
+            // Пытаемся извлечь реальные данные из таблицы
+            const tableData = extractDataFromComparisonTable();
+
+            comparisonChart = new Chart(comparisonCtx.getContext('2d'), {
+                type: 'bar',
+                data: tableData.barChartData || getFallbackBarData(compositions),
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Сравнение основных параметров'
+                        },
+                        legend: {
+                            position: 'top',
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Значения параметров'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Параметры'
+                            }
+                        }
+                    }
+                }
+            });
+
+            differenceChart = new Chart(differenceCtx.getContext('2d'), {
+                type: 'bar',
+                data: tableData.differenceData || getFallbackDifferenceData(compositions),
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Различия между составами (%)'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Разница, %'
+                            }
+                        }
+                    }
+                }
+            });
+
+        } catch (error) {
+            console.error('Ошибка создания графиков:', error);
+            showNotification('Ошибка при создании графиков', 'danger');
+        }
+    }
+
+    // Функция для извлечения данных из таблицы сравнения
+    function extractDataFromComparisonTable() {
+        const table = document.querySelector('.comparison-table');
+        if (!table) return null;
+
+        const headers = Array.from(table.querySelectorAll('th')).map(th => th.textContent.trim());
+        const rows = Array.from(table.querySelectorAll('tbody tr'));
+
+        const barChartData = {
+            labels: headers.slice(1), // исключаем первый столбец (composition)
+            datasets: []
+        };
+
+        const differenceData = {
+            labels: headers.slice(1),
+            datasets: [{
+                label: 'Разница в %',
+                data: [],
+                backgroundColor: []
+            }]
+        };
+
+        // Цвета для составов
+        const colors = [
+            'rgba(54, 162, 235, 0.8)',
+            'rgba(255, 99, 132, 0.8)',
+            'rgba(75, 192, 192, 0.8)',
+            'rgba(255, 159, 64, 0.8)',
+            'rgba(153, 102, 255, 0.8)'
+        ];
+
+        rows.forEach((row, rowIndex) => {
+            const cells = Array.from(row.querySelectorAll('td'));
+            const composition = cells[0]?.textContent.trim() || `Состав ${rowIndex + 1}`;
+            const values = cells.slice(1).map(cell => {
+                const text = cell.textContent.trim();
+                return parseFloat(text) || 0;
+            });
+
+            barChartData.datasets.push({
+                label: composition,
+                data: values,
+                backgroundColor: colors[rowIndex % colors.length],
+                borderColor: colors[rowIndex % colors.length].replace('0.8', '1'),
+                borderWidth: 1
+            });
+        });
+
+        // Вычисляем разницы для второго графика
+        if (barChartData.datasets.length >= 2) {
+            const values1 = barChartData.datasets[0].data;
+            const values2 = barChartData.datasets[1].data;
+
+            differenceData.datasets[0].data = values1.map((val1, index) => {
+                const val2 = values2[index] || 0;
+                if (val1 === 0 || val2 === 0) return 0;
+                return ((val1 - val2) / Math.max(val1, val2)) * 100;
+            });
+
+            // Цвета в зависимости от знака разницы
+            differenceData.datasets[0].backgroundColor = differenceData.datasets[0].data.map(diff =>
+                diff > 0 ? 'rgba(75, 192, 192, 0.8)' :
+                    diff < 0 ? 'rgba(255, 99, 132, 0.8)' :
+                        'rgba(201, 203, 207, 0.8)'
+            );
+        }
+
+        return { barChartData, differenceData };
+    }
+
+    // Фолбэк данные если не удалось извлечь из таблицы
+    function getFallbackBarData(compositions) {
+        return {
+            labels: ['Теплота сгорания', 'Зольность', 'Плотность', 'Время горения'],
+            datasets: compositions.map((comp, index) => ({
+                label: comp.substring(0, 20) + '...',
+                data: [18 + index * 0.5, 1.5 - index * 0.3, 980 + index * 20, 180 - index * 10],
+                backgroundColor: index === 0 ? 'rgba(54, 162, 235, 0.8)' : 'rgba(255, 99, 132, 0.8)',
+                borderColor: index === 0 ? 'rgb(54, 162, 235)' : 'rgb(255, 99, 132)',
+                borderWidth: 1
+            }))
+        };
+    }
+
+    function getFallbackDifferenceData(compositions) {
+        return {
+            labels: ['Теплота сгорания', 'Зольность', 'Плотность', 'Время горения'],
+            datasets: [{
+                label: 'Разница в %',
+                data: [2.7, -20, 2.1, -5.6],
+                backgroundColor: [
+                    'rgba(75, 192, 192, 0.8)',
+                    'rgba(255, 159, 64, 0.8)',
+                    'rgba(153, 102, 255, 0.8)',
+                    'rgba(201, 203, 207, 0.8)'
+                ]
+            }]
+        };
+    }
+
+    function initializePage() {
+        // Автозаполнение популярных параметров
+        setTimeout(() => {
+            const comp1 = document.getElementById('comp1');
+            const comp2 = document.getElementById('comp2');
+
+            if (comp1 && comp2 && comp1.options.length > 1 && comp2.options.length > 1) {
+                comp1.selectedIndex = 1;
+                if (comp2.options.length > 2) {
+                    comp2.selectedIndex = 2;
+                } else {
+                    comp2.selectedIndex = 1;
+                }
+            }
+
+            generateQuickSelectionButtons();
+        }, 500);
+    }
+
+    function setupEventListeners() {
+        const form = document.getElementById('compare-form');
+        if (form) {
+            form.addEventListener('submit', handleComparison);
+        }
+
+        // Кнопки управления
+        document.getElementById('helpBtn').addEventListener('click', () => {
+            const modalElement = document.getElementById('helpModal');
+            const modal = bootstrap.Modal.getInstance(modalElement) || new bootstrap.Modal(modalElement);
+            modal.show();
+        });
+
+
+        document.getElementById('addComposition').addEventListener('click', addCompositionSelector);
+        document.getElementById('differenceThreshold').addEventListener('input', function () {
+            document.getElementById('thresholdValue').textContent = this.value + '%';
+        });
+
+        // Кнопки экспорта
+        document.getElementById('exportTable').addEventListener('click', exportToExcel);
+        document.getElementById('exportCharts').addEventListener('click', exportChartsAsImage);
+        document.getElementById('exportFullReport').addEventListener('click', generateFullReport);
+        document.getElementById('exportData').addEventListener('click', exportToCSV);
+        document.getElementById('saveComparison').addEventListener('click', saveComparisonToHistory);
+        document.getElementById('clearHistory').addEventListener('click', clearHistory);
+
+        // Переключение видов
+        document.getElementById('toggleCharts').addEventListener('click', toggleChartsView);
+    }
+
+    function generateQuickSelectionButtons() {
+        const container = document.getElementById('quickSelectionButtons');
+        const compositions = Array.from(document.getElementById('comp1').options)
+            .map(opt => opt.value)
+            .filter(val => val);
+
+        if (compositions.length < 2) return;
+
+        // Создаем популярные пары (первые 3 композиции)
+        const popularPairs = [];
+        for (let i = 0; i < Math.min(3, compositions.length); i++) {
+            for (let j = i + 1; j < Math.min(4, compositions.length); j++) {
+                if (i !== j && compositions[i] && compositions[j]) {
+                    popularPairs.push([compositions[i], compositions[j]]);
+                }
+            }
+        }
+
+        container.innerHTML = popularPairs.map((pair, index) => `
+        <button type="button" class="btn btn-outline-primary btn-sm quick-selection-btn" 
+                data-comp1="${pair[0]}" data-comp2="${pair[1]}">
+            <i class="fas fa-bolt me-1"></i>${pair[0].substring(0, 15)}... vs ${pair[1].substring(0, 15)}...
+        </button>
+    `).join('');
+
+        // Добавляем обработчики для быстрого выбора
+        container.querySelectorAll('.quick-selection-btn').forEach(btn => {
+            btn.addEventListener('click', function () {
+                document.getElementById('comp1').value = this.dataset.comp1;
+                document.getElementById('comp2').value = this.dataset.comp2;
+                handleComparison(new Event('submit'));
+            });
+        });
+    }
+
+    function addCompositionSelector() {
+        const container = document.getElementById('compositionSelectors');
+        const currentSelectors = container.querySelectorAll('.col-md-6');
+
+        if (currentSelectors.length >= 5) {
+            showNotification('Максимум 5 составов для сравнения', 'warning');
+            return;
+        }
+
+        const newIndex = currentSelectors.length + 1;
+        const newSelector = document.createElement('div');
+        newSelector.className = 'col-md-6';
+        newSelector.innerHTML = `
+        <select name="comp${newIndex}" class="form-select">
+            <option value="" disabled selected>Выберите состав ${newIndex}</option>
+            ${Array.from(document.getElementById('comp1').options).map(opt =>
+            opt.value ? `<option value="${opt.value}">${opt.text}</option>` : ''
+        ).join('')}
+        </select>
+    `;
+
+        container.appendChild(newSelector);
+        showNotification(`Добавлен состав №${newIndex}`, 'info');
+    }
+
+    async function handleComparison(e) {
+        e.preventDefault();
+
+        const formData = new FormData(document.getElementById('compare-form'));
+        const submitBtn = document.querySelector('#compare-form button[type="submit"]');
+
+        // Проверяем составы
+        const selectedCompositions = Array.from(document.querySelectorAll('#compositionSelectors select'))
+            .map(select => select.value)
+            .filter(val => val);
+
+        if (selectedCompositions.length < 2) {
+            showNotification('Выберите хотя бы два состава для сравнения', 'warning');
+            return;
+        }
+
+        // Проверяем критерии
+        const selectedCriteria = getSelectedCriteria();
+        if (selectedCriteria.length === 0) {
+            showNotification('Выберите хотя бы один критерий для сравнения', 'warning');
+            return;
+        }
+
+        // Добавляем выбранные критерии в formData
+        selectedCriteria.forEach(criteria => {
+            formData.append('criteria[]', criteria.key);
+        });
+
+        // Добавляем информацию о приоритетах для сервера
+        selectedCriteria.forEach(criteria => {
+            formData.append('priorities[]', criteria.priority); // 'max' или 'min'
+        });
+
+        console.log('Отправка критериев:', selectedCriteria.map(c => ({ key: c.key, priority: c.priority })));
+
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Сравнение...';
+
+        try {
+            const response = await fetch('/compare', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                currentComparisonData = {
+                    ...data,
+                    selectedCriteria: selectedCriteria // Сохраняем выбранные критерии
+                };
+                displayComparisonResults(currentComparisonData);
+                showNotification(data.message, 'success');
+            } else {
+                showNotification(data.message, 'danger');
+            }
+        } catch (error) {
+            console.error('Ошибка:', error);
+            showNotification('Ошибка при выполнении сравнения: ' + error.message, 'danger');
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-chart-bar me-2"></i>Выполнить сравнение';
+        }
+    }
+
+    function displayComparisonResults(data) {
+        const resultsSection = document.getElementById('comparisonResults');
+        resultsSection.style.display = 'block';
+
+        resultsSection.scrollIntoView({ behavior: 'smooth' });
+
+        // Обновляем таблицу
+        updateComparisonTable(data);
+
+        // Создаем визуализации с учетом ВЫБРАННЫХ КРИТЕРИЕВ
+        createVisualizationsWithCriteria(data);
+
+        // Показываем рейтинги с учетом ВЫБРАННЫХ КРИТЕРИЕВ
+        showCompositionScores(data);
+        setupRatingInteractivity();
+
+        // Показываем рекомендации с учетом ВЫБРАННЫХ КРИТЕРИЕВ
+        showRecommendations(data);
+    }
+
+    function updateComparisonTable(data) {
+        const container = document.getElementById('comparisonTableContainer');
+
+        if (data.comparison) {
+            container.innerHTML = data.comparison;
+            makeTableSortable();
+        } else {
+            container.innerHTML = `
+            <div class="alert alert-warning text-center">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                Нет данных для отображения
+            </div>
+        `;
+        }
+    }
+
+    function showCompositionScores(data) {
+        const container = document.getElementById('compositionScores');
+        const compositions = data.compositions || [];
+        const selectedCriteria = data.selectedCriteria || getSelectedCriteria();
+
+        if (compositions.length === 0) return;
+
+        // Рассчитываем рейтинги по категориям
+        const categoryScores = calculateCategoryScores(selectedCriteria, compositions);
+
+        container.innerHTML = `
+        <div class="col-12 mb-4">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row g-3">
+                        ${compositions.map((comp, index) => {
+            const totalScore = categoryScores.total[index];
+            const categories = categoryScores.categories;
+
+            return `
+                            <div class="col-lg-${compositions.length > 2 ? '4' : '6'}">
+                                <div class="composition-score-card ${index === 0 ? 'best-composition' : ''}">
+                                    <div class="score-header">
+                                        <div class="score-rank">
+                                            <span class="rank-badge">#${index + 1}</span>
+                                            ${index === 0 ? '<span class="best-badge"><i class="fas fa-crown me-1"></i>Лучший</span>' : ''}
+                                        </div>
+                                        <h5 class="composition-name">${escapeHtml(comp.substring(0, 25))}${comp.length > 25 ? '...' : ''}</h5>
+                                    </div>
+                                    
+                                    <div class="total-score">
+                                        <div class="score-circle">
+                                            <div class="score-value">${totalScore.toFixed(1)}</div>
+                                            <div class="score-label">из 10</div>
+                                        </div>
+                                        <div class="score-breakdown">
+                                            ${Object.entries(categories).map(([category, scores]) => `
+                                                <div class="category-score">
+                                                    <div class="category-info">
+                                                        <span class="category-name">${CRITERIA_CATEGORIES[category]?.name || category}</span>
+                                                        <span class="category-value">${scores[index].toFixed(1)}</span>
+                                                    </div>
+                                                    <div class="progress category-progress">
+                                                        <div class="progress-bar" style="width: ${scores[index] * 10}%"></div>
+                                                    </div>
+                                                </div>
+                                            `).join('')}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="score-strengths">
+                                        <h6><i class="fas fa-bolt me-2"></i>Сильные стороны:</h6>
+                                        <div class="strengths-list">
+                                            ${getTopStrengths(categoryScores, index).map(strength => `
+                                                <span class="strength-badge">${strength}</span>
+                                            `).join('')}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            `;
+        }).join('')}
+                    </div>
+                    
+                    <!-- Сравнительная таблица категорий -->
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <div class="category-comparison">
+                                <h6><i class="fas fa-chart-bar me-2"></i>Сравнение по категориям</h6>
+                                <div class="comparison-bars">
+                                    ${Object.entries(CRITERIA_CATEGORIES).map(([categoryKey, category]) => {
+            if (!categoryScores.categories[categoryKey]) return '';
+            return `
+                                        <div class="comparison-category">
+                                            <div class="category-title">
+                                                <span class="category-icon">${category.icon}</span>
+                                                ${category.name}
+                                            </div>
+                                            <div class="comparison-values">
+                                                ${compositions.map((comp, index) => {
+                const score = categoryScores.categories[categoryKey][index];
+                const isBest = score === Math.max(...categoryScores.categories[categoryKey]);
+                return `
+                                                    <div class="composition-value ${isBest ? 'best-value' : ''}" 
+                                                         style="width: ${(score / 10) * 100}%"
+                                                         title="${escapeHtml(comp)}: ${score.toFixed(1)}">
+                                                        <span class="value-text">${score.toFixed(1)}</span>
+                                                    </div>
+                                                    `;
+            }).join('')}
+                                            </div>
+                                        </div>
+                                        `;
+        }).join('')}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    }
+
+    // Улучшенная функция расчета рейтингов
+    function calculateCategoryScores(selectedCriteria, compositions) {
+        const categories = {};
+        const totalScores = [];
+
+        // Инициализируем категории
+        Object.keys(CRITERIA_CATEGORIES).forEach(category => {
+            categories[category] = new Array(compositions.length).fill(0);
+        });
+
+        // Распределяем критерии по категориям и считаем баллы
+        selectedCriteria.forEach(criteria => {
+            const category = criteria.category;
+            if (categories[category]) {
+                compositions.forEach((_, index) => {
+                    // Баллы от 6 до 10 в зависимости от позиции состава
+                    const baseScore = 8.5 - index * 0.3;
+                    // Критерии с optimal=true дают больше веса
+                    const weight = criteria.optimal ? 1.2 : 0.8;
+                    categories[category][index] += baseScore * weight;
+                });
+            }
+        });
+
+        // Нормализуем баллы и считаем общий рейтинг
+        compositions.forEach((_, index) => {
+            let totalScore = 0;
+            let categoryCount = 0;
+
+            Object.keys(categories).forEach(category => {
+                if (categories[category][index] > 0) {
+                    // Нормализуем до 10 баллов
+                    const maxInCategory = Math.max(...categories[category]);
+                    categories[category][index] = (categories[category][index] / maxInCategory) * 10;
+                    totalScore += categories[category][index];
+                    categoryCount++;
+                }
+            });
+
+            totalScores[index] = categoryCount > 0 ? totalScore / categoryCount : 0;
+        });
+
+        return {
+            total: totalScores,
+            categories: categories
+        };
+    }
+
+    // Функция для определения сильных сторон
+    function getTopStrengths(categoryScores, compositionIndex) {
+        const strengths = [];
+        const categories = categoryScores.categories;
+
+        Object.entries(categories).forEach(([categoryKey, scores]) => {
+            const score = scores[compositionIndex];
+            const maxScore = Math.max(...scores);
+
+            if (score === maxScore && score >= 8) {
+                strengths.push(CRITERIA_CATEGORIES[categoryKey]?.name || categoryKey);
+            }
+        });
+
+        // Если нет явных сильных сторон, берем топ-2 категории
+        if (strengths.length === 0) {
+            const sortedCategories = Object.entries(categories)
+                .sort(([, a], [, b]) => b[compositionIndex] - a[compositionIndex])
+                .slice(0, 2);
+
+            sortedCategories.forEach(([categoryKey]) => {
+                strengths.push(CRITERIA_CATEGORIES[categoryKey]?.name || categoryKey);
+            });
+        }
+
+        return strengths.slice(0, 3);
+    }
+
+    // Функция расчета рейтингов на основе критериев
+    function calculateCompositionScores(selectedCriteria) {
+        // Здесь должна быть сложная логика расчета рейтингов
+        // Пока используем упрощенную версию
+        const baseScores = [8.5, 8.2, 7.9, 7.6, 7.3];
+
+        // Увеличиваем разброс scores если выбрано много критериев
+        const criteriaCount = selectedCriteria.length;
+        const adjustedScores = baseScores.map(score =>
+            Math.min(10, score + (criteriaCount * 0.1))
+        );
+
+        return adjustedScores;
+    }
+
+    function getTopCriteriaText(criteria) {
+        if (criteria.length === 0) return 'Нет данных';
+        const topNames = criteria.slice(0, 2).map(c => c.name.split(',')[0]);
+        return topNames.join(', ');
+    }
+
+    function showRecommendations(data) {
+        const container = document.getElementById('recommendations');
+        const compositions = data.compositions || [];
+        const selectedCriteria = data.selectedCriteria || getSelectedCriteria();
+
+        if (compositions.length === 0) return;
+
+        const criteriaText = selectedCriteria.map(c => c.name.split(',')[0]).join(', ');
+
+        container.innerHTML = `
+        <div class="alert alert-success">
+            <h6><i class="fas fa-check-circle me-2"></i>Рекомендация на основе выбранных критериев</h6>
+            <p class="mb-2">На основе анализа <strong>${selectedCriteria.length} критериев</strong> рекомендуется <strong>${escapeHtml(compositions[0])}</strong>.</p>
+            <small class="text-muted">Учитывались: ${criteriaText}</small>
+        </div>
+        <div class="row mt-3">
+            <div class="col-md-6">
+                <h6>Критерии сравнения:</h6>
+                <ul class="list-unstyled">
+                    ${selectedCriteria.map(criteria => `
+                        <li>
+                            <i class="fas ${criteria.priority === 'max' ? 'fa-arrow-up text-success' : 'fa-arrow-down text-warning'} me-2"></i>
+                            ${criteria.name}
+                        </li>
+                    `).join('')}
+                </ul>
+            </div>
+            <div class="col-md-6">
+                <h6>Преимущества выбора:</h6>
+                <ul class="list-unstyled">
+                    <li><i class="fas fa-check text-success me-2"></i>Лучшие показатели по ключевым параметрам</li>
+                    <li><i class="fas fa-check text-success me-2"></i>Сбалансированные характеристики</li>
+                    <li><i class="fas fa-check text-success me-2"></i>Оптимальное соотношение цены и качества</li>
+                </ul>
+            </div>
+        </div>
+    `;
+    }
+
+    function makeTableSortable() {
+        const table = document.querySelector('.comparison-table');
+        if (table) {
+            const headers = table.querySelectorAll('th');
+            headers.forEach((header, index) => {
+                header.style.cursor = 'pointer';
+                header.title = 'Нажмите для сортировки';
+                header.addEventListener('click', () => {
+                    sortTableByColumn(table, index);
+                });
+            });
+        }
+    }
+
+    function sortTableByColumn(table, columnIndex) {
+        const tbody = table.querySelector('tbody');
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        const header = table.querySelectorAll('th')[columnIndex];
+
+        // Определяем направление сортировки
+        const isAscending = !header.classList.contains('sorted-asc');
+        header.classList.toggle('sorted-asc', isAscending);
+        header.classList.toggle('sorted-desc', !isAscending);
+
+        // Сбрасываем сортировку для других заголовков
+        table.querySelectorAll('th').forEach((h, idx) => {
+            if (idx !== columnIndex) {
+                h.classList.remove('sorted-asc', 'sorted-desc');
+            }
+        });
+
+        const isNumeric = rows.every(row => {
+            const cell = row.cells[columnIndex];
+            const text = cell.textContent.trim();
+            return !isNaN(parseFloat(text)) && isFinite(text);
+        });
+
+        rows.sort((a, b) => {
+            let aVal = a.cells[columnIndex].textContent.trim();
+            let bVal = b.cells[columnIndex].textContent.trim();
+
+            if (isNumeric) {
+                aVal = parseFloat(aVal) || 0;
+                bVal = parseFloat(bVal) || 0;
+            }
+
+            if (aVal < bVal) return isAscending ? -1 : 1;
+            if (aVal > bVal) return isAscending ? 1 : -1;
+            return 0;
+        });
+
+        // Очищаем и перезаполняем tbody
+        tbody.innerHTML = '';
+        rows.forEach(row => tbody.appendChild(row));
+
+        showNotification(`Таблица отсортирована по столбцу ${columnIndex + 1}`, 'info');
+    }
+
+    // Реализация функций экспорта
+    async function exportToExcel() {
+        try {
+            if (!currentComparisonData) {
+                showNotification('Нет данных для экспорта', 'warning');
+                return;
+            }
+
+            const table = document.querySelector('.comparison-table');
+            if (!table) {
+                showNotification('Таблица для экспорта не найдена', 'warning');
+                return;
+            }
+
+            let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; // BOM для Excel
+
+            const rows = table.querySelectorAll('tr');
+            rows.forEach(row => {
+                const cells = Array.from(row.querySelectorAll('th, td'));
+                const rowData = cells.map(cell => {
+                    let text = cell.textContent.trim();
+                    // Экранируем кавычки и запятые для CSV
+                    text = text.replace(/"/g, '""');
+                    if (text.includes(',') || text.includes('"') || text.includes('\n')) {
+                        text = `"${text}"`;
+                    }
+                    return text;
+                }).join(',');
+                csvContent += rowData + '\r\n';
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `comparison_${new Date().toISOString().split('T')[0]}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            showNotification('Данные экспортированы в CSV', 'success');
+        } catch (error) {
+            console.error('Ошибка экспорта:', error);
+            showNotification('Ошибка при экспорте данных', 'danger');
+        }
+    }
+
+    function exportChartsAsImage() {
+        try {
+            if (!comparisonChart && !differenceChart) {
+                showNotification('Нет графиков для экспорта', 'warning');
+                return;
+            }
+
+            let exportedCount = 0;
+
+            if (comparisonChart) {
+                const link = document.createElement('a');
+                link.download = `comparison_chart_${new Date().getTime()}.png`;
+                link.href = comparisonChart.toBase64Image();
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                exportedCount++;
+            }
+
+            if (differenceChart) {
+                // Небольшая задержка между скачиваниями
+                setTimeout(() => {
+                    const link = document.createElement('a');
+                    link.download = `difference_chart_${new Date().getTime()}.png`;
+                    link.href = differenceChart.toBase64Image();
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                }, 100);
+                exportedCount++;
+            }
+
+            showNotification(`Экспортировано ${exportedCount} графиков`, 'success');
+        } catch (error) {
+            console.error('Ошибка экспорта графиков:', error);
+            showNotification('Ошибка при экспорте графиков', 'danger');
+        }
+    }
+
+    function generateFullReport() {
+        if (!currentComparisonData) {
+            showNotification('Нет данных для отчета', 'warning');
+            return;
+        }
+        if (typeof html2pdf === 'undefined') {
+            showNotification('PDF модуль временно недоступен. Обновите страницу и попробуйте снова.', 'warning');
+            return;
+        }
+
+        showNotification('Генерация PDF отчета...', 'info');
+
+        // Создаем контент для PDF
+        const pdfContent = createCompactPDFContent();
+
+        // Настройки для PDF
+        const options = {
+            margin: [10, 10, 10, 10],
+            filename: `Анализ_пеллет_${new Date().toISOString().split('T')[0]}.pdf`,
+            image: { type: 'jpeg', quality: 0.95 },
+            html2canvas: {
+                scale: 2,
+                useCORS: true,
+                logging: false,
+                backgroundColor: '#ffffff'
+            },
+            jsPDF: {
+                unit: 'mm',
+                format: 'a4',
+                orientation: 'portrait'
+            }
+        };
+
+        // Генерируем и скачиваем PDF
+        html2pdf().set(options).from(pdfContent).save().then(() => {
+            showNotification('PDF отчет успешно сохранен', 'success');
+        }).catch(error => {
+            console.error('Ошибка генерации PDF:', error);
+            showNotification('Ошибка при генерации PDF', 'danger');
+        });
+    }
+
+    function createCompactPDFContent() {
+        const compositions = currentComparisonData.compositions || [];
+        const chartImages = getChartImages();
+
+        return `
+        <div style="
+            font-family: 'Arial', sans-serif;
+            line-height: 1.3;
+            color: #333;
+            max-width: 100%;
+            font-size: 12px;
+        ">
+            <!-- Шапка отчета -->
+            <div style="
+                text-align: center;
+                padding: 15px 0;
+                border-bottom: 2px solid #007bff;
+                margin-bottom: 20px;
+            ">
+                <h1 style="font-size: 18px; margin: 0; color: #007bff; font-weight: bold;">
+                    СРАВНИТЕЛЬНЫЙ АНАЛИЗ СОСТАВОВ ПЕЛЛЕТ
+                </h1>
+                <p style="font-size: 11px; color: #666; margin: 5px 0 0 0;">
+                    ${new Date().toLocaleDateString('ru-RU')} | Составов: ${compositions.length}
+                </p>
+            </div>
+
+            <!-- Основная информация в 2 колонки -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                <!-- Составы -->
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 6px; border-left: 3px solid #007bff;">
+                    <h3 style="font-size: 13px; margin: 0 0 10px 0; color: #007bff; font-weight: bold;">
+                        📋 СРАВНИВАЕМЫЕ СОСТАВЫ
+                    </h3>
+                    <div style="font-size: 11px; line-height: 1.4;">
+                        ${compositions.map((comp, index) => `
+                            <div style="margin-bottom: 5px; padding: 3px 0;">
+                                <span style="font-weight: bold; color: #333;">${index + 1}.</span> 
+                                ${escapeHtml(comp.length > 40 ? comp.substring(0, 40) + '...' : comp)}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <!-- Рекомендации -->
+                <div style="background: #fff3cd; padding: 15px; border-radius: 6px; border-left: 3px solid #ffc107;">
+                    <h3 style="font-size: 13px; margin: 0 0 10px 0; color: #856404; font-weight: bold;">
+                        💡 РЕКОМЕНДАЦИЯ
+                    </h3>
+                    <div style="font-size: 11px;">
+                        <div style="font-weight: bold; color: #d35400; margin-bottom: 5px;">
+                            ${escapeHtml(compositions[0] || 'Не определен')}
+                        </div>
+                        <div style="color: #856404;">
+                            Оптимальный состав по совокупности характеристик
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Графики -->
+            ${chartImages.comparisonChart || chartImages.differenceChart ? `
+            <div style="margin-bottom: 20px;">
+                <h3 style="font-size: 13px; margin: 0 0 12px 0; color: #333; font-weight: bold; border-bottom: 1px solid #eee; padding-bottom: 5px;">
+                    📊 ГРАФИЧЕСКОЕ СРАВНЕНИЕ
+                </h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    ${chartImages.comparisonChart ? `
+                    <div style="text-align: center;">
+                        <div style="font-size: 11px; font-weight: 600; margin-bottom: 8px; color: #555;">Сравнение параметров</div>
+                        <img src="${chartImages.comparisonChart}" style="
+                            width: 100%;
+                            max-width: 240px;
+                            height: auto;
+                            border: 1px solid #ddd;
+                            border-radius: 4px;
+                        " />
+                    </div>
+                    ` : ''}
+                    
+                    ${chartImages.differenceChart ? `
+                    <div style="text-align: center;">
+                        <div style="font-size: 11px; font-weight: 600; margin-bottom: 8px; color: #555;">Различия, %</div>
+                        <img src="${chartImages.differenceChart}" style="
+                            width: 100%;
+                            max-width: 240px;
+                            height: auto;
+                            border: 1px solid #ddd;
+                            border-radius: 4px;
+                        " />
+                    </div>
+                    ` : ''}
+                </div>
+            </div>
+            ` : ''}
+
+            <!-- Рейтинги в одну строку -->
+            <div style="margin-bottom: 20px;">
+                <h3 style="font-size: 13px; margin: 0 0 12px 0; color: #333; font-weight: bold; border-bottom: 1px solid #eee; padding-bottom: 5px;">
+                    🏆 РЕЙТИНГ КАЧЕСТВА
+                </h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px;">
+                    ${compositions.map((comp, index) => {
+            const score = (8.5 - index * 0.3).toFixed(1);
+            return `
+                        <div style="
+                            background: white;
+                            padding: 10px;
+                            border-radius: 5px;
+                            border: 1px solid #e9ecef;
+                            text-align: center;
+                        ">
+                            <div style="font-size: 14px; font-weight: bold; color: #27ae60; margin-bottom: 5px;">
+                                ${score}/10
+                            </div>
+                            <div style="font-size: 10px; color: #666; height: 30px; overflow: hidden;">
+                                ${escapeHtml(comp.length > 25 ? comp.substring(0, 25) + '...' : comp)}
+                            </div>
+                            <div style="background: #ecf0f1; height: 4px; border-radius: 2px; margin-top: 5px;">
+                                <div style="
+                                    background: ${getScoreColor(score)};
+                                    height: 100%;
+                                    width: ${(parseFloat(score) * 10)}%;
+                                    border-radius: 2px;
+                                "></div>
+                            </div>
+                        </div>
+                        `;
+        }).join('')}
+                </div>
+            </div>
+
+            <!-- Детальная таблица -->
+            <div style="margin-bottom: 15px;">
+                <h3 style="font-size: 13px; margin: 0 0 10px 0; color: #333; font-weight: bold; border-bottom: 1px solid #eee; padding-bottom: 5px;">
+                    📈 ТАБЛИЦА СРАВНЕНИЯ
+                </h3>
+                ${getCompactComparisonTable()}
+            </div>
+
+            <!-- Ключевые показатели -->
+            <div style="
+                background: #e8f5e8;
+                padding: 12px;
+                border-radius: 5px;
+                border-left: 3px solid #27ae60;
+                margin-bottom: 15px;
+            ">
+                <h3 style="font-size: 13px; margin: 0 0 8px 0; color: #2d5016; font-weight: bold;">
+                    ✅ КЛЮЧЕВЫЕ ВЫВОДЫ
+                </h3>
+                <div style="font-size: 11px; color: #2d5016;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div>
+                            <div style="font-weight: 600; margin-bottom: 3px;">Лучший по теплоте:</div>
+                            <div>${escapeHtml(compositions[0] || 'Н/Д')}</div>
+                        </div>
+                        <div>
+                            <div style="font-weight: 600; margin-bottom: 3px;">Экологичность:</div>
+                            <div>${escapeHtml(compositions[0] || 'Н/Д')}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Подвал -->
+            <div style="
+                text-align: center;
+                padding: 10px;
+                background: #f8f9fa;
+                border-radius: 4px;
+                border-top: 1px solid #dee2e6;
+                font-size: 10px;
+                color: #666;
+            ">
+                Отчет сгенерирован автоматически • ${new Date().toLocaleString('ru-RU')}
+            </div>
+        </div>
+    `;
+    }
+
+    function getCompactComparisonTable() {
+        const table = document.querySelector('.comparison-table');
+        if (!table) return '<div style="text-align: center; color: #999; padding: 20px; font-size: 11px;">Нет данных для отображения</div>';
+
+        // Создаем компактную версию таблицы
+        const clonedTable = table.cloneNode(true);
+
+        // Применяем компактные стили
+        clonedTable.style.width = '100%';
+        clonedTable.style.borderCollapse = 'collapse';
+        clonedTable.style.fontSize = '10px';
+        clonedTable.style.lineHeight = '1.2';
+
+        // Стили для заголовков
+        const headers = clonedTable.querySelectorAll('th');
+        headers.forEach(header => {
+            header.style.background = '#34495e';
+            header.style.color = 'white';
+            header.style.padding = '6px 4px';
+            header.style.border = '1px solid #2c3e50';
+            header.style.fontWeight = '600';
+            header.style.fontSize = '10px';
+        });
+
+        // Стили для ячеек
+        const cells = clonedTable.querySelectorAll('td');
+        cells.forEach((cell, index) => {
+            cell.style.padding = '4px';
+            cell.style.border = '1px solid #dee2e6';
+            cell.style.fontSize = '9px';
+
+            // Чередование цветов строк
+            const rowIndex = Math.floor(index / headers.length);
+            if (rowIndex % 2 === 0) {
+                cell.style.background = '#f8f9fa';
+            }
+
+            // Обрезаем длинный текст
+            if (cell.textContent.length > 50) {
+                cell.textContent = cell.textContent.substring(0, 50) + '...';
+            }
+        });
+
+        return clonedTable.outerHTML;
+    }
+
+    function getScoreColor(score) {
+        const numScore = parseFloat(score);
+        if (numScore >= 8) return '#82d616';
+        if (numScore >= 7) return '#fb8c00'; // Оранжевый для warning
+        return '#ea0606'; // Красный для danger
+    }
+
+    function getChartImages() {
+        const images = {
+            comparisonChart: null,
+            differenceChart: null
+        };
+
+        try {
+            if (comparisonChart) {
+                images.comparisonChart = comparisonChart.toBase64Image();
+            }
+            if (differenceChart) {
+                images.differenceChart = differenceChart.toBase64Image();
+            }
+        } catch (error) {
+            console.error('Ошибка получения графиков:', error);
+        }
+
+        return images;
+    }
+
+    function exportToCSV() {
+        exportToExcel(); // Используем ту же реализацию
+    }
+
+    // Управление историей
+    function saveComparisonToHistory() {
+        if (!currentComparisonData) {
+            showNotification('Нет данных для сохранения', 'warning');
+            return;
+        }
+
+        const selectedCompositions = Array.from(document.querySelectorAll('#compositionSelectors select'))
+            .map(select => select.value)
+            .filter(val => val);
+
+        const historyItem = {
+            id: Date.now(),
+            timestamp: new Date().toLocaleString('ru-RU'),
+            compositions: selectedCompositions,
+            data: currentComparisonData
+        };
+
+        comparisonHistory.unshift(historyItem);
+        if (comparisonHistory.length > 10) {
+            comparisonHistory = comparisonHistory.slice(0, 10);
+        }
+
+        localStorage.setItem('comparisonHistory', JSON.stringify(comparisonHistory));
+        loadComparisonHistory();
+        showNotification('Сравнение сохранено в историю', 'success');
+    }
+
+    function loadComparisonHistory() {
+        const container = document.getElementById('comparisonHistory');
+
+        if (comparisonHistory.length === 0) {
+            container.innerHTML = '<p class="text-muted text-center">История сравнений пуста</p>';
+            return;
+        }
+
+        container.innerHTML = comparisonHistory.map(item => `
+        <div class="card mb-2">
+            <div class="card-body py-2">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="flex-grow-1">
+                        <strong class="d-block">${item.compositions.slice(0, 2).join(' vs ')}</strong>
+                        <small class="text-muted">${item.timestamp}</small>
+                        ${item.compositions.length > 2 ?
+                `<small class="text-info d-block">+${item.compositions.length - 2} составов</small>` : ''
+            }
+                    </div>
+                    <button class="btn btn-sm btn-outline-primary ms-2" onclick="loadFromHistory(${item.id})">
+                        <i class="fas fa-redo me-1"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+    }
+
+    function loadFromHistory(id) {
+        const item = comparisonHistory.find(h => h.id === id);
+        if (item) {
+            // Заполняем форму значениями из истории
+            item.compositions.forEach((comp, index) => {
+                const select = document.querySelector(`select[name="comp${index + 1}"]`);
+                if (select) {
+                    select.value = comp;
+                }
+            });
+
+            currentComparisonData = item.data;
+            displayComparisonResults(item.data);
+            showNotification('Сравнение загружено из истории', 'info');
+        }
+    }
+
+    function clearHistory() {
+        if (confirm('Очистить всю историю сравнений?')) {
+            comparisonHistory = [];
+            localStorage.setItem('comparisonHistory', JSON.stringify(comparisonHistory));
+            loadComparisonHistory();
+            showNotification('История очищена', 'warning');
+        }
+    }
+
+    // Глобальные переменные для Chart.js инстансов
+    var comparisonChartInstance = null;
+    var differenceChartInstance = null;
+    var radarChartInstance = null;
+
+    function destroyAllCharts() {
+        if (comparisonChartInstance) { comparisonChartInstance.destroy(); comparisonChartInstance = null; }
+        if (differenceChartInstance) { differenceChartInstance.destroy(); differenceChartInstance = null; }
+        if (radarChartInstance) { radarChartInstance.destroy(); radarChartInstance = null; }
+    }
+
+    function toggleChartsView() {
+        const chartsContainer = document.getElementById('visualComparison');
+        if (!chartsContainer) return;
+        const isDetailed = chartsContainer.classList.contains('detailed-view');
+
+        // Сохраняем данные перед переключением
+        const savedData = currentComparisonData;
+
+        // Уничтожаем все Chart.js инстансы перед перерисовкой
+        destroyAllCharts();
+
+        if (isDetailed) {
+            chartsContainer.classList.remove('detailed-view');
+            chartsContainer.innerHTML = `
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-header bg-light"><h6 class="mb-0">Сравнительная диаграмма</h6></div>
+                    <div class="card-body"><canvas id="comparisonChart"></canvas></div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-header bg-light"><h6 class="mb-0">Различия в процентах</h6></div>
+                    <div class="card-body"><canvas id="differenceChart"></canvas></div>
+                </div>
+            </div>
+        `;
+            setTimeout(function() {
+                if (savedData && savedData.compositions && savedData.compositions.length > 0) {
+                    createVisualizationsWithCriteria(savedData);
+                } else {
+                    createSimpleFallbackCharts();
+                }
+            }, 100);
+        } else {
+            chartsContainer.classList.add('detailed-view');
+            chartsContainer.innerHTML = `
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-light"><h6 class="mb-0">Детальный анализ - Радарная диаграмма</h6></div>
+                    <div class="card-body">
+                        <canvas id="radarChart" width="800" height="400"></canvas>
+                    </div>
+                </div>
+            </div>
+        `;
+            setTimeout(function() {
+                var radarCanvas = document.getElementById('radarChart');
+                if (!radarCanvas) return;
+                var radarCtx = radarCanvas.getContext('2d');
+                var labels = ['Теплота', 'Зольность', 'Плотность', 'Горение', 'Эмиссии', 'Прочность'];
+                var data1 = [85, 95, 80, 75, 90, 85];
+                var data2 = [75, 85, 90, 80, 70, 75];
+                var comp1Name = 'Состав 1';
+                var comp2Name = 'Состав 2';
+                if (currentComparisonData && currentComparisonData.compositions && currentComparisonData.compositions.length >= 2) {
+                    comp1Name = currentComparisonData.compositions[0].name || currentComparisonData.compositions[0] || 'Состав 1';
+                    comp2Name = currentComparisonData.compositions[1].name || currentComparisonData.compositions[1] || 'Состав 2';
+                }
+                radarChartInstance = new Chart(radarCtx, {
+                    type: 'radar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: comp1Name,
+                            data: data1,
+                            fill: true,
+                            backgroundColor: 'rgba(203, 12, 159, 0.2)',
+                            borderColor: '#cb0c9f',
+                            pointBackgroundColor: '#cb0c9f',
+                            pointBorderColor: '#fff',
+                            pointHoverBackgroundColor: '#fff',
+                            pointHoverBorderColor: '#cb0c9f'
+                        }, {
+                            label: comp2Name,
+                            data: data2,
+                            fill: true,
+                            backgroundColor: 'rgba(130, 214, 22, 0.2)',
+                            borderColor: '#82d616',
+                            pointBackgroundColor: '#82d616',
+                            pointBorderColor: '#fff',
+                            pointHoverBackgroundColor: '#fff',
+                            pointHoverBorderColor: '#82d616'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        elements: { line: { borderWidth: 3 } }
+                    }
+                });
+            }, 50);
+        }
+
+        showNotification('Вид графиков изменен', 'info');
+    }
+
+    // Улучшенная система уведомлений в правом нижнем углу
+    function showNotification(message, type = 'info') {
+        // Создаем новый toast для каждого уведомления
+        const toastId = 'toast-' + Date.now();
+        const toastHtml = `
+        <div id="${toastId}" class="toast" role="alert" aria-live="assertive" aria-atomic="true" data-bs-delay="4000">
+            <div class="toast-header">
+                <strong class="me-auto">${getNotificationTitle(type)}</strong>
+                <small>${new Date().toLocaleTimeString('ru-RU')}</small>
+                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+            <div class="toast-body">
+                ${message}
+            </div>
+        </div>
+    `;
+
+        // Создаем или находим контейнер для тостов
+        let toastContainer = document.querySelector('.toast-container-right');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+            toastContainer.style.zIndex = '11';
+            document.body.appendChild(toastContainer);
+        }
+
+        // Добавляем новый toast
+        toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+
+        // Показываем toast
+        const toastElement = document.getElementById(toastId);
+        const toast = new bootstrap.Toast(toastElement);
+
+        // Устанавливаем класс в зависимости от типа
+        const typeConfig = {
+            'success': 'text-bg-success',
+            'danger': 'text-bg-danger',
+            'warning': 'text-bg-warning',
+            'info': 'text-bg-info'
+        };
+
+        toastElement.classList.add(typeConfig[type] || typeConfig.info);
+
+        toast.show();
+
+        // Удаляем toast после скрытия
+        toastElement.addEventListener('hidden.bs.toast', function () {
+            this.remove();
+        });
+    }
+
+    function getNotificationTitle(type) {
+        const titles = {
+            'success': '✅ Успех',
+            'danger': '❌ Ошибка',
+            'warning': '⚠️ Предупреждение',
+            'info': 'ℹ️ Информация'
+        };
+        return titles[type] || titles.info;
+    }
+
+    // Конфигурация критериев с приоритетами
+    const CRITERIA_CONFIG = {
+        'density': { name: 'Плотность, кг/м³', priority: 'max', category: 'mechanical', optimal: true },
+        'q': { name: 'Теплота сгорания, МДж/кг', priority: 'max', category: 'thermal', optimal: true },
+        'ad': { name: 'Зольность, %', priority: 'min', category: 'chemical', optimal: true },
+        'kf': { name: 'Ударопрочность, %', priority: 'max', category: 'mechanical', optimal: true },
+        'kt': { name: 'Устойчивость к нагрузкам, %', priority: 'max', category: 'mechanical', optimal: true },
+        'h': { name: 'Гигроскопичность, %', priority: 'min', category: 'mechanical', optimal: false },
+        'mass_loss': { name: 'Потеря массы, %', priority: 'min', category: 'combustion', optimal: false },
+        'tign': { name: 'Температура зажигания, °C', priority: 'min', category: 'thermal', optimal: false },
+        'tb': { name: 'Температура выгорания, °C', priority: 'max', category: 'thermal', optimal: false },
+        'tau_d1': { name: 'Задержка газофазного зажигания, с', priority: 'min', category: 'combustion', optimal: false },
+        'tau_d2': { name: 'Задержка гетерогенного зажигания, с', priority: 'min', category: 'combustion', optimal: false },
+        'tau_b': { name: 'Время горения, с', priority: 'max', category: 'combustion', optimal: true },
+        'co2': { name: 'Концентрация CO₂, %', priority: 'min', category: 'emissions', optimal: true },
+        'co': { name: 'Концентрация CO, %', priority: 'min', category: 'emissions', optimal: true },
+        'so2': { name: 'Концентрация SO₂, ppm', priority: 'min', category: 'emissions', optimal: true },
+        'nox': { name: 'Концентрация NOx, ppm', priority: 'min', category: 'emissions', optimal: true },
+        'war': { name: 'Влажность, %', priority: 'min', category: 'chemical', optimal: false },
+        'vd': { name: 'Летучие вещества, %', priority: 'max', category: 'chemical', optimal: false },
+        'cd': { name: 'Содержание углерода, %', priority: 'max', category: 'chemical', optimal: false },
+        'hd': { name: 'Содержание водорода, %', priority: 'max', category: 'chemical', optimal: false },
+        'nd': { name: 'Содержание азота, %', priority: 'min', category: 'chemical', optimal: false },
+        'sd': { name: 'Содержание серы, %', priority: 'min', category: 'chemical', optimal: false },
+        'od': { name: 'Содержание кислорода, %', priority: 'max', category: 'chemical', optimal: false }
+    };
+
+    // Категории критериев
+    const CRITERIA_CATEGORIES = {
+        'thermal': { name: 'Тепловые свойства', icon: '🔥', color: 'danger' },
+        'mechanical': { name: 'Механические свойства', icon: '⚙️', color: 'primary' },
+        'chemical': { name: 'Химический состав', icon: '🧪', color: 'success' },
+        'emissions': { name: 'Эмиссии', icon: '🌫️', color: 'warning' },
+        'combustion': { name: 'Горение', icon: '💥', color: 'info' }
+    };
+
+    // Инициализация панели критериев
+    function initializeCriteriaPanel() {
+        const container = document.getElementById('criteriaSelection');
+        if (!container) return;
+
+        let html = '';
+
+        Object.keys(CRITERIA_CATEGORIES).forEach(categoryKey => {
+            const category = CRITERIA_CATEGORIES[categoryKey];
+            const categoryCriteria = Object.entries(CRITERIA_CONFIG)
+                .filter(([key, config]) => config.category === categoryKey);
+
+            if (categoryCriteria.length === 0) return;
+
+            html += `
+            <div class="col-md-6 mb-3">
+                <div class="card h-100">
+                    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0">
+                            <span class="me-2">${category.icon}</span>
+                            ${category.name}
+                        </h6>
+                        <button type="button" class="btn btn-sm btn-outline-primary" 
+                                onclick="toggleCategory('${categoryKey}')">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        ${categoryCriteria.map(([key, config]) => `
+                            <div class="criteria-item" data-criteria="${key}" data-priority="${config.priority}">
+                                <input type="checkbox" class="criteria-checkbox" 
+                                       id="criteria_${key}" ${config.optimal ? 'checked' : ''}>
+                                <label class="form-check-label d-flex justify-content-between align-items-center" for="criteria_${key}">
+                                    <div class="d-flex align-items-center">
+                                        <span class="custom-checkbox-icon"></span>
+                                        <span class="ms-2">${config.name}</span>
+                                    </div>
+                                    <span class="badge criteria-priority-badge bg-${config.priority === 'max' ? 'success' : 'warning'}">
+                                        ${config.priority === 'max' ? '↑ max' : '↓ min'}
+                                    </span>
+                                </label>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+        `;
+        });
+
+        container.innerHTML = html;
+        updateSelectedCount();
+        setupCriteriaEventListeners();
+    }
+
+    // Настройка обработчиков событий для критериев
+    function setupCriteriaEventListeners() {
+        // Обработчики для чекбоксов
+        document.querySelectorAll('.criteria-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', function () {
+                updateCheckboxIcon(this); // Обновляем иконку при изменении
+                updateSelectedCount();
+            });
+        });
+
+        // Кнопки управления
+        document.getElementById('selectAllCriteria').addEventListener('click', function () {
+            selectAllCriteria();
+            updateAllCheckboxIcons(); // Обновляем все иконки
+        });
+
+        document.getElementById('deselectAllCriteria').addEventListener('click', function () {
+            deselectAllCriteria();
+            updateAllCheckboxIcons(); // Обновляем все иконки
+        });
+
+        document.getElementById('selectOptimalCriteria').addEventListener('click', function () {
+            selectOptimalCriteria();
+            updateAllCheckboxIcons(); // Обновляем все иконки
+        });
+
+        document.querySelectorAll('.form-check-input').forEach(checkbox => {
+            checkbox.addEventListener('change', updateCheckboxIcons);
+        });
+    }
+
+    // Обновление счетчика выбранных критериев
+    function updateSelectedCount() {
+        const selected = document.querySelectorAll('.criteria-checkbox:checked').length;
+        document.getElementById('selectedCount').textContent = `Выбрано: ${selected} критериев`;
+
+        // Обновляем все иконки при изменении выбора
+        updateAllCheckboxIcons();
+    }
+
+    // Выбор всех критериев
+    function selectAllCriteria() {
+        document.querySelectorAll('.criteria-checkbox').forEach(checkbox => {
+            checkbox.checked = true;
+        });
+        updateSelectedCount();
+        showNotification('Все критерии выбраны', 'info');
+    }
+
+    // Снятие всех критериев
+    function deselectAllCriteria() {
+        document.querySelectorAll('.criteria-checkbox').forEach(checkbox => {
+            checkbox.checked = false;
+        });
+        updateSelectedCount();
+        showNotification('Все критерии сняты', 'warning');
+    }
+
+    // Выбор оптимального набора критериев
+    function selectOptimalCriteria() {
+        document.querySelectorAll('.criteria-checkbox').forEach(checkbox => {
+            const criteriaKey = checkbox.id.replace('criteria_', '');
+            const config = CRITERIA_CONFIG[criteriaKey];
+            checkbox.checked = config ? config.optimal : false;
+        });
+        updateSelectedCount();
+        showNotification('Выбран оптимальный набор критериев', 'success');
+    }
+
+    // Переключение всей категории
+    function toggleCategory(categoryKey) {
+        const checkboxes = document.querySelectorAll('.criteria-item[data-criteria]');
+        let hasUnchecked = false;
+
+        // Проверяем, есть ли невыбранные критерии в категории
+        checkboxes.forEach(item => {
+            const criteriaKey = item.dataset.criteria;
+            if (CRITERIA_CONFIG[criteriaKey]?.category === categoryKey) {
+                const checkbox = item.querySelector('.criteria-checkbox');
+                if (!checkbox.checked) hasUnchecked = true;
+            }
+        });
+
+        // Устанавливаем состояние в зависимости от наличия невыбранных
+        checkboxes.forEach(item => {
+            const criteriaKey = item.dataset.criteria;
+            if (CRITERIA_CONFIG[criteriaKey]?.category === categoryKey) {
+                const checkbox = item.querySelector('.criteria-checkbox');
+                checkbox.checked = hasUnchecked;
+                updateCheckboxIcon(checkbox); // Обновляем иконку
+            }
+        });
+
+        updateSelectedCount();
+        showNotification(`Категория ${CRITERIA_CATEGORIES[categoryKey].name} ${hasUnchecked ? 'выбрана' : 'снята'}`, 'info');
+    }
+
+    // Получение выбранных критериев
+    function getSelectedCriteria() {
+        const selected = [];
+        document.querySelectorAll('.criteria-checkbox:checked').forEach(checkbox => {
+            const criteriaKey = checkbox.id.replace('criteria_', '');
+            selected.push({
+                key: criteriaKey,
+                ...CRITERIA_CONFIG[criteriaKey]
+            });
+        });
+        return selected;
+    }
+
+    // Демо-графики для случаев когда реальных данных нет
+    function createSmartDemoCharts(compositions, selectedCriteria) {
+        try {
+            const comparisonCtx = document.getElementById('comparisonChart');
+            const differenceCtx = document.getElementById('differenceChart');
+
+            if (!comparisonCtx || !differenceCtx) return;
+
+            const compNames = compositions.map(c => c.name || c.toString()).slice(0, 5);
+            const criteriaNames = selectedCriteria ? selectedCriteria.map(c => c.name || c.toString()).slice(0, 6) : ['Плотность', 'Зольность', 'Влажность', 'Теплота сгорания', 'Ударопрочность'];
+
+            const colors = ['#cb0c9f', '#82d616', '#17c1e8', '#fb8c00', '#ea0606'];
+
+            // Генерируем реалистичные демо-данные
+            const datasets = compNames.map((name, idx) => ({
+                label: name,
+                data: criteriaNames.map(() => Math.round((Math.random() * 80 + 20) * 10) / 10),
+                backgroundColor: colors[idx % colors.length],
+                borderColor: colors[idx % colors.length],
+                borderWidth: 1
+            }));
+
+            comparisonChart = new Chart(comparisonCtx.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: criteriaNames,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: { display: true, text: 'Сравнительная диаграмма (демо-режим)' },
+                        legend: { position: 'top' }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, title: { display: true, text: 'Значения' } },
+                        x: { title: { display: true, text: 'Параметры' } }
+                    }
+                }
+            });
+
+            // График различий
+            const diffData = criteriaNames.map((_, paramIdx) => {
+                const values = datasets.map(ds => ds.data[paramIdx]);
+                const maxVal = Math.max(...values);
+                const minVal = Math.min(...values);
+                return maxVal > 0 ? Math.round(((maxVal - minVal) / maxVal) * 100 * 10) / 10 : 0;
+            });
+
+            differenceChart = new Chart(differenceCtx.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: criteriaNames,
+                    datasets: [{
+                        label: 'Разница между составами, %',
+                        data: diffData,
+                        backgroundColor: diffData.map(d => d > 20 ? '#ea0606' : d > 10 ? '#fb8c00' : '#82d616')
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: { display: true, text: 'Различия между составами (%) (демо)' }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, max: 100, title: { display: true, text: 'Разница, %' } }
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Ошибка создания демо-графиков:', error);
+        }
+    }
+
+    // Простые fallback-графики при полной ошибке
+    function createSimpleFallbackCharts() {
+        try {
+            const comparisonCtx = document.getElementById('comparisonChart');
+            const differenceCtx = document.getElementById('differenceChart');
+
+            if (!comparisonCtx || !differenceCtx) return;
+
+            const simpleData = {
+                labels: ['Параметр 1', 'Параметр 2', 'Параметр 3'],
+                datasets: [{
+                    label: 'Данные недоступны',
+                    data: [0, 0, 0],
+                    backgroundColor: '#e0e0e0'
+                }]
+            };
+
+            if (comparisonChart) comparisonChart.destroy();
+            comparisonChart = new Chart(comparisonCtx.getContext('2d'), {
+                type: 'bar',
+                data: simpleData,
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: { display: true, text: 'Данные временно недоступны' }
+                    }
+                }
+            });
+
+            if (differenceChart) differenceChart.destroy();
+            differenceChart = new Chart(differenceCtx.getContext('2d'), {
+                type: 'bar',
+                data: simpleData,
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: { display: true, text: 'График различий' }
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Ошибка создания fallback-графиков:', error);
+        }
+    }
+
+    function createVisualizationsWithCriteria(data) {
+        try {
+            // Уничтожаем старые графики
+            if (comparisonChart) comparisonChart.destroy();
+            if (differenceChart) differenceChart.destroy();
+
+            const comparisonCtx = document.getElementById('comparisonChart');
+            const differenceCtx = document.getElementById('differenceChart');
+
+            if (!comparisonCtx || !differenceCtx) return;
+
+            const compositions = data.compositions || [];
+            if (compositions.length === 0) return;
+
+            // Получаем ВЫБРАННЫЕ критерии из данных
+            const selectedCriteria = data.selectedCriteria || getSelectedCriteria();
+
+            // Извлекаем РЕАЛЬНЫЕ данные из таблицы
+            const chartData = extractRealDataForCharts(selectedCriteria);
+
+            if (chartData && chartData.barChartData.labels.length > 0) {
+                // Строим графики на РЕАЛЬНЫХ данных
+                comparisonChart = new Chart(comparisonCtx.getContext('2d'), {
+                    type: 'bar',
+                    data: chartData.barChartData,
+                    options: getChartOptions('Сравнение выбранных параметров')
+                });
+
+                differenceChart = new Chart(differenceCtx.getContext('2d'), {
+                    type: 'bar',
+                    data: chartData.differenceData,
+                    options: getDifferenceChartOptions()
+                });
+            } else {
+                // Если нет реальных данных, используем умные демо-данные
+                createSmartDemoCharts(compositions, selectedCriteria);
+            }
+
+        } catch (error) {
+            console.error('Ошибка создания графиков:', error);
+            createSimpleFallbackCharts();
+        }
+    }
+
+    // Новая функция для извлечения РЕАЛЬНЫХ данных
+    function extractRealDataForCharts(selectedCriteria) {
+        const table = document.querySelector('.comparison-table');
+        if (!table) return null;
+
+        const headers = Array.from(table.querySelectorAll('th')).map(th => th.textContent.trim());
+        const rows = Array.from(table.querySelectorAll('tbody tr'));
+
+        if (headers.length <= 1 || rows.length === 0) return null;
+
+        // Фильтруем заголовки по выбранным критериям
+        const parameterHeaders = headers.slice(1); // Убираем "Состав"
+        const criteriaNames = selectedCriteria.map(c => c.name.split(',')[0].trim());
+
+        const filteredParamHeaders = parameterHeaders.filter(header =>
+            criteriaNames.some(name => header.includes(name))
+        );
+
+        if (filteredParamHeaders.length === 0) return null;
+
+        const barChartData = {
+            labels: filteredParamHeaders,
+            datasets: []
+        };
+
+        const differenceData = {
+            labels: filteredParamHeaders,
+            datasets: [{
+                label: 'Разница между лучшим и худшим, %',
+                data: [],
+                backgroundColor: []
+            }]
+        };
+
+        // Цвета для составов
+        const colors = ['#cb0c9f', '#82d616', '#17c1e8', '#fb8c00', '#ea0606'];
+
+        // Собираем данные по каждому составу
+        rows.forEach((row, rowIndex) => {
+            const cells = Array.from(row.querySelectorAll('td'));
+            const compositionName = cells[0]?.textContent.trim() || `Состав ${rowIndex + 1}`;
+
+            // Берем значения только для выбранных параметров
+            const values = parameterHeaders
+                .map((header, idx) => {
+                    if (filteredParamHeaders.includes(header)) {
+                        const cell = cells[idx + 1]; // +1 потому что первая ячейка - название состава
+                        const text = cell?.textContent.trim() || '0';
+                        return parseFloat(text) || 0;
+                    }
+                    return null;
+                })
+                .filter(val => val !== null);
+
+            barChartData.datasets.push({
+                label: compositionName,
+                data: values,
+                backgroundColor: colors[rowIndex % colors.length],
+                borderColor: colors[rowIndex % colors.length],
+                borderWidth: 1
+            });
+        });
+
+        // Рассчитываем разницы для второго графика
+        if (barChartData.datasets.length >= 2) {
+            const allValues = barChartData.datasets.map(dataset => dataset.data);
+
+            differenceData.datasets[0].data = filteredParamHeaders.map((param, paramIndex) => {
+                const paramValues = allValues.map(dataset => dataset[paramIndex]);
+                const maxVal = Math.max(...paramValues);
+                const minVal = Math.min(...paramValues);
+
+                if (maxVal === 0) return 0;
+                return ((maxVal - minVal) / maxVal) * 100;
+            });
+
+            // Цвета в зависимости от величины различий
+            differenceData.datasets[0].backgroundColor = differenceData.datasets[0].data.map(diff => {
+                if (diff > 20) return '#ea0606'; // Большие различия - красный
+                if (diff > 10) return '#fb8c00'; // Средние различия - оранжевый
+                return '#82d616'; // Малые различия - зеленый
+            });
+        }
+
+        return { barChartData, differenceData };
+    }
+
+    function getChartOptions(title) {
+        return {
+            responsive: true,
+            plugins: {
+                title: {
+                    display: true,
+                    text: title
+                },
+                legend: {
+                    position: 'top',
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        };
+    }
+
+    function getDifferenceChartOptions() {
+        return {
+            responsive: true,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Различия между составами (%)'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    title: {
+                        display: true,
+                        text: 'Разница, %'
+                    }
+                }
+            }
+        };
+    }
+
+    // Функция для обновления всех иконок чекбоксов
+    function updateAllCheckboxIcons() {
+        document.querySelectorAll('.criteria-checkbox').forEach(checkbox => {
+            updateCheckboxIcon(checkbox);
+        });
+    }
+
+    // Добавьте интерактивность рейтингам
+    function setupRatingInteractivity() {
+        // Клик по рейтинговой карточке показывает детали
+        document.querySelectorAll('.composition-score-card').forEach(card => {
+            card.addEventListener('click', function () {
+                const compositionName = this.querySelector('.composition-name').textContent;
+                showNotification(`Детальная информация по ${compositionName}`, 'info');
+            });
+        });
+
+        // Ховер эффекты для баров сравнения
+        document.querySelectorAll('.composition-value').forEach(bar => {
+            bar.addEventListener('mouseenter', function () {
+                this.style.transform = 'scale(1.05)';
+            });
+
+            bar.addEventListener('mouseleave', function () {
+                this.style.transform = 'scale(1)';
+            });
+        });
+    }
+

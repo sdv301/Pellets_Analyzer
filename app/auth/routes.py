@@ -128,7 +128,7 @@ def verify_email(token):
     """Подтверждение email."""
     result = verify_user(_db_path, token)
     if result['success']:
-        return render_template('auth/email_verified.html')
+        return render_template(_get_auth_template('email_verified.html'))
     else:
         flash(result['error'], 'danger')
         return redirect(url_for('auth.login'))
@@ -142,12 +142,12 @@ def resend_verification():
         client_ip = request.remote_addr or '127.0.0.1'
         if not rate_limiter.is_allowed(f"resend_verif:{client_ip}", max_requests=10, window=60):
             flash('Слишком много запросов. Попробуйте позже.', 'danger')
-            return render_template('auth/resend_verification.html'), 429
+            return render_template(_get_auth_template('resend_verification.html')), 429
 
         email = request.form.get('email', '').strip()
         if not email:
             flash('Введите email!', 'danger')
-            return render_template('auth/resend_verification.html')
+            return render_template(_get_auth_template('resend_verification.html'))
 
         base_url = request.url_root.rstrip('/')
         result = resend_verification_email(email, _db_path, base_url)
@@ -158,7 +158,7 @@ def resend_verification():
         else:
             flash(result['error'], 'danger')
 
-    return render_template('auth/resend_verification.html')
+    return render_template(_get_auth_template('resend_verification.html'))
 
 
 @auth_bp.route('/logout')

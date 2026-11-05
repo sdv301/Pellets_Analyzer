@@ -90,3 +90,37 @@ body {
 .table-responsive-v2 tr:last-child td {
   border-bottom: none;
 }
+
+/* ============================================================
+   Responsive Layout & Ultrawide Constraints (Phase C3)
+   Screens: 1280x800, 1366x768, 1920x1080, 2560x1440, 3440x1440
+   ============================================================ */
+
+/* Prevent horizontal page overflow */
+html, body {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+/* Ultrawide Container max-width constraint */
+@media (min-width: 2560px) {
+  .container, .container-fluid, .max-w-7xl, main {
+    max-width: 2160px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
+/* Plotly Responsive Chart wrapper */
+.js-plotly-plot, .plotly-graph-div {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+/* Table responsive scroll fallback */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
