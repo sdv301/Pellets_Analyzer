@@ -338,11 +338,12 @@ def _initialize_extensions(app):
     # Инициализация email
     init_mail(app)
 
-    # Устанавливаем db_path во все blueprints
+    # Устанавливаем db_path во все blueprints и сервисы
     from app.routes import main, compare, economics, graphs, ml, admin
     from app.auth import routes as auth_routes
+    from app.services.ml_v2 import switch
 
-    for module in [main, compare, economics, graphs, ml, admin, auth_routes]:
+    for module in [main, compare, economics, graphs, ml, admin, auth_routes, switch]:
         if hasattr(module, 'set_db_path'):
             module.set_db_path(db_path)
 

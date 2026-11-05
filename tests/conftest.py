@@ -20,12 +20,13 @@ def app(test_db_path, monkeypatch, tmp_path):
         from app.database.database import init_db
         from app.routes import admin, compare, economics, graphs, main, ml
         from app.auth import routes as auth_routes
+        from app.services.ml_v2 import switch
         from app.services.ai_ml_analyzer import AIMLAnalyzer
 
         init_db(test_db_path)
         init_auth_tables(test_db_path)
 
-        for module in [main, compare, economics, graphs, ml, admin, auth_routes]:
+        for module in [main, compare, economics, graphs, ml, admin, auth_routes, switch]:
             if hasattr(module, "set_db_path"):
                 module.set_db_path(test_db_path)
 

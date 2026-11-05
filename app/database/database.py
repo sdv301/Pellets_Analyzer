@@ -350,6 +350,31 @@ def init_db(db_path):
     )
     ''')
 
+    # Таблица системных настроек (G6, G2)
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS system_settings (
+        key TEXT PRIMARY KEY,
+        value TEXT,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_by TEXT
+    )
+    ''')
+
+    # Таблица теневого логирования ML v2 расхождений (G2)
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS ml_shadow_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+        target_property TEXT,
+        legacy_value REAL,
+        v2_value REAL,
+        delta REAL,
+        in_domain INTEGER,
+        informative INTEGER,
+        details TEXT
+    )
+    ''')
+
     # Добавление индексов
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_composition ON measured_parameters(composition)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_component ON components(component)')
@@ -357,6 +382,8 @@ def init_db(db_path):
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_ml_property ON ml_optimizations(target_property)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_ml_metrics_property ON ml_model_metrics(target_property)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_ml_metrics_active ON ml_model_metrics(is_active)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_shadow_property ON ml_shadow_logs(target_property)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_shadow_timestamp ON ml_shadow_logs(timestamp)')
 
     conn.commit()
     conn.close()
@@ -399,13 +426,42 @@ def check_and_migrate_db(db_path):
         'hd': 'REAL',
         'nd': 'REAL',
         'sd': 'REAL',
-        'od': 'REAL'
+        'od': 'REAL',
+        'source': "TEXT DEFAULT 'laboratory'",
+        'is_questionable': 'INTEGER DEFAULT 0'
     }
 
     for col, dtype in measured_new_columns.items():
         if col not in measured_columns:
             print(f"🔧 Миграция: Добавление колонки {col} в таблицу measured_parameters")
             cursor.execute(f"ALTER TABLE measured_parameters ADD COLUMN {col} {dtype}")
+
+    # 3. Проверка таблиц system_settings и ml_shadow_logs
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS system_settings (
+        key TEXT PRIMARY KEY,
+        value TEXT,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_by TEXT
+    )
+    ''')
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS ml_shadow_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+        target_property TEXT,
+        legacy_value REAL,
+        v2_value REAL,
+        delta REAL,
+        in_domain INTEGER,
+        informative INTEGER,
+        details TEXT
+    )
+    ''')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_shadow_property ON ml_shadow_logs(target_property)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_shadow_timestamp ON ml_shadow_logs(timestamp)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_measured_source ON measured_parameters(source)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_measured_questionable ON measured_parameters(is_questionable)')
             
     conn.commit()
     conn.close()
@@ -445,8 +501,10 @@ def insert_data(db_path, table, data):
             for col in numeric_columns:
                 data[col] = pd.to_numeric(data[col], errors='coerce')
 
-            query = '''
-            INSERT OR REPLACE INTO measured_parameters VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            cols_str = ', '.join(expected_columns)
+            placeholders_str = ', '.join(['?'] * len(expected_columns))
+            query = f'''
+            INSERT OR REPLACE INTO measured_parameters ({cols_str}) VALUES ({placeholders_str})
             '''
             records = [tuple(row) for _, row in data.iterrows()]
             for idx in range(0, len(records), batch_size):
@@ -467,8 +525,10 @@ def insert_data(db_path, table, data):
             for col in numeric_columns:
                 data[col] = pd.to_numeric(data[col], errors='coerce')
 
-            query = '''
-            INSERT OR REPLACE INTO components VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            comp_cols_str = ', '.join(expected_columns)
+            comp_placeholders_str = ', '.join(['?'] * len(expected_columns))
+            query = f'''
+            INSERT OR REPLACE INTO components ({comp_cols_str}) VALUES ({comp_placeholders_str})
             '''
             records = [tuple(row) for _, row in data.iterrows()]
             for idx in range(0, len(records), batch_size):
@@ -681,7 +741,7 @@ def update_ml_optimization_with_actual(db_path, optimization_id, actual_properti
         return False
 
 
-ALLOWED_TABLES = {'measured_parameters', 'components', 'ml_optimizations', 'ml_model_metrics'}
+ALLOWED_TABLES = {'measured_parameters', 'components', 'ml_optimizations', 'ml_model_metrics', 'system_settings', 'ml_shadow_logs'}
 
 def query_db(db_path, table, query="SELECT * FROM {}", params=None):
     """Запрос данных из таблицы."""
@@ -694,3 +754,178 @@ def query_db(db_path, table, query="SELECT * FROM {}", params=None):
         df = pd.read_sql_query(query.format(table), conn)
     conn.close()
     return df
+
+
+# ============================================================
+# ХЕЛПЕРЫ ДЛЯ АДМИН-ПАНЕЛИ (ФАЗА G: G2, G4, G6)
+# ============================================================
+
+def get_system_settings(db_path: str) -> Dict[str, Any]:
+    """Возвращает системные настройки в виде словаря."""
+    settings = {}
+    try:
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        cur.execute("SELECT key, value, updated_at, updated_by FROM system_settings")
+        for row in cur.fetchall():
+            settings[row['key']] = row['value']
+        conn.close()
+    except Exception as e:
+        logger.warning(f"Не удалось прочитать system_settings: {e}")
+    return settings
+
+
+def set_system_setting(db_path: str, key: str, value: str, updated_by: Optional[str] = None) -> bool:
+    """Устанавливает значение системной настройки."""
+    try:
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+        cur.execute('''
+            INSERT INTO system_settings (key, value, updated_at, updated_by)
+            VALUES (?, ?, CURRENT_TIMESTAMP, ?)
+            ON CONFLICT(key) DO UPDATE SET
+                value = excluded.value,
+                updated_at = CURRENT_TIMESTAMP,
+                updated_by = excluded.updated_by
+        ''', (str(key), str(value), updated_by))
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        logger.error(f"Ошибка сохранения настройки {key}: {e}")
+        return False
+
+
+def get_shadow_logs(db_path: str, limit: int = 100, property_name: Optional[str] = None) -> list:
+    """Возвращает последние записи теневого логирования ML v2 (G2)."""
+    try:
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        if property_name and property_name.strip():
+            cur.execute('''
+                SELECT * FROM ml_shadow_logs
+                WHERE target_property = ?
+                ORDER BY timestamp DESC
+                LIMIT ?
+            ''', (property_name.strip(), max(1, min(limit, 500))))
+        else:
+            cur.execute('''
+                SELECT * FROM ml_shadow_logs
+                ORDER BY timestamp DESC
+                LIMIT ?
+            ''', (max(1, min(limit, 500)),))
+        rows = [dict(r) for r in cur.fetchall()]
+        conn.close()
+        return rows
+    except Exception as e:
+        logger.warning(f"Не удалось получить теневой лог: {e}")
+        return []
+
+
+def clear_shadow_logs(db_path: str) -> int:
+    """Очищает теневой лог ML v2."""
+    try:
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+        cur.execute("DELETE FROM ml_shadow_logs")
+        deleted = cur.rowcount
+        conn.commit()
+        conn.close()
+        return deleted
+    except Exception as e:
+        logger.error(f"Ошибка очистки ml_shadow_logs: {e}")
+        return 0
+
+
+def get_recipes_paged(
+    db_path: str,
+    page: int = 1,
+    per_page: int = 25,
+    source_filter: Optional[str] = None,
+    questionable_filter: Optional[int] = None,
+    search: Optional[str] = None,
+) -> tuple[list, int]:
+    """Возвращает страницу рецептов с фильтрацией по источнику и сомнительности (G4)."""
+    try:
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+
+        where_clauses = []
+        params = []
+
+        if source_filter and source_filter.strip() and source_filter != 'all':
+            where_clauses.append("COALESCE(source, 'laboratory') = ?")
+            params.append(source_filter.strip())
+
+        if questionable_filter is not None:
+            where_clauses.append("COALESCE(is_questionable, 0) = ?")
+            params.append(1 if questionable_filter else 0)
+
+        if search and search.strip():
+            where_clauses.append("composition LIKE ?")
+            params.append(f"%{search.strip()}%")
+
+        where_str = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+
+        # Счётчик
+        cur.execute(f"SELECT COUNT(*) AS cnt FROM measured_parameters {where_str}", tuple(params))  # nosec: B608
+        total = int(cur.fetchone()['cnt'])
+
+        # Пагинация
+        offset = max(0, (page - 1) * per_page)
+        query_sql = (
+            "SELECT composition, density, kf, kt, mass_loss, tign, tb, co, co2, "  # nosec: B608
+            "COALESCE(source, 'laboratory') AS source, "
+            "COALESCE(is_questionable, 0) AS is_questionable "
+            "FROM measured_parameters "
+            + where_str
+            + " ORDER BY composition ASC LIMIT ? OFFSET ?"
+        )
+        cur.execute(query_sql, tuple(params + [per_page, offset]))  # nosec: B608
+        rows = [dict(r) for r in cur.fetchall()]
+        conn.close()
+        return rows, total
+    except Exception as e:
+        logger.warning(f"Ошибка выборки рецептов: {e}")
+        return [], 0
+
+
+def toggle_recipe_questionable(db_path: str, composition: str) -> Optional[int]:
+    """Переключает статус сомнительности рецепта (0 <-> 1) (G4)."""
+    try:
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+        cur.execute("SELECT is_questionable FROM measured_parameters WHERE composition = ?", (composition,))
+        row = cur.fetchone()
+        if not row:
+            conn.close()
+            return None
+        current = 1 if row[0] else 0
+        new_val = 0 if current else 1
+        cur.execute("UPDATE measured_parameters SET is_questionable = ? WHERE composition = ?", (new_val, composition))
+        conn.commit()
+        conn.close()
+        return new_val
+    except Exception as e:
+        logger.error(f"Ошибка переключения статуса сомнительности: {e}")
+        return None
+
+
+def update_recipe_source(db_path: str, composition: str, new_source: str) -> bool:
+    """Обновляет источник рецепта (laboratory, literature, ml_prediction) (G4)."""
+    if new_source not in ('laboratory', 'literature', 'ml_prediction'):
+        return False
+    try:
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+        cur.execute("UPDATE measured_parameters SET source = ? WHERE composition = ?", (new_source, composition))
+        success = cur.rowcount > 0
+        conn.commit()
+        conn.close()
+        return success
+    except Exception as e:
+        logger.error(f"Ошибка смены источника рецепта: {e}")
+        return False

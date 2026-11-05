@@ -5,63 +5,77 @@
 {% block extrastyle %}
 <style>
     .admin-header {
-        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
-        border-radius: 20px; padding: 2rem; color: white; margin-bottom: 2rem;
-        box-shadow: 0 10px 30px rgba(220,53,69,0.2);
+        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+        border-radius: 16px; padding: 2rem; color: white; margin-bottom: 1.5rem;
+        box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.2);
     }
     .admin-stat {
-        border: none; border-radius: 16px; background: white;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.05); transition: transform 0.3s;
+        border: none; border-radius: 14px; background: white;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05); transition: transform 0.2s ease;
     }
     .admin-stat:hover { transform: translateY(-3px); }
     .admin-stat-icon {
-        width: 56px; height: 56px; border-radius: 14px;
+        width: 52px; height: 52px; border-radius: 12px;
         display: flex; align-items: center; justify-content: center;
-        font-size: 1.5rem; color: white;
+        font-size: 1.35rem; color: white;
     }
     .admin-card {
-        border: none; border-radius: 16px; background: white;
+        border: none; border-radius: 14px; background: white;
         box-shadow: 0 4px 15px rgba(0,0,0,0.05);
     }
-    .table-admin th { font-weight: 600; color: #6c757d; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; }
+    .table-admin th { font-weight: 600; color: #64748b; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; }
     .table-admin td { vertical-align: middle; }
     .user-status { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
-    .user-status.active { background: #28a745; }
-    .user-status.inactive { background: #dc3545; }
-    .action-badge { font-size: 0.7rem; padding: 0.25em 0.5em; border-radius: 6px; }
-    .quick-action-btn {
-        border: 2px dashed #dee2e6; border-radius: 16px; padding: 1.5rem;
-        text-align: center; transition: all 0.3s; background: white; cursor: pointer;
-        text-decoration: none; color: #6c757d; display: block;
+    .user-status.active { background: #10b981; }
+    .user-status.inactive { background: #ef4444; }
+    .action-badge { font-size: 0.72rem; padding: 0.3em 0.6em; border-radius: 6px; }
+
+    /* Навигация по вкладкам админки */
+    .admin-nav-tabs {
+        border-bottom: 2px solid #e2e8f0;
+        margin-bottom: 1.5rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
     }
-    .quick-action-btn:hover { border-color: #2d60ff; color: #2d60ff; background: rgba(45,96,255,0.03); }
-    .quick-action-btn i { font-size: 2rem; display: block; margin-bottom: 0.5rem; }
-
-    @media (max-width: 991.98px) {
-        .admin-header {
-            padding: 1.25rem;
-            border-radius: 14px;
-            flex-direction: column;
-            align-items: flex-start !important;
-            gap: 0.75rem;
-        }
+    .admin-nav-tab {
+        border: none;
+        background: transparent;
+        padding: 0.75rem 1.25rem;
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: #64748b;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        text-decoration: none;
     }
-
-    @media (max-width: 767.98px) {
-        #roleFilter,
-        #statusFilter,
-        #bulkRoleSelect,
-        #logFilter {
-            width: 100% !important;
-        }
-
-        .admin-card {
-            border-radius: 12px;
-        }
-
-        .table-admin {
-            font-size: 0.8rem;
-        }
+    .admin-nav-tab:hover {
+        color: #0161ef;
+        background: #f1f5f9;
+    }
+    .admin-nav-tab.active {
+        color: #0161ef;
+        background: #eff6ff;
+        border-bottom: 2px solid #0161ef;
+    }
+    .admin-tab-content {
+        display: none;
+    }
+    .admin-tab-content.active {
+        display: block;
+    }
+    .code-snippet {
+        background: #0f172a;
+        color: #f8fafc;
+        border-radius: 10px;
+        padding: 1rem;
+        font-family: Consolas, Monaco, monospace;
+        font-size: 0.85rem;
+        position: relative;
     }
 </style>
 {% endblock extrastyle %}
@@ -69,277 +83,718 @@
 {% block content %}
 <div class="container-fluid py-4">
 
-    <!-- Header -->
-    <div class="admin-header d-flex justify-content-between align-items-center">
+    <!-- Заголовок админ-панели -->
+    <div class="admin-header d-flex flex-wrap justify-content-between align-items-center gap-3">
         <div>
-            <h2 class="mb-1 fw-bold"><i class="fas fa-shield-alt me-2"></i>Админ-панель</h2>
-            <p class="mb-0 opacity-75">Управление пользователями и мониторинг системы</p>
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <span class="badge bg-primary text-white text-xs px-2 py-1">Версия {{ model_status.submodule_tag or 'lab-v0.2.0' }}</span>
+                <span class="badge {% if model_status.model_version == 'v2' %}bg-success{% else %}bg-secondary{% endif %} text-white text-xs px-2 py-1">
+                    Модель: {{ model_status.model_version }}
+                </span>
+                {% if model_status.shadow_enabled %}
+                <span class="badge bg-warning text-dark text-xs px-2 py-1"><i class="fas fa-eye me-1"></i>Теневой режим активен</span>
+                {% endif %}
+            </div>
+            <h2 class="mb-1 fw-bold text-white"><i class="fas fa-shield-alt me-2 text-primary"></i>Административная панель</h2>
+            <p class="mb-0 opacity-75 text-sm">Управление пользователями, версиями моделей ML v2, рецептурами и аудитом безопасности</p>
         </div>
-        <a href="{{ url_for('auth.profile') }}" class="btn btn-outline-light btn-sm">
-            <i class="fas fa-arrow-left me-1"></i>Назад к профилю
-        </a>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('main.dashboard') }}" class="btn btn-outline-light btn-sm">
+                <i class="fas fa-chart-pie me-1"></i>Дашборд
+            </a>
+            <a href="{{ url_for('auth.profile') }}" class="btn btn-light btn-sm text-dark font-weight-bold">
+                <i class="fas fa-user-circle me-1"></i>Профиль
+            </a>
+        </div>
     </div>
 
-    <!-- Статистика -->
+    <!-- Карточки статистики -->
     <div class="row mb-4">
         <div class="col-xl-3 col-md-6 mb-3">
-            <div class="admin-stat p-4">
+            <div class="admin-stat p-3">
                 <div class="d-flex align-items-center">
                     <div class="admin-stat-icon bg-primary me-3"><i class="fas fa-users"></i></div>
                     <div>
-                        <p class="text-muted mb-0 small text-uppercase fw-semibold">Всего пользователей</p>
-                        <h3 class="mb-0 fw-bold">{{ stats.total_users }}</h3>
+                        <p class="text-muted mb-0 small text-uppercase fw-semibold">Пользователей</p>
+                        <h4 class="mb-0 fw-bold">{{ stats.total_users }}</h4>
                     </div>
                 </div>
             </div>
         </div>
         <div class="col-xl-3 col-md-6 mb-3">
-            <div class="admin-stat p-4">
+            <div class="admin-stat p-3">
                 <div class="d-flex align-items-center">
                     <div class="admin-stat-icon bg-success me-3"><i class="fas fa-user-check"></i></div>
                     <div>
-                        <p class="text-muted mb-0 small text-uppercase fw-semibold">Активных</p>
-                        <h3 class="mb-0 fw-bold">{{ stats.active_users }}</h3>
+                        <p class="text-muted mb-0 small text-uppercase fw-semibold">Активных аккаунтов</p>
+                        <h4 class="mb-0 fw-bold">{{ stats.active_users }}</h4>
                     </div>
                 </div>
             </div>
         </div>
         <div class="col-xl-3 col-md-6 mb-3">
-            <div class="admin-stat p-4">
+            <div class="admin-stat p-3">
                 <div class="d-flex align-items-center">
-                    <div class="admin-stat-icon bg-info me-3"><i class="fas fa-envelope-open"></i></div>
+                    <div class="admin-stat-icon bg-info me-3"><i class="fas fa-flask"></i></div>
                     <div>
-                        <p class="text-muted mb-0 small text-uppercase fw-semibold">Верифицированных</p>
-                        <h3 class="mb-0 fw-bold">{{ stats.verified_users }}</h3>
+                        <p class="text-muted mb-0 small text-uppercase fw-semibold">Рецептов в базе</p>
+                        <h4 class="mb-0 fw-bold">{{ recipes_total }}</h4>
                     </div>
                 </div>
             </div>
         </div>
         <div class="col-xl-3 col-md-6 mb-3">
-            <div class="admin-stat p-4">
+            <div class="admin-stat p-3">
                 <div class="d-flex align-items-center">
                     <div class="admin-stat-icon bg-warning me-3"><i class="fas fa-bolt"></i></div>
                     <div>
-                        <p class="text-muted mb-0 small text-uppercase fw-semibold">Действий сегодня</p>
-                        <h3 class="mb-0 fw-bold">{{ stats.today_actions }}</h3>
+                        <p class="text-muted mb-0 small text-uppercase fw-semibold">Действий в журнале</p>
+                        <h4 class="mb-0 fw-bold">{{ stats.today_actions }}</h4>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="row">
-        <!-- Пользователи -->
-        <div class="col-lg-8 mb-4">
-            <div class="admin-card p-4">
-                <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
-                    <h5 class="fw-bold mb-0"><i class="fas fa-users me-2 text-primary"></i>Пользователи</h5>
-                    <div class="d-flex flex-wrap align-items-center gap-2">
-                        <div class="input-group w-auto">
-                            <input type="text" class="form-control form-control-sm" placeholder="Поиск..." id="userSearch">
-                            <button class="btn btn-outline-primary btn-sm" type="button"><i class="fas fa-search"></i></button>
-                        </div>
-                        <select id="roleFilter" class="form-select form-select-sm" style="width: 140px;">
-                            <option value="">Все роли</option>
-                            <option value="admin">admin</option>
-                            <option value="moderator">moderator</option>
-                            <option value="user">user</option>
-                        </select>
-                        <select id="statusFilter" class="form-select form-select-sm" style="width: 140px;">
-                            <option value="">Любой статус</option>
-                            <option value="active">Активные</option>
-                            <option value="inactive">Неактивные</option>
-                        </select>
+    <!-- Вкладки навигации -->
+    <div class="admin-nav-tabs">
+        <button class="admin-nav-tab active" onclick="switchAdminTab('users')">
+            <i class="fas fa-users-cog"></i> Пользователи и роли (G1)
+        </button>
+        <button class="admin-nav-tab" onclick="switchAdminTab('model')">
+            <i class="fas fa-brain"></i> ML Модель и Тень (G2)
+        </button>
+        <button class="admin-nav-tab" onclick="switchAdminTab('lab')">
+            <i class="fas fa-microscope"></i> Лаборатория Tolko_model (G3)
+        </button>
+        <button class="admin-nav-tab" onclick="switchAdminTab('recipes')">
+            <i class="fas fa-database"></i> Рецепты и данные (G4)
+        </button>
+        <button class="admin-nav-tab" onclick="switchAdminTab('logs')">
+            <i class="fas fa-history"></i> Журнал аудита (G5)
+        </button>
+        <button class="admin-nav-tab" onclick="switchAdminTab('settings')">
+            <i class="fas fa-sliders-h"></i> Настройки системы (G6)
+        </button>
+    </div>
+
+    <!-- ВКЛАДКА 1: ПОЛЬЗОВАТЕЛИ И РОЛИ (G1) -->
+    <div id="tab-users" class="admin-tab-content active">
+        <div class="admin-card p-4">
+            <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+                <h5 class="fw-bold mb-0"><i class="fas fa-users me-2 text-primary"></i>Управление пользователями</h5>
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    <div class="input-group w-auto">
+                        <input type="text" class="form-control form-control-sm" placeholder="Поиск пользователя..." id="userSearch">
+                        <button class="btn btn-outline-primary btn-sm" type="button"><i class="fas fa-search"></i></button>
                     </div>
-                </div>
-                <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-                    <button class="btn btn-sm btn-outline-secondary" type="button" onclick="toggleSelectAllUsers()">
-                        <i class="fas fa-check-square me-1"></i>Выбрать/снять все
-                    </button>
-                    <select id="bulkRoleSelect" class="form-select form-select-sm" style="width: 150px;">
-                        <option value="">Роль для выбранных</option>
-                        <option value="user">user</option>
-                        <option value="moderator">moderator</option>
+                    <select id="roleFilter" class="form-select form-select-sm" style="width: 140px;">
+                        <option value="">Все роли</option>
                         <option value="admin">admin</option>
+                        <option value="moderator">moderator</option>
+                        <option value="user">user</option>
                     </select>
-                    <button class="btn btn-sm btn-outline-primary" type="button" onclick="bulkChangeRole()">
-                        <i class="fas fa-user-shield me-1"></i>Массово сменить роль
-                    </button>
-                    <button class="btn btn-sm btn-outline-danger" type="button" onclick="bulkDeleteUsers()">
-                        <i class="fas fa-user-times me-1"></i>Массово удалить
-                    </button>
-                    <span class="text-muted small" id="selectedUsersCount">Выбрано: 0</span>
+                    <select id="statusFilter" class="form-select form-select-sm" style="width: 140px;">
+                        <option value="">Любой статус</option>
+                        <option value="active">Активные</option>
+                        <option value="inactive">Заблокированные</option>
+                    </select>
                 </div>
-                <div class="table-responsive">
-                    <table class="table table-admin table-hover" id="usersTable">
-                        <thead>
-                            <tr>
-                                <th>
-                                    <input type="checkbox" id="selectAllUsersCheckbox" onclick="toggleSelectAllUsersFromHeader()">
-                                </th>
-                                <th>Статус</th>
-                                <th>Имя</th>
-                                <th>Email</th>
-                                <th>Роль</th>
-                                <th>Входов</th>
-                                <th>Последний вход</th>
-                                <th>Действия</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for user in all_users %}
-                            <tr data-user-id="{{ user.id }}"
-                                data-role="{{ user.role_name or 'user' }}"
-                                data-status="{{ 'active' if user.is_active else 'inactive' }}"
-                                data-name="{{ (user.full_name or user.username)|lower }}"
-                                data-email="{{ (user.email or '')|lower }}">
-                                <td>
-                                    {% if user.id != session.get('user_id') %}
-                                    <input type="checkbox"
-                                           class="user-select-checkbox"
-                                           value="{{ user.id }}"
-                                           data-username="{{ user.username }}"
-                                           data-email="{{ user.email }}"
-                                           onchange="updateSelectedUsersCount()">
-                                    {% endif %}
-                                </td>
-                                <td><span class="user-status {{ 'active' if user.is_active else 'inactive' }}"></span></td>
-                                <td class="fw-semibold">{{ user.full_name or user.username }}</td>
-                                <td>{{ user.email }}</td>
-                                <td>
-                                    {% if user.role_name == 'admin' %}
-                                    <span class="badge bg-danger action-badge">admin</span>
-                                    {% elif user.role_name == 'moderator' %}
-                                    <span class="badge bg-warning action-badge">moderator</span>
-                                    {% else %}
-                                    <span class="badge bg-secondary action-badge">user</span>
-                                    {% endif %}
-                                </td>
-                                <td>{{ user.login_count or 0 }}</td>
-                                <td class="text-muted small">{{ user.last_login or '—' }}</td>
-                                <td>
-                                    {% if user.id != session.get('user_id') %}
-                                    <div class="d-flex align-items-center gap-1 flex-wrap">
-                                    <select class="form-select form-select-sm" style="width: 120px;" onchange="changeUserRole({{ user.id }}, this)">
+            </div>
+
+            <!-- Массовые действия -->
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-3 bg-light p-2 rounded">
+                <button class="btn btn-sm btn-outline-secondary" type="button" onclick="toggleSelectAllUsers()">
+                    <i class="fas fa-check-square me-1"></i>Выбрать все
+                </button>
+                <select id="bulkRoleSelect" class="form-select form-select-sm" style="width: 160px;">
+                    <option value="">Сменить роль на...</option>
+                    <option value="user">user</option>
+                    <option value="moderator">moderator</option>
+                    <option value="admin">admin</option>
+                </select>
+                <button class="btn btn-sm btn-primary" type="button" onclick="bulkChangeRole()">
+                    <i class="fas fa-user-shield me-1"></i>Применить роль
+                </button>
+                <button class="btn btn-sm btn-outline-danger" type="button" onclick="bulkDeleteUsers()">
+                    <i class="fas fa-user-times me-1"></i>Удалить выбранных
+                </button>
+                <span class="text-muted small ms-auto" id="selectedUsersCount">Выбрано: 0</span>
+            </div>
+
+            <!-- Таблица пользователей -->
+            <div class="table-responsive">
+                <table class="table table-admin table-hover align-middle mb-0" id="usersTable">
+                    <thead>
+                        <tr>
+                            <th width="40"><input type="checkbox" id="selectAllUsersCheckbox" onclick="toggleSelectAllUsersFromHeader()"></th>
+                            <th>Статус</th>
+                            <th>Пользователь</th>
+                            <th>Email</th>
+                            <th>Роль</th>
+                            <th>Входов</th>
+                            <th>Последний вход</th>
+                            <th class="text-end">Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in all_users %}
+                        <tr data-user-id="{{ user.id }}"
+                            data-role="{{ user.role_name or 'user' }}"
+                            data-status="{{ 'active' if user.is_active else 'inactive' }}"
+                            data-name="{{ (user.full_name or user.username)|lower }}"
+                            data-email="{{ (user.email or '')|lower }}">
+                            <td>
+                                {% if user.id != session.get('user_id') %}
+                                <input type="checkbox" class="user-select-checkbox" value="{{ user.id }}" onchange="updateSelectedUsersCount()">
+                                {% endif %}
+                            </td>
+                            <td><span class="user-status {{ 'active' if user.is_active else 'inactive' }}" title="{{ 'Активен' if user.is_active else 'Заблокирован' }}"></span></td>
+                            <td class="fw-semibold">{{ user.full_name or user.username }}</td>
+                            <td class="text-muted small">{{ user.email }}</td>
+                            <td>
+                                {% if user.role_name == 'admin' %}
+                                <span class="badge bg-danger action-badge">admin</span>
+                                {% elif user.role_name == 'moderator' %}
+                                <span class="badge bg-warning text-dark action-badge">moderator</span>
+                                {% else %}
+                                <span class="badge bg-secondary action-badge">user</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ user.login_count or 0 }}</td>
+                            <td class="text-muted small">{{ user.last_login or '—' }}</td>
+                            <td class="text-end">
+                                {% if user.id != session.get('user_id') %}
+                                <div class="btn-group btn-group-sm">
+                                    <select class="form-select form-select-sm d-inline-block" style="width: 110px;" onchange="changeUserRole({{ user.id }}, this)">
                                         <option value="user" {% if user.role_name == 'user' %}selected{% endif %}>user</option>
                                         <option value="moderator" {% if user.role_name == 'moderator' %}selected{% endif %}>moderator</option>
                                         <option value="admin" {% if user.role_name == 'admin' %}selected{% endif %}>admin</option>
                                     </select>
-                                    <button class="btn btn-sm btn-outline-danger" onclick="toggleUserStatus({{ user.id }}, {{ user.is_active }})" title="Активировать/Деактивировать">
-                                        <i class="fas fa-{{ 'ban' if user.is_active else 'check' }}"></i>
+                                    <button class="btn btn-outline-warning" onclick="generateResetLink({{ user.id }}, {{ (user.username or '')|tojson }})" title="Создать ссылку сброса пароля (G1)">
+                                        <i class="fas fa-key"></i>
                                     </button>
-                                    <button class="btn btn-sm btn-outline-danger"
-                                            onclick='deleteUser({{ user.id }}, {{ (user.username or "")|tojson }}, {{ (user.email or "")|tojson }})'
-                                            title="Удалить аккаунт">
+                                    <button class="btn btn-outline-secondary" onclick="toggleUserStatus({{ user.id }}, {{ user.is_active }})" title="Блокировать / Активировать">
+                                        <i class="fas fa-{{ 'ban text-danger' if user.is_active else 'check text-success' }}"></i>
+                                    </button>
+                                    <button class="btn btn-outline-danger" onclick='deleteUser({{ user.id }}, {{ (user.username or "")|tojson }}, {{ (user.email or "")|tojson }})' title="Удалить">
                                         <i class="fas fa-trash"></i>
                                     </button>
-                                    </div>
-                                    {% else %}
-                                    <span class="text-muted small">Вы</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- Быстрые действия -->
-        <div class="col-lg-4 mb-4">
-            <div class="admin-card p-4">
-                <h5 class="fw-bold mb-3"><i class="fas fa-rocket me-2 text-success"></i>Быстрые действия</h5>
-                <div class="row g-3">
-                    <div class="col-12">
-                        <a href="{{ url_for('admin.admin_database') }}" class="quick-action-btn">
-                            <i class="fas fa-database text-primary"></i>
-                            <span class="fw-semibold">Открыть базу данных</span>
-                            <br><small class="text-muted">Полный просмотр всей БД</small>
-                        </a>
-                    </div>
-                    <div class="col-12">
-                        <a href="{{ url_for('ml.ml_dashboard') }}" class="quick-action-btn">
-                            <i class="fas fa-brain text-success"></i>
-                            <span class="fw-semibold">ML панель</span>
-                            <br><small class="text-muted">Машинное обучение</small>
-                        </a>
-                    </div>
-                    <div class="col-12">
-                        <a href="{{ url_for('main.ai_analysis') }}" class="quick-action-btn">
-                            <i class="fas fa-robot text-info"></i>
-                            <span class="fw-semibold">ИИ-анализ</span>
-                            <br><small class="text-muted">Анализ данных</small>
-                        </a>
-                    </div>
-                    <div class="col-12">
-                        <a href="javascript:void(0)" onclick="clearAllCache()" class="quick-action-btn">
-                            <i class="fas fa-broom text-warning"></i>
-                            <span class="fw-semibold">Очистить кэш</span>
-                            <br><small class="text-muted">Сброс сессий</small>
-                        </a>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Последние регистрации -->
-            <div class="admin-card p-4 mt-3">
-                <h5 class="fw-bold mb-3"><i class="fas fa-user-plus me-2 text-info"></i>Новые пользователи</h5>
-                {% if stats.recent_users %}
-                {% for u in stats.recent_users[:5] %}
-                <div class="d-flex align-items-center mb-2 pb-2 border-bottom">
-                    <div class="flex-grow-1">
-                        <p class="mb-0 fw-semibold small">{{ u.username }}</p>
-                        <p class="mb-0 text-muted smaller">{{ u.email }}</p>
-                    </div>
-                    <small class="text-muted">{{ u.last_login or 'Новый' }}</small>
-                </div>
-                {% endfor %}
-                {% else %}
-                <p class="text-muted small">Нет новых пользователей</p>
-                {% endif %}
+                                </div>
+                                {% else %}
+                                <span class="badge bg-light text-muted">Вы (Текущий аккаунт)</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
 
-    <!-- Логи активности -->
-    <div class="row">
-        <div class="col-12">
-            <div class="admin-card p-4">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="fw-bold mb-0"><i class="fas fa-history me-2 text-info"></i>Логи активности</h5>
+    <!-- ВКЛАДКА 2: ML МОДЕЛЬ И ТЕНЬ (G2) -->
+    <div id="tab-model" class="admin-tab-content">
+        <div class="row">
+            <!-- Управление версией модели -->
+            <div class="col-lg-5 mb-4">
+                <div class="admin-card p-4 h-100">
+                    <h5 class="fw-bold mb-3"><i class="fas fa-exchange-alt me-2 text-primary"></i>Переключение версии модели</h5>
+                    <p class="text-muted text-sm mb-4">
+                        Текущая модель: <strong class="text-dark">{{ model_status.model_version }}</strong>.
+                        Вы можете на лету переключаться между базовой моделью (legacy) и честным ML (v2) с подтверждением.
+                    </p>
+
+                    <div class="border rounded p-3 mb-3 bg-light">
+                        <label class="form-check d-flex align-items-center gap-2 mb-2">
+                            <input class="form-check-input" type="radio" name="modelModeSelect" id="modeLegacy" value="legacy" {% if model_status.model_version == 'legacy' and not model_status.shadow_enabled %}checked{% endif %}>
+                            <div>
+                                <span class="fw-semibold">legacy (Стандартный режим)</span>
+                                <div class="text-xs text-muted">Исходная модель random forest/GBR без теневого логирования.</div>
+                            </div>
+                        </label>
+                        <label class="form-check d-flex align-items-center gap-2 mb-2">
+                            <input class="form-check-input" type="radio" name="modelModeSelect" id="modeShadow" value="shadow" {% if model_status.model_version == 'legacy' and model_status.shadow_enabled %}checked{% endif %}>
+                            <div>
+                                <span class="fw-semibold text-warning">legacy + ML_SHADOW_V2 (Теневой прогон)</span>
+                                <div class="text-xs text-muted">Клиенты получают legacy, а v2 считается рядом и сохраняет расхождения в журнал.</div>
+                            </div>
+                        </label>
+                        <label class="form-check d-flex align-items-center gap-2 mb-0">
+                            <input class="form-check-input" type="radio" name="modelModeSelect" id="modeV2" value="v2" {% if model_status.model_version == 'v2' %}checked{% endif %}>
+                            <div>
+                                <span class="fw-semibold text-success">v2 (Честное ML — Tolko_model)</span>
+                                <div class="text-xs text-muted">Полный переход на v2: честные CV-метрики, 90% интервалы и флаг in_domain.</div>
+                            </div>
+                        </label>
+                    </div>
+
                     <div class="d-flex gap-2">
-                        <select class="form-select form-select-sm" id="logFilter" style="width: auto;">
-                            <option value="">Все действия</option>
-                            <option value="login">Входы</option>
-                            <option value="register">Регистрации</option>
-                            <option value="upload">Загрузки</option>
-                            <option value="change_password">Смена пароля</option>
-                        </select>
+                        <button class="btn btn-primary btn-sm flex-grow-1" onclick="applyModelSwitch()">
+                            <i class="fas fa-check-circle me-1"></i>Применить переключение
+                        </button>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="rollbackToLegacy()">
+                            <i class="fas fa-undo me-1"></i>Откат на legacy
+                        </button>
+                    </div>
+
+                    <div class="alert alert-info mt-4 mb-0 text-xs py-2 px-3">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Настройки сохраняются в таблице <code>system_settings</code> с мгновенным применением без перезапуска приложения.
                     </div>
                 </div>
-                <div class="table-responsive">
-                    <table class="table table-admin table-hover" id="logsTable">
-                        <thead>
-                            <tr><th>Пользователь</th><th>Email</th><th>Действие</th><th>Детали</th><th>IP</th><th>Время</th></tr>
-                        </thead>
-                        <tbody>
-                            {% for log in activity_logs %}
-                            <tr>
-                                <td class="fw-semibold">{{ log.username or 'Система' }}</td>
-                                <td class="text-muted small">{{ log.email or '—' }}</td>
-                                <td><span class="badge bg-light text-dark action-badge">{{ log.action }}</span></td>
-                                <td class="text-muted small">{{ log.details }}</td>
-                                <td class="text-muted small font-monospace">{{ log.ip_address }}</td>
-                                <td class="text-muted small">{{ log.created_at }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+            </div>
+
+            <!-- Теневой лог расхождений -->
+            <div class="col-lg-7 mb-4">
+                <div class="admin-card p-4 h-100">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+                        <div>
+                            <h5 class="fw-bold mb-0"><i class="fas fa-table me-2 text-warning"></i>Журнал расхождений (Тень)</h5>
+                            <span class="text-muted text-xs">Зафиксированные сравнения прогнозов legacy и v2</span>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <select id="shadowPropFilter" class="form-select form-select-sm" style="width: 140px;" onchange="loadShadowLogs()">
+                                <option value="">Все свойства</option>
+                                <option value="density">density</option>
+                                <option value="mass_loss">mass_loss</option>
+                                <option value="tau_d2">tau_d2</option>
+                                <option value="co">co</option>
+                                <option value="co2">co2</option>
+                                <option value="kf">kf</option>
+                            </select>
+                            <button class="btn btn-outline-danger btn-sm" onclick="clearShadowLogData()">
+                                <i class="fas fa-trash me-1"></i>Очистить
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive" style="max-height: 380px;">
+                        <table class="table table-admin table-hover align-middle mb-0" id="shadowLogsTable">
+                            <thead>
+                                <tr>
+                                    <th>Время</th>
+                                    <th>Свойство</th>
+                                    <th>Legacy</th>
+                                    <th>v2</th>
+                                    <th>Δ (Разница)</th>
+                                    <th>Область</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if shadow_logs %}
+                                {% for row in shadow_logs %}
+                                <tr>
+                                    <td class="text-xs text-muted">{{ row.timestamp }}</td>
+                                    <td><span class="badge bg-light text-dark font-weight-bold">{{ row.target_property }}</span></td>
+                                    <td class="text-xs">{{ "%.2f"|format(row.legacy_value) if row.legacy_value is number else (row.legacy_value or '—') }}</td>
+                                    <td class="text-xs font-weight-bold text-primary">{{ "%.2f"|format(row.v2_value) if row.v2_value is number else (row.v2_value or '—') }}</td>
+                                    <td class="text-xs font-weight-bold {% if row.delta and row.delta > 0 %}text-success{% elif row.delta and row.delta < 0 %}text-danger{% else %}text-muted{% endif %}">
+                                        {{ "%+.2f"|format(row.delta) if row.delta is number else '—' }}
+                                    </td>
+                                    <td>
+                                        {% if row.in_domain == 1 %}
+                                        <span class="badge bg-success text-xxs">in-domain</span>
+                                        {% elif row.in_domain == 0 %}
+                                        <span class="badge bg-danger text-xxs">вне области</span>
+                                        {% else %}
+                                        <span class="text-muted text-xxs">—</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                                {% else %}
+                                <tr>
+                                    <td colspan="6" class="text-center py-4 text-muted">
+                                        <i class="fas fa-ghost fa-2x mb-2 text-muted opacity-50"></i>
+                                        <p class="mb-0 text-sm">Теневой лог пока пуст. Включите режим тени и сделайте прогноз в системе.</p>
+                                    </td>
+                                </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-                {% if not activity_logs %}
-                <p class="text-muted text-center py-4">Нет записей активности</p>
-                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- ВКЛАДКА 3: ЛАБОРАТОРИЯ TOLKO_MODEL (G3) -->
+    <div id="tab-lab" class="admin-tab-content">
+        <div class="row">
+            <div class="col-lg-6 mb-4">
+                <div class="admin-card p-4">
+                    <h5 class="fw-bold mb-3"><i class="fas fa-microscope me-2 text-primary"></i>Статус подмодуля лаборатории</h5>
+                    <ul class="list-group list-group-flush mb-4">
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                            <span class="text-muted">Закреплённый тег git:</span>
+                            <span class="badge bg-primary font-monospace">{{ model_status.submodule_tag }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                            <span class="text-muted">Версия контракта API:</span>
+                            <span class="badge bg-info font-monospace">{{ model_status.api_version }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                            <span class="text-muted">Артефакт модели v2:</span>
+                            <span>
+                                {% if model_status.artifact_exists %}
+                                <span class="badge bg-success me-2"><i class="fas fa-check me-1"></i>Готов</span>
+                                <small class="text-muted">({{ model_status.artifact_size_kb }} КБ, {{ model_status.artifact_mtime }})</small>
+                                {% else %}
+                                <span class="badge bg-danger">Отсутствует</span>
+                                {% endif %}
+                            </span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                            <span class="text-muted">Схема кросс-валидации:</span>
+                            <span class="badge bg-light text-dark font-monospace">Nested LORO Group CV</span>
+                        </li>
+                    </ul>
+
+                    <h6 class="fw-bold text-sm mb-2"><i class="fas fa-shield-alt text-warning me-1"></i>Безопасность прода</h6>
+                    <div class="alert alert-warning text-xs mb-3">
+                        {{ model_status.safety_notice }}
+                    </div>
+
+                    <h6 class="fw-bold text-sm mb-2"><i class="fas fa-terminal text-info me-1"></i>Команда обновления лаборатории:</h6>
+                    <div class="code-snippet mb-3">
+                        <code>{{ model_status.update_command }}</code>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Честные метрики из манифеста -->
+            <div class="col-lg-6 mb-4">
+                <div class="admin-card p-4">
+                    <h5 class="fw-bold mb-3"><i class="fas fa-chart-line me-2 text-success"></i>Честные метрики v2 (Nested Group CV R²)</h5>
+                    <p class="text-muted text-xs mb-3">Метрики рассчитаны на реальных экспериментальных образцах лаборатории (48 измерений) без утечки состава.</p>
+                    <div class="table-responsive">
+                        <table class="table table-admin table-hover align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Целевое свойство</th>
+                                    <th>Модель</th>
+                                    <th>R² test</th>
+                                    <th>Покрытие 90%</th>
+                                    <th>Статус</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if model_status.metrics %}
+                                {% for prop, m in model_status.metrics.items() %}
+                                <tr>
+                                    <td class="font-weight-bold text-xs">{{ prop }}</td>
+                                    <td><span class="badge bg-light text-dark text-xxs">{{ m.model }}</span></td>
+                                    <td class="text-xs font-weight-bold {% if m.r2_test and m.r2_test > 0.5 %}text-success{% elif m.r2_test and m.r2_test > 0 %}text-primary{% else %}text-danger{% endif %}">
+                                        {{ "%.3f"|format(m.r2_test) if m.r2_test is number else m.r2_test }}
+                                    </td>
+                                    <td class="text-xs">{{ "%.1f%%"|format(m.coverage90 * 100) if m.coverage90 is number else '—' }}</td>
+                                    <td>
+                                        {% if m.r2_test and m.r2_test > 0.5 %}
+                                        <span class="badge bg-success text-xxs">Отлично</span>
+                                        {% elif m.r2_test and m.r2_test > 0 %}
+                                        <span class="badge bg-info text-xxs">Приемлемо</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary text-xxs">Шум / Бейзлайн</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                                {% else %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-3 text-muted text-xs">Манифест модели не загружен</td>
+                                </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ВКЛАДКА 4: РЕЦЕПТЫ И ДАННЫЕ (G4) -->
+    <div id="tab-recipes" class="admin-tab-content">
+        <div class="admin-card p-4">
+            <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+                <div>
+                    <h5 class="fw-bold mb-0"><i class="fas fa-flask me-2 text-primary"></i>Управление рецептурами и качеством данных</h5>
+                    <span class="text-muted text-xs">Разделение источников (лаборатория / литература / ML) и отметка сомнительных опытов</span>
+                </div>
+                <div class="d-flex flex-wrap gap-2">
+                    <div class="input-group w-auto">
+                        <input type="text" class="form-control form-control-sm" placeholder="Поиск рецепта..." id="recipeSearchInput">
+                        <button class="btn btn-outline-primary btn-sm" onclick="loadRecipesPage(1)"><i class="fas fa-search"></i></button>
+                    </div>
+                    <select id="recipeSourceFilter" class="form-select form-select-sm" style="width: 150px;" onchange="loadRecipesPage(1)">
+                        <option value="all">Все источники</option>
+                        <option value="laboratory">Лаборатория</option>
+                        <option value="literature">Литература</option>
+                        <option value="ml_prediction">ML-прогноз</option>
+                    </select>
+                    <select id="recipeStatusFilter" class="form-select form-select-sm" style="width: 150px;" onchange="loadRecipesPage(1)">
+                        <option value="">Все статусы</option>
+                        <option value="0">Только подтверждённые</option>
+                        <option value="1">Сомнительные опыты</option>
+                    </select>
+                    <button class="btn btn-primary btn-sm" onclick="openImportModal()">
+                        <i class="fas fa-file-upload me-1"></i>Импорт данных
+                    </button>
+                </div>
+            </div>
+
+            <!-- Таблица рецептов -->
+            <div class="table-responsive">
+                <table class="table table-admin table-hover align-middle mb-0" id="recipesAdminTable">
+                    <thead>
+                        <tr>
+                            <th>Рецептура (Состав)</th>
+                            <th>Плотность</th>
+                            <th>Потеря массы</th>
+                            <th>Время (τ_d2)</th>
+                            <th>СО</th>
+                            <th>Источник</th>
+                            <th>Статус опыта</th>
+                            <th class="text-end">Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody id="recipesTableBody">
+                        {% for r in recipes_sample %}
+                        <tr data-composition="{{ r.composition }}">
+                            <td class="fw-semibold text-xs">{{ r.composition }}</td>
+                            <td class="text-xs">{{ "%.1f"|format(r.density) if r.density is number else (r.density or '—') }}</td>
+                            <td class="text-xs">{{ "%.2f"|format(r.mass_loss) if r.mass_loss is number else (r.mass_loss or '—') }}</td>
+                            <td class="text-xs">{{ "%.1f"|format(r.tau_d2) if r.tau_d2 is number else (r.tau_d2 or '—') }}</td>
+                            <td class="text-xs">{{ "%.2f"|format(r.co) if r.co is number else (r.co or '—') }}</td>
+                            <td>
+                                <select class="form-select form-select-sm py-0 text-xxs" style="width: 130px;" onchange="changeRecipeSource({{ r.composition|tojson }}, this.value)">
+                                    <option value="laboratory" {% if r.source == 'laboratory' %}selected{% endif %}>laboratory</option>
+                                    <option value="literature" {% if r.source == 'literature' %}selected{% endif %}>literature</option>
+                                    <option value="ml_prediction" {% if r.source == 'ml_prediction' %}selected{% endif %}>ml_prediction</option>
+                                </select>
+                            </td>
+                            <td>
+                                {% if r.is_questionable == 1 %}
+                                <span class="badge bg-danger text-xxs cursor-pointer" onclick="toggleRecipeQuestionable({{ r.composition|tojson }})">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>Сомнительный
+                                </span>
+                                {% else %}
+                                <span class="badge bg-success text-xxs cursor-pointer" onclick="toggleRecipeQuestionable({{ r.composition|tojson }})">
+                                    <i class="fas fa-check-circle me-1"></i>Подтверждён
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <button class="btn btn-outline-secondary btn-sm py-0 text-xxs" onclick="toggleRecipeQuestionable({{ r.composition|tojson }})" title="Переключить флаг сомнительности">
+                                    <i class="fas fa-flag"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Пагинация рецептур -->
+            <div class="d-flex justify-content-between align-items-center mt-3">
+                <span class="text-muted text-xs" id="recipesCountLabel">Показано {{ recipes_sample|length }} из {{ recipes_total }} рецептов</span>
+                <div class="btn-group btn-group-sm" id="recipesPagination">
+                    <!-- Заполняется динамически -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ВКЛАДКА 5: ЖУРНАЛ АУДИТА (G5) -->
+    <div id="tab-logs" class="admin-tab-content">
+        <div class="admin-card p-4">
+            <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+                <h5 class="fw-bold mb-0"><i class="fas fa-history me-2 text-info"></i>Журнал аудита безопасности</h5>
+                <div class="d-flex gap-2">
+                    <select class="form-select form-select-sm" id="logFilter" style="width: auto;">
+                        <option value="">Все действия</option>
+                        <option value="login">Входы</option>
+                        <option value="switch_model_version">Переключение модели</option>
+                        <option value="admin_change_role">Смена ролей</option>
+                        <option value="admin_generate_reset_link">Сброс паролей</option>
+                        <option value="recipe_import">Импорт рецептов</option>
+                        <option value="update_settings">Настройки</option>
+                        <option value="toggle_user">Блокировка пользователей</option>
+                    </select>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-admin table-hover align-middle mb-0" id="logsTable">
+                    <thead>
+                        <tr>
+                            <th>Пользователь</th>
+                            <th>Email</th>
+                            <th>Действие</th>
+                            <th>Детали</th>
+                            <th>IP</th>
+                            <th>Время</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in activity_logs %}
+                        <tr>
+                            <td class="fw-semibold text-xs">{{ log.username or 'Система' }}</td>
+                            <td class="text-muted text-xs">{{ log.email or '—' }}</td>
+                            <td><span class="badge bg-light text-dark action-badge">{{ log.action }}</span></td>
+                            <td class="text-muted text-xs">{{ log.details }}</td>
+                            <td class="text-muted text-xs font-monospace">{{ log.ip_address or '—' }}</td>
+                            <td class="text-muted text-xs">{{ log.created_at }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ВКЛАДКА 6: НАСТРОЙКИ СИСТЕМЫ (G6) -->
+    <div id="tab-settings" class="admin-tab-content">
+        <div class="row">
+            <div class="col-lg-7 mb-4">
+                <div class="admin-card p-4">
+                    <h5 class="fw-bold mb-3"><i class="fas fa-sliders-h me-2 text-primary"></i>Параметры безопасности и приложения</h5>
+                    <form id="settingsForm" onsubmit="saveSystemSettings(event)">
+                        <div class="mb-3">
+                            <label class="form-label text-sm fw-semibold">Максимальный размер загрузки файлов (МБ)</label>
+                            <input type="number" class="form-control form-control-sm" id="settingUploadLimit" value="{{ system_settings.max_upload_size_mb }}" min="1" max="100">
+                            <div class="form-text text-xs">Лимит на загрузку Excel и CSV файлов (MAX_CONTENT_LENGTH).</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-sm fw-semibold">Срок жизни постоянной сессии (дней)</label>
+                            <input type="number" class="form-control form-control-sm" id="settingSessionDays" value="{{ system_settings.session_lifetime_days }}" min="1" max="30">
+                            <div class="form-text text-xs">Время действия cookie сессии пользователя (PERMANENT_SESSION_LIFETIME).</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-sm fw-semibold">Почтовый сервер (SMTP)</label>
+                            <div class="d-flex align-items-center gap-2">
+                                <input type="text" class="form-control form-control-sm bg-light" value="{{ system_settings.mail_server }}" readonly>
+                                {% if system_settings.smtp_configured %}
+                                <span class="badge bg-success text-white text-xs">Настроен</span>
+                                {% else %}
+                                <span class="badge bg-warning text-dark text-xs">Не настроен</span>
+                                {% endif %}
+                            </div>
+                            <div class="form-text text-xs">Настройка выполняется через переменные окружения MAIL_SERVER, MAIL_PORT, MAIL_USERNAME.</div>
+                        </div>
+                        <div class="d-flex gap-2 mt-4">
+                            <button type="submit" class="btn btn-primary btn-sm">
+                                <i class="fas fa-save me-1"></i>Сохранить настройки
+                            </button>
+                            <button type="button" class="btn btn-outline-warning btn-sm" onclick="clearAllCache()">
+                                <i class="fas fa-broom me-1"></i>Очистить кэш и сессии
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="col-lg-5 mb-4">
+                <div class="admin-card p-4">
+                    <h5 class="fw-bold mb-3"><i class="fas fa-shield-alt me-2 text-success"></i>Сводка защищённости</h5>
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                            <span class="text-sm">Защита от CSRF-атак</span>
+                            <span class="badge bg-success text-white text-xs">Активна (Flask-WTF / Token)</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                            <span class="text-sm">Защита от перебора (Brute Force)</span>
+                            <span class="badge bg-success text-white text-xs">10 попыток / 15 минут</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                            <span class="text-sm">Заголовки безопасности (CSP/HSTS)</span>
+                            <span class="badge bg-success text-white text-xs">CSP strict, no unsafe-eval</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                            <span class="text-sm">Флаги cookie сессий</span>
+                            <span class="badge bg-success text-white text-xs">HttpOnly, SameSite=Lax</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- МОДАЛЬНОЕ ОКНО: ССЫЛКА НА СБРОС ПАРОЛЯ (G1) -->
+<div class="modal fade" id="resetLinkModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold"><i class="fas fa-key text-warning me-2"></i>Ссылка сброса пароля</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-sm text-muted mb-3">
+                    Сгенерирована безопасная одноразовая ссылка для пользователя <strong id="resetLinkUsername"></strong>.
+                    Передайте эту ссылку пользователю. Пароль не раскрывается и не устанавливается администратором.
+                </p>
+                <div class="input-group mb-3">
+                    <input type="text" class="form-control font-monospace text-xs" id="resetLinkInput" readonly>
+                    <button class="btn btn-outline-primary btn-sm" type="button" onclick="copyResetLink()">
+                        <i class="fas fa-copy me-1"></i>Копировать
+                    </button>
+                </div>
+                <div class="text-xs text-muted">
+                    <i class="fas fa-clock me-1"></i>Срок действия ссылки: 1 час.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- МОДАЛЬНОЕ ОКНО: ИМПОРТ РЕЦЕПТУР (G4) -->
+<div class="modal fade" id="importRecipesModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold"><i class="fas fa-file-upload text-primary me-2"></i>Импорт рецептур с предпросмотром</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label text-sm fw-semibold">Выберите файл таблицы (.csv, .xlsx, .xls)</label>
+                    <input type="file" class="form-control" id="importFileInput" accept=".csv, .xlsx, .xls">
+                    <div class="form-text text-xs">Таблица должна содержать обязательную колонку <code>composition</code>.</div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label text-sm fw-semibold">Источник импортируемых данных</label>
+                    <select class="form-select form-select-sm" id="importSourceSelect">
+                        <option value="laboratory">Лабораторные опыты (laboratory)</option>
+                        <option value="literature">Литературные данные (literature)</option>
+                    </select>
+                </div>
+
+                <button type="button" class="btn btn-outline-primary btn-sm mb-3" onclick="previewImportFile()">
+                    <i class="fas fa-eye me-1"></i>Загрузить предпросмотр
+                </button>
+
+                <div id="importPreviewArea" style="display: none;">
+                    <div class="alert alert-info py-2 px-3 text-xs mb-3" id="importPreviewSummary"></div>
+                    <div class="table-responsive" style="max-height: 250px;">
+                        <table class="table table-sm table-bordered text-xs" id="importPreviewTable">
+                            <thead class="bg-light">
+                                <tr id="importPreviewTableHead"></tr>
+                            </thead>
+                            <tbody id="importPreviewTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary btn-sm" id="btnConfirmImport" onclick="confirmImportData()" disabled>
+                    <i class="fas fa-check me-1"></i>Подтвердить и внести в базу
+                </button>
             </div>
         </div>
     </div>
@@ -348,6 +803,341 @@
 
 {% block extra_js %}
 <script>
+// Навигация по вкладкам
+function switchAdminTab(tabName) {
+    document.querySelectorAll('.admin-nav-tab').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.admin-tab-content').forEach(c => c.classList.remove('active'));
+    
+    const activeBtn = Array.from(document.querySelectorAll('.admin-nav-tab')).find(b => b.getAttribute('onclick')?.includes(tabName));
+    if (activeBtn) activeBtn.classList.add('active');
+
+    const targetContent = document.getElementById(`tab-${tabName}`);
+    if (targetContent) targetContent.classList.add('active');
+
+    window.location.hash = tabName;
+}
+
+// Загрузка начальной вкладки из hash
+window.addEventListener('DOMContentLoaded', () => {
+    const hash = window.location.hash.replace('#', '');
+    if (hash && ['users', 'model', 'lab', 'recipes', 'logs', 'settings'].includes(hash)) {
+        switchAdminTab(hash);
+    }
+});
+
+// G1: Сброс пароля по ссылке
+function generateResetLink(userId, username) {
+    fetch(`/admin/generate_reset_link/${userId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (!data.success) {
+            alert(data.error || 'Ошибка создания ссылки сброса');
+            return;
+        }
+        document.getElementById('resetLinkUsername').textContent = data.username;
+        document.getElementById('resetLinkInput').value = data.reset_url;
+        const modal = new bootstrap.Modal(document.getElementById('resetLinkModal'));
+        modal.show();
+    })
+    .catch(err => alert('Ошибка соединения: ' + err));
+}
+
+function copyResetLink() {
+    const input = document.getElementById('resetLinkInput');
+    input.select();
+    input.setSelectionRange(0, 99999);
+    navigator.clipboard.writeText(input.value).then(() => {
+        alert('Ссылка скопирована в буфер обмена!');
+    });
+}
+
+// G2: Переключение модели
+function applyModelSwitch() {
+    const selectedMode = document.querySelector('input[name="modelModeSelect"]:checked')?.value;
+    if (!selectedMode) return;
+
+    let targetVer = 'legacy';
+    let targetShadow = false;
+
+    if (selectedMode === 'shadow') {
+        targetVer = 'legacy';
+        targetShadow = true;
+    } else if (selectedMode === 'v2') {
+        targetVer = 'v2';
+        targetShadow = false;
+    }
+
+    if (!confirm(`Подтвердите переключение режима модели на "${selectedMode}"?`)) return;
+
+    fetch('/admin/switch_model', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ version: targetVer, shadow: targetShadow })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message || 'Режим модели изменён');
+            location.reload();
+        } else {
+            alert(data.error || 'Ошибка при переключении модели');
+        }
+    })
+    .catch(err => alert('Ошибка соединения: ' + err));
+}
+
+function rollbackToLegacy() {
+    if (!confirm('Выполнить немедленный откат модели на стандартную legacy-версию без тени?')) return;
+    fetch('/admin/switch_model', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ version: 'legacy', shadow: false })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            alert('Откат выполнен успешно.');
+            location.reload();
+        } else {
+            alert(data.error || 'Ошибка отката');
+        }
+    });
+}
+
+// Теневой лог
+function loadShadowLogs() {
+    const prop = document.getElementById('shadowPropFilter')?.value || '';
+    fetch(`/admin/shadow_logs?property=${encodeURIComponent(prop)}`)
+    .then(r => r.json())
+    .then(data => {
+        const tbody = document.querySelector('#shadowLogsTable tbody');
+        if (!tbody) return;
+        if (!data.logs || !data.logs.length) {
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center py-3 text-muted">Записей нет</td></tr>`;
+            return;
+        }
+        tbody.innerHTML = data.logs.map(row => `
+            <tr>
+                <td class="text-xs text-muted">${row.timestamp || ''}</td>
+                <td><span class="badge bg-light text-dark font-weight-bold">${row.target_property}</span></td>
+                <td class="text-xs">${row.legacy_value != null ? Number(row.legacy_value).toFixed(2) : '—'}</td>
+                <td class="text-xs font-weight-bold text-primary">${row.v2_value != null ? Number(row.v2_value).toFixed(2) : '—'}</td>
+                <td class="text-xs font-weight-bold ${row.delta > 0 ? 'text-success' : (row.delta < 0 ? 'text-danger' : 'text-muted')}">
+                    ${row.delta != null ? (row.delta > 0 ? '+' : '') + Number(row.delta).toFixed(2) : '—'}
+                </td>
+                <td>
+                    ${row.in_domain === 1 ? '<span class="badge bg-success text-xxs">in-domain</span>' : (row.in_domain === 0 ? '<span class="badge bg-danger text-xxs">вне области</span>' : '—')}
+                </td>
+            </tr>
+        `).join('');
+    });
+}
+
+function clearShadowLogData() {
+    if (!confirm('Очистить все сохранённые записи теневого журнала?')) return;
+    fetch('/admin/clear_shadow_logs', { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+        alert('Журнал очищен');
+        loadShadowLogs();
+    });
+}
+
+// G4: Рецептуры
+function toggleRecipeQuestionable(comp) {
+    fetch('/admin/recipes/toggle_questionable', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ composition: comp })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            loadRecipesPage(1);
+        } else {
+            alert(data.error || 'Ошибка');
+        }
+    });
+}
+
+function changeRecipeSource(comp, newSource) {
+    fetch('/admin/recipes/update_source', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ composition: comp, source: newSource })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (!data.success) {
+            alert(data.error || 'Ошибка смены источника');
+            loadRecipesPage(1);
+        }
+    });
+}
+
+function loadRecipesPage(page) {
+    const source = document.getElementById('recipeSourceFilter')?.value || 'all';
+    const questionable = document.getElementById('recipeStatusFilter')?.value || '';
+    const search = document.getElementById('recipeSearchInput')?.value || '';
+
+    const url = `/admin/recipes?page=${page}&source=${encodeURIComponent(source)}&questionable=${encodeURIComponent(questionable)}&search=${encodeURIComponent(search)}`;
+    fetch(url, { headers: { 'Accept': 'application/json' } })
+    .then(r => r.json())
+    .then(data => {
+        if (!data.success) return;
+        const tbody = document.getElementById('recipesTableBody');
+        if (!tbody) return;
+
+        if (!data.recipes.length) {
+            tbody.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-muted">Рецептов не найдено</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = data.recipes.map(r => `
+            <tr>
+                <td class="fw-semibold text-xs">${r.composition}</td>
+                <td class="text-xs">${r.density != null ? Number(r.density).toFixed(1) : '—'}</td>
+                <td class="text-xs">${r.mass_loss != null ? Number(r.mass_loss).toFixed(2) : '—'}</td>
+                <td class="text-xs">${r.tau_d2 != null ? Number(r.tau_d2).toFixed(1) : '—'}</td>
+                <td class="text-xs">${r.co != null ? Number(r.co).toFixed(2) : '—'}</td>
+                <td>
+                    <select class="form-select form-select-sm py-0 text-xxs" style="width: 130px;" onchange="changeRecipeSource('${r.composition.replace(/'/g, "\\'")}', this.value)">
+                        <option value="laboratory" ${r.source === 'laboratory' ? 'selected' : ''}>laboratory</option>
+                        <option value="literature" ${r.source === 'literature' ? 'selected' : ''}>literature</option>
+                        <option value="ml_prediction" ${r.source === 'ml_prediction' ? 'selected' : ''}>ml_prediction</option>
+                    </select>
+                </td>
+                <td>
+                    ${r.is_questionable === 1 ?
+                        `<span class="badge bg-danger text-xxs cursor-pointer" onclick="toggleRecipeQuestionable('${r.composition.replace(/'/g, "\\'")}')">
+                            <i class="fas fa-exclamation-triangle me-1"></i>Сомнительный
+                        </span>` :
+                        `<span class="badge bg-success text-xxs cursor-pointer" onclick="toggleRecipeQuestionable('${r.composition.replace(/'/g, "\\'")}')">
+                            <i class="fas fa-check-circle me-1"></i>Подтверждён
+                        </span>`
+                    }
+                </td>
+                <td class="text-end">
+                    <button class="btn btn-outline-secondary btn-sm py-0 text-xxs" onclick="toggleRecipeQuestionable('${r.composition.replace(/'/g, "\\'")}')">
+                        <i class="fas fa-flag"></i>
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+
+        const label = document.getElementById('recipesCountLabel');
+        if (label) label.textContent = `Показано ${data.recipes.length} из ${data.total} рецептов`;
+    });
+}
+
+// Импорт рецептов
+let _cachedImportRecords = [];
+
+function openImportModal() {
+    _cachedImportRecords = [];
+    document.getElementById('importFileInput').value = '';
+    document.getElementById('importPreviewArea').style.display = 'none';
+    document.getElementById('btnConfirmImport').disabled = true;
+    const modal = new bootstrap.Modal(document.getElementById('importRecipesModal'));
+    modal.show();
+}
+
+function previewImportFile() {
+    const fileInput = document.getElementById('importFileInput');
+    if (!fileInput.files.length) {
+        alert('Выберите файл для загрузки');
+        return;
+    }
+    const formData = new FormData();
+    formData.append('file', fileInput.files[0]);
+
+    fetch('/admin/recipes/import_preview', {
+        method: 'POST',
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (!data.success) {
+            alert(data.error || 'Ошибка предпросмотра');
+            return;
+        }
+
+        _cachedImportRecords = data.preview_rows;
+        document.getElementById('importPreviewArea').style.display = 'block';
+        document.getElementById('btnConfirmImport').disabled = false;
+
+        document.getElementById('importPreviewSummary').innerHTML = `
+            <strong>Найдено строк:</strong> ${data.total_rows}.
+            <strong>Дубликатов в базе:</strong> ${data.duplicates_count}.
+            Ниже показаны первые ${data.preview_rows.length} строк.
+        `;
+
+        const thead = document.getElementById('importPreviewTableHead');
+        thead.innerHTML = data.columns.map(c => `<th>${c}</th>`).join('');
+
+        const tbody = document.getElementById('importPreviewTableBody');
+        tbody.innerHTML = data.preview_rows.map(row => `
+            <tr>${data.columns.map(c => `<td>${row[c] !== undefined ? row[c] : ''}</td>`).join('')}</tr>
+        `).join('');
+    })
+    .catch(err => alert('Ошибка при отправке файла: ' + err));
+}
+
+function confirmImportData() {
+    if (!_cachedImportRecords.length) {
+        alert('Нет данных для импорта');
+        return;
+    }
+    const source = document.getElementById('importSourceSelect')?.value || 'laboratory';
+
+    fetch('/admin/recipes/import_confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            records: _cachedImportRecords,
+            source: source
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            alert(`Успешно импортировано ${data.inserted_count} рецептур`);
+            bootstrap.Modal.getInstance(document.getElementById('importRecipesModal'))?.hide();
+            loadRecipesPage(1);
+        } else {
+            alert(data.error || 'Ошибка импорта');
+        }
+    });
+}
+
+// G6: Настройки
+function saveSystemSettings(e) {
+    e.preventDefault();
+    const uploadLimit = document.getElementById('settingUploadLimit')?.value;
+    const sessionDays = document.getElementById('settingSessionDays')?.value;
+
+    fetch('/admin/settings/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            max_upload_size_mb: uploadLimit,
+            session_lifetime_days: sessionDays
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message || 'Настройки сохранены');
+        } else {
+            alert(data.error || 'Ошибка сохранения настроек');
+        }
+    });
+}
+
+// Стандартные функции управления пользователями
 function getSelectedUserIds() {
     return Array.from(document.querySelectorAll('.user-select-checkbox:checked'))
         .map(el => Number(el.value))
@@ -357,9 +1147,7 @@ function getSelectedUserIds() {
 function updateSelectedUsersCount() {
     const selectedIds = getSelectedUserIds();
     const label = document.getElementById('selectedUsersCount');
-    if (label) {
-        label.textContent = `Выбрано: ${selectedIds.length}`;
-    }
+    if (label) label.textContent = `Выбрано: ${selectedIds.length}`;
 
     const allVisibleCheckboxes = Array.from(document.querySelectorAll('#usersTable tbody tr'))
         .filter(row => row.style.display !== 'none')
@@ -367,9 +1155,7 @@ function updateSelectedUsersCount() {
         .filter(Boolean);
     const allVisibleChecked = allVisibleCheckboxes.length > 0 && allVisibleCheckboxes.every(cb => cb.checked);
     const headerCheckbox = document.getElementById('selectAllUsersCheckbox');
-    if (headerCheckbox) {
-        headerCheckbox.checked = allVisibleChecked;
-    }
+    if (headerCheckbox) headerCheckbox.checked = allVisibleChecked;
 }
 
 function applyUserFilters() {
@@ -388,7 +1174,6 @@ function applyUserFilters() {
         const matchesStatus = !status || rowStatus === status;
         row.style.display = matchesSearch && matchesRole && matchesStatus ? '' : 'none';
     });
-
     updateSelectedUsersCount();
 }
 
@@ -401,9 +1186,7 @@ function toggleSelectAllUsersFromHeader() {
     document.querySelectorAll('#usersTable tbody tr').forEach(row => {
         if (row.style.display === 'none') return;
         const checkbox = row.querySelector('.user-select-checkbox');
-        if (checkbox) {
-            checkbox.checked = !!checked;
-        }
+        if (checkbox) checkbox.checked = !!checked;
     });
     updateSelectedUsersCount();
 }
@@ -418,24 +1201,8 @@ function toggleSelectAllUsers() {
     updateSelectedUsersCount();
 }
 
-function requestDeleteConfirmation(targetLabel) {
-    const value = window.prompt(`Для удаления введите: ${targetLabel}`);
-    return value === targetLabel;
-}
-
-// Фильтр логов
-document.getElementById('logFilter')?.addEventListener('change', function() {
-    const filter = this.value;
-    const rows = document.querySelectorAll('#logsTable tbody tr');
-    rows.forEach(row => {
-        if (!filter) { row.style.display = ''; return; }
-        const badge = row.querySelector('.badge');
-        row.style.display = badge && badge.textContent === filter ? '' : 'none';
-    });
-});
-
 function toggleUserStatus(userId, currentStatus) {
-    if (!confirm(currentStatus ? 'Деактивировать пользователя?' : 'Активировать пользователя?')) return;
+    if (!confirm(currentStatus ? 'Заблокировать пользователя?' : 'Активировать пользователя?')) return;
     fetch(`/admin/toggle_user/${userId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
@@ -443,13 +1210,6 @@ function toggleUserStatus(userId, currentStatus) {
         if (data.success) location.reload();
         else alert(data.error || 'Ошибка');
     });
-}
-
-function clearAllCache() {
-    if (!confirm('Очистить все сессии и кэш?')) return;
-    fetch('/admin/clear_cache', { method: 'POST' })
-        .then(r => r.json())
-        .then(data => alert(data.message || 'Кэш очищен'));
 }
 
 function changeUserRole(userId, selectEl) {
@@ -463,34 +1223,24 @@ function changeUserRole(userId, selectEl) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role: newRole })
     }).then(r => r.json()).then(data => {
-        if (data.success) {
-            location.reload();
-            return;
-        }
-        alert(data.error || 'Ошибка при смене роли');
-        location.reload();
+        if (data.success) location.reload();
+        else { alert(data.error || 'Ошибка'); location.reload(); }
     });
 }
 
 function deleteUser(userId, username, email) {
     const marker = username || email;
-    if (!marker) {
-        alert('Нет идентификатора пользователя для подтверждения удаления');
-        return;
-    }
-    if (!requestDeleteConfirmation(marker)) {
-        alert('Подтверждение не совпало. Удаление отменено.');
+    const value = window.prompt(`Для подтверждения удаления введите: ${marker}`);
+    if (value !== marker) {
+        alert('Подтверждение не совпало');
         return;
     }
     fetch(`/admin/delete_user/${userId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
     }).then(r => r.json()).then(data => {
-        if (data.success) {
-            location.reload();
-            return;
-        }
-        alert(data.error || 'Ошибка при удалении пользователя');
+        if (data.success) location.reload();
+        else alert(data.error || 'Ошибка при удалении');
     });
 }
 
@@ -502,7 +1252,7 @@ function bulkChangeRole() {
     }
     const role = document.getElementById('bulkRoleSelect')?.value;
     if (!role) {
-        alert('Выберите роль для массового изменения');
+        alert('Выберите роль');
         return;
     }
     if (!confirm(`Сменить роль на "${role}" для ${selectedIds.length} пользователей?`)) return;
@@ -510,17 +1260,10 @@ function bulkChangeRole() {
     fetch('/admin/bulk_users_action', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            action: 'change_role',
-            role,
-            user_ids: selectedIds
-        })
+        body: JSON.stringify({ action: 'change_role', role, user_ids: selectedIds })
     }).then(r => r.json()).then(data => {
-        if (data.success) {
-            location.reload();
-            return;
-        }
-        alert(data.error || 'Ошибка массового изменения роли');
+        if (data.success) location.reload();
+        else alert(data.error || 'Ошибка');
     });
 }
 
@@ -531,28 +1274,34 @@ function bulkDeleteUsers() {
         return;
     }
     const typed = window.prompt(`Для массового удаления ${selectedIds.length} пользователей введите DELETE`);
-    if (typed !== 'DELETE') {
-        alert('Подтверждение не совпало. Массовое удаление отменено.');
-        return;
-    }
+    if (typed !== 'DELETE') return;
 
     fetch('/admin/bulk_users_action', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            action: 'delete',
-            user_ids: selectedIds
-        })
+        body: JSON.stringify({ action: 'delete', user_ids: selectedIds })
     }).then(r => r.json()).then(data => {
-        if (data.success) {
-            location.reload();
-            return;
-        }
-        alert(data.error || 'Ошибка массового удаления');
+        if (data.success) location.reload();
+        else alert(data.error || 'Ошибка');
     });
 }
 
-applyUserFilters();
-updateSelectedUsersCount();
+function clearAllCache() {
+    if (!confirm('Очистить все пользовательские сессии?')) return;
+    fetch('/admin/clear_cache', { method: 'POST' })
+    .then(r => r.json())
+    .then(data => alert(data.message || 'Сессии очищены'));
+}
+
+// Фильтр логов активности
+document.getElementById('logFilter')?.addEventListener('change', function() {
+    const filter = this.value;
+    const rows = document.querySelectorAll('#logsTable tbody tr');
+    rows.forEach(row => {
+        if (!filter) { row.style.display = ''; return; }
+        const badge = row.querySelector('.badge');
+        row.style.display = badge && badge.textContent === filter ? '' : 'none';
+    });
+});
 </script>
 {% endblock extra_js %}
