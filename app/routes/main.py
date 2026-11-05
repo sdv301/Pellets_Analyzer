@@ -89,12 +89,38 @@ def dashboard():
 
     total_measured_count = 0
     total_components_count = 0
+    total_recipes_count = 0
+    recent_optimizations = []
     chart_labels = []
     chart_data = []
+
+    from app.services.ml_v2.switch import model_version, shadow_enabled
+    active_model_ver = model_version()
+    is_shadow = shadow_enabled()
 
     try:
         total_measured_count = _query_table_count("measured_parameters")
         total_components_count = _query_table_count("components")
+
+        # Число уникальных рецептур в базе (F1)
+        recipes_df = query_db(
+            _db_path,
+            "measured_parameters",
+            query="SELECT COUNT(DISTINCT composition) AS cnt FROM {} WHERE composition IS NOT NULL",
+        )
+        if not recipes_df.empty and 'cnt' in recipes_df.columns:
+            total_recipes_count = int(recipes_df.iloc[0]['cnt'])
+        else:
+            total_recipes_count = total_measured_count
+
+        # Последние ML-оптимизации и расчёты (F1)
+        try:
+            from app.database.database import get_ml_optimizations
+            opts_df = get_ml_optimizations(_db_path, limit=5)
+            if not opts_df.empty:
+                recent_optimizations = opts_df.to_dict('records')
+        except Exception:
+            recent_optimizations = []
 
         # Для ускорения дашборда используем выборку, а не полный набор.
         # Этого достаточно для сводной визуализации в виджете.
@@ -131,6 +157,10 @@ def dashboard():
         show_data=show_data,
         total_measured_count=total_measured_count,
         total_components_count=total_components_count,
+        total_recipes_count=total_recipes_count,
+        model_version=active_model_ver,
+        shadow_active=is_shadow,
+        recent_optimizations=recent_optimizations,
         chart_labels=chart_labels,
         chart_data=chart_data
     )

@@ -153,14 +153,30 @@
                 </div>
             </div>
 
-            <!-- Дашборд Статистика -->
+            <!-- Дашборд Статистика (F1) -->
             <div class="row mt-4">
-                <div class="col-xl-4 col-md-6 mb-4">
+                <div class="col-xl-3 col-md-6 mb-4">
                     <div class="card shadow-sm border-0 animate-on-scroll stagger-1 h-100 hover-lift">
                         <div class="card-body p-4">
                             <div class="d-flex align-items-center">
                                 <div class="icon icon-shape bg-gradient-primary shadow-sm text-center border-radius-md me-3 text-white">
                                     <i class="fas fa-flask"></i>
+                                </div>
+                                <div class="ms-2">
+                                    <p class="text-sm mb-0 text-muted font-weight-bold">Рецептур в базе</p>
+                                    <h4 class="font-weight-bolder text-dark mb-0" id="statRecipes">{{ total_recipes_count | default(0) }}</h4>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-xl-3 col-md-6 mb-4">
+                    <div class="card shadow-sm border-0 animate-on-scroll stagger-2 h-100 hover-lift">
+                        <div class="card-body p-4">
+                            <div class="d-flex align-items-center">
+                                <div class="icon icon-shape bg-gradient-info shadow-sm text-center border-radius-md me-3 text-white">
+                                    <i class="fas fa-chart-pie"></i>
                                 </div>
                                 <div class="ms-2">
                                     <p class="text-sm mb-0 text-muted font-weight-bold">Измеренных параметров</p>
@@ -171,15 +187,15 @@
                     </div>
                 </div>
 
-                <div class="col-xl-4 col-md-6 mb-4">
-                    <div class="card shadow-sm border-0 animate-on-scroll stagger-2 h-100 hover-lift">
+                <div class="col-xl-3 col-md-6 mb-4">
+                    <div class="card shadow-sm border-0 animate-on-scroll stagger-3 h-100 hover-lift">
                         <div class="card-body p-4">
                             <div class="d-flex align-items-center">
                                 <div class="icon icon-shape bg-gradient-success shadow-sm text-center border-radius-md me-3 text-white">
                                     <i class="fas fa-leaf"></i>
                                 </div>
                                 <div class="ms-2">
-                                    <p class="text-sm mb-0 text-muted font-weight-bold">Компонентов в базе</p>
+                                    <p class="text-sm mb-0 text-muted font-weight-bold">Компонентов сырья</p>
                                     <h4 class="font-weight-bolder text-dark mb-0" id="statComponents">{{ total_components_count | default(0) }}</h4>
                                 </div>
                             </div>
@@ -187,20 +203,85 @@
                     </div>
                 </div>
 
-                <div class="col-xl-4 col-md-12 mb-4">
-                    <div class="card shadow-sm border-0 animate-on-scroll stagger-3 h-100 hover-lift">
+                <div class="col-xl-3 col-md-6 mb-4">
+                    <div class="card shadow-sm border-0 animate-on-scroll stagger-4 h-100 hover-lift">
                         <div class="card-body p-4">
                             <div class="d-flex align-items-center">
-                                <div class="icon icon-shape bg-gradient-info shadow-sm text-center border-radius-md me-3 text-white">
-                                    <i class="fas fa-file-excel"></i>
+                                <div class="icon icon-shape bg-gradient-dark shadow-sm text-center border-radius-md me-3 text-white">
+                                    <i class="fas fa-microchip"></i>
                                 </div>
                                 <div class="ms-2">
-                                    <p class="text-sm mb-0 text-muted font-weight-bold">Загружено файлов</p>
-                                    <h4 class="font-weight-bolder text-dark mb-0" id="statFiles">{{ uploaded_files | length }}</h4>
+                                    <p class="text-sm mb-0 text-muted font-weight-bold">Модель прогноза</p>
+                                    <div class="mt-1">
+                                        {% if model_version == 'v2' %}
+                                        <span class="badge bg-success text-white">v2 (Honest ML)</span>
+                                        {% elif shadow_active %}
+                                        <span class="badge bg-warning text-dark">LEGACY + ТЕНЬ v2</span>
+                                        {% else %}
+                                        <span class="badge bg-primary text-white">LEGACY</span>
+                                        {% endif %}
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            <!-- Последние расчеты и история оптимизаций (F1) -->
+            <div class="card shadow-sm border-0 animate-on-scroll stagger-3 mb-4">
+                <div class="card-header bg-white pb-0 pt-4 px-4 border-0 d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-dark font-weight-bolder mb-0"><i class="fas fa-history me-2 text-primary"></i>Последние ML-расчёты и оптимизации</h6>
+                        <small class="text-muted">Сводка подбора рецептур и контроля области применимости</small>
+                    </div>
+                    <a href="{{ url_for('ml.ml_dashboard') }}" class="btn btn-outline-primary btn-sm mb-0">
+                        <i class="fas fa-plus me-1"></i>Новый расчёт
+                    </a>
+                </div>
+                <div class="card-body px-4 pt-3 pb-4">
+                    {% if recent_optimizations and recent_optimizations|length > 0 %}
+                    <div class="table-responsive">
+                        <table class="table table-hover align-items-center mb-0">
+                            <thead>
+                                <tr>
+                                    <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Дата</th>
+                                    <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Целевое свойство</th>
+                                    <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Алгоритм</th>
+                                    <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Результат</th>
+                                    <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Статус</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for opt in recent_optimizations %}
+                                <tr>
+                                    <td class="text-xs font-weight-bold">{{ opt.timestamp or 'N/A' }}</td>
+                                    <td>
+                                        <span class="badge bg-light text-dark font-weight-bold">{{ opt.target_property }}</span>
+                                    </td>
+                                    <td class="text-xs text-muted">{{ opt.algorithm or 'ML Optimizer' }}</td>
+                                    <td class="text-xs font-weight-bolder text-primary">
+                                        {{ "%.2f"|format(opt.optimal_value) if opt.optimal_value is number else opt.optimal_value }}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-success text-white text-xxs">
+                                            <i class="fas fa-check-circle me-1"></i>В области данных
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4 text-muted">
+                        <i class="fas fa-brain fa-2x mb-2 text-muted opacity-50"></i>
+                        <p class="mb-2 text-sm">История оптимизаций пока пуста</p>
+                        <a href="{{ url_for('ml.ml_dashboard') }}" class="btn btn-primary btn-sm">
+                            <i class="fas fa-magic me-1"></i>Запустить расчёт в ML-Оптимизаторе
+                        </a>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
 
@@ -366,16 +447,9 @@ function initMainChart() {
     const canvas = document.getElementById('mainBarChart');
     if (!canvas) return;
 
-    // Безопасное получение данных из Jinja
-    let chartLabels, chartData;
-    try {
-        chartLabels = JSON.parse('{{ chart_labels | default([]) | tojson | safe }}');
-        chartData = JSON.parse('{{ chart_data | default([]) | tojson | safe }}');
-    } catch (e) {
-        console.error('Ошибка парсинга данных графика:', e);
-        chartLabels = ['Ошибка загрузки'];
-        chartData = [0];
-    }
+    // Безопасное получение данных из Jinja (без избыточного JSON.parse)
+    const chartLabels = {{ chart_labels | default([]) | tojson }};
+    const chartData = {{ chart_data | default([]) | tojson }};
 
     const hasData = chartLabels && chartLabels.length > 0 && chartLabels[0] !== 'Нет данных';
     const badge = document.getElementById('chartBadge');
@@ -410,7 +484,7 @@ function initMainChart() {
                 data: chartData,
                 backgroundColor: hasData ? 
                     chartData.map((_, i) => {
-                        const colors = ['#7928CA', '#FF0080', '#2152FF', '#21D4FD', '#17AD37', '#98EC2D', '#F5365C'];
+                        const colors = ['#0161EF', '#0284C7', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316'];
                         return colors[i % colors.length];
                     }) : 
                     '#E0E0E0',

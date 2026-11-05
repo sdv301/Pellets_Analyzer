@@ -16,8 +16,43 @@ import numpy as np
 from matplotlib.animation import FuncAnimation
 from mpl_toolkits.mplot3d import Axes3D
 
-# Настройка Plotly для тем
-pio.templates.default = "plotly_white"
+# Единая категориальная палитра для графиков (AstroWind + colorblind-friendly / WCAG AA) (F2)
+COLOR_PALETTE = [
+    "#0161EF",  # Primary Blue
+    "#0284C7",  # Sky Blue
+    "#10B981",  # Emerald Green
+    "#F59E0B",  # Amber Yellow
+    "#8B5CF6",  # Violet Purple
+    "#EC4899",  # Rose Pink
+    "#14B8A6",  # Teal
+    "#F97316",  # Orange
+]
+
+# Настройка Plotly шаблонов с единой палитрой
+_astrowind_light = go.layout.Template(
+    layout=go.Layout(
+        colorway=COLOR_PALETTE,
+        font=dict(family="Inter, -apple-system, sans-serif", color="#0F172A"),
+        paper_bgcolor="#FFFFFF",
+        plot_bgcolor="#FFFFFF",
+    )
+)
+_astrowind_dark = go.layout.Template(
+    layout=go.Layout(
+        colorway=COLOR_PALETTE,
+        font=dict(family="Inter, -apple-system, sans-serif", color="#F8FAFC"),
+        paper_bgcolor="#0B0F19",
+        plot_bgcolor="#111827",
+    )
+)
+pio.templates["astrowind"] = _astrowind_light
+pio.templates["astrowind_dark"] = _astrowind_dark
+pio.templates.default = "astrowind"
+
+try:
+    sns.set_palette(COLOR_PALETTE)
+except Exception:
+    pass
 
 # Словарь для перевода параметров
 PARAM_NAMES = {
@@ -117,14 +152,17 @@ def get_param_display_name(param):
     return f"{name} ({unit})" if unit else name
 
 def get_plotly_theme(theme):
-    """Возвращает тему Plotly"""
+    """Возвращает тему Plotly с поддержкой единой палитры (F2)"""
     themes = {
-        'default': 'plotly_white',
-        'dark': 'plotly_dark',
+        'default': 'astrowind',
+        'light': 'astrowind',
+        'dark': 'astrowind_dark',
+        'plotly_white': 'astrowind',
+        'plotly_dark': 'astrowind_dark',
         'seaborn': 'seaborn',
         'ggplot': 'ggplot2'
     }
-    return themes.get(theme, 'plotly_white')
+    return themes.get(theme, 'astrowind')
 
 def create_radar_chart(data, color_param, template, title):
     """Создает радарную диаграмму"""
@@ -569,6 +607,7 @@ def generate_plotly_graph(data, x_param='ad', y_param='q', graph_type='scatter',
             # Общие настройки для всех графиков
             if fig:
                 fig.update_layout(
+                    autosize=True,
                     width=width,
                     height=height,
                     template=template,
