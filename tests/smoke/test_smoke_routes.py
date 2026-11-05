@@ -24,6 +24,7 @@ class TestPublicRoutes:
         "/register",
         "/forgot-password",
         "/resend-verification",
+        "/health",
     ])
     def test_public_pages_get_200(self, client, url):
         response = client.get(url)
@@ -164,3 +165,12 @@ class TestBasicPostRoutes:
         assert data.get('success') is True
         assert 'notifications' in data
         assert isinstance(data['notifications'], list)
+
+    @pytest.mark.smoke
+    def test_health_check_endpoint(self, client):
+        res = client.get('/health')
+        assert res.status_code == 200
+        data = res.get_json()
+        assert data.get('status') == 'healthy'
+        assert 'database' in data
+        assert 'version' in data

@@ -269,6 +269,10 @@ def init_db(db_path):
     """Инициализация базы данных и создание таблиц с индексами."""
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
+    cursor.execute('PRAGMA journal_mode = WAL;')
+    cursor.execute('PRAGMA synchronous = NORMAL;')
+    cursor.execute('PRAGMA cache_size = -64000;')
+    cursor.execute('PRAGMA temp_store = MEMORY;')
 
     # Существующие таблицы
     cursor.execute('''
@@ -398,6 +402,10 @@ def check_and_migrate_db(db_path):
     """Проверяет и добавляет недостающие колонки в существующие таблицы."""
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
+    cursor.execute('PRAGMA journal_mode = WAL;')
+    cursor.execute('PRAGMA synchronous = NORMAL;')
+    cursor.execute('PRAGMA cache_size = -64000;')
+    cursor.execute('PRAGMA temp_store = MEMORY;')
     
     # 1. Проверка таблицы components
     cursor.execute("PRAGMA table_info(components)")
@@ -484,6 +492,10 @@ def insert_data(db_path, table, data):
 
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
+    cursor.execute('PRAGMA journal_mode = WAL;')
+    cursor.execute('PRAGMA synchronous = NORMAL;')
+    cursor.execute('PRAGMA cache_size = -64000;')
+    cursor.execute('PRAGMA temp_store = MEMORY;')
     try:
         if table == "measured_parameters":
             expected_columns = ['composition', 'density', 'kf', 'kt', 'h', 'mass_loss',
@@ -544,6 +556,10 @@ def insert_ml_optimization(db_path, optimization_data):
     """Сохраняет результат ML оптимизации в базу"""
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
+    cursor.execute('PRAGMA journal_mode = WAL;')
+    cursor.execute('PRAGMA synchronous = NORMAL;')
+    cursor.execute('PRAGMA cache_size = -64000;')
+    cursor.execute('PRAGMA temp_store = MEMORY;')
     
     query = '''
     INSERT INTO ml_optimizations 
@@ -568,6 +584,10 @@ def insert_ml_model_metrics(db_path, metrics_data):
     """Сохраняет метрики ML модели в базу"""
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
+    cursor.execute('PRAGMA journal_mode = WAL;')
+    cursor.execute('PRAGMA synchronous = NORMAL;')
+    cursor.execute('PRAGMA cache_size = -64000;')
+    cursor.execute('PRAGMA temp_store = MEMORY;')
     
     # Деактивируем старые метрики для этого свойства
     cursor.execute(
@@ -634,6 +654,10 @@ def add_ml_optimization_to_training_data(db_path, optimization_data, actual_prop
     """Добавляет успешную ML оптимизацию в тренировочные данные"""
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
+    cursor.execute('PRAGMA journal_mode = WAL;')
+    cursor.execute('PRAGMA synchronous = NORMAL;')
+    cursor.execute('PRAGMA cache_size = -64000;')
+    cursor.execute('PRAGMA temp_store = MEMORY;')
     
     # Создаем текстовое представление состава
     composition_text = ", ".join([f"{v}% {k}" for k, v in optimization_data['optimal_composition'].items()])

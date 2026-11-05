@@ -709,3 +709,25 @@ def economics():
 @main_bp.route('/<path:path>.map')
 def ignore_map_files(path):
     return '', 204
+
+
+@main_bp.route('/health')
+def health():
+    """Быстрый healthcheck-эндпоинт для Docker, Nginx и мониторинга."""
+    try:
+        from app.database.database import get_db_connection
+        conn_mgr = get_db_connection()
+        conn = conn_mgr.get_connection() if hasattr(conn_mgr, 'get_connection') else None
+        db_ok = True
+        if conn:
+            try:
+                conn.execute("SELECT 1").fetchone()
+            except Exception:
+                db_ok = False
+        return jsonify({
+            'status': 'healthy',
+            'database': 'connected' if db_ok else 'disconnected',
+            'version': '2.0.0'
+        }), 200
+    except Exception as e:
+        return jsonify({'status': 'unhealthy', 'error': str(e)}), 503
