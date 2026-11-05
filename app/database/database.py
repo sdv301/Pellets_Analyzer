@@ -776,6 +776,12 @@ def get_system_settings(db_path: str) -> Dict[str, Any]:
     return settings
 
 
+def get_system_setting(db_path: str, key: str, default: Any = None) -> Any:
+    """Возвращает значение конкретной системной настройки."""
+    settings = get_system_settings(db_path)
+    return settings.get(key, default)
+
+
 def set_system_setting(db_path: str, key: str, value: str, updated_by: Optional[str] = None) -> bool:
     """Устанавливает значение системной настройки."""
     try:

@@ -599,12 +599,24 @@ def ai_analysis():
     return render_template('ai_analysis.html', segment='ИИ-анализ', uploaded_files=uploaded_files)
 
 
+def _get_ai_ml_analyzer():
+    from flask import current_app, has_app_context
+    if has_app_context() and current_app.config.get('AI_ML_ANALYZER'):
+        analyzer = current_app.config['AI_ML_ANALYZER']
+        if getattr(analyzer, 'db_path', None) == _db_path:
+            return analyzer
+    from app.services.ai_ml_analyzer import AIMLAnalyzer
+    analyzer = AIMLAnalyzer(_db_path)
+    if has_app_context():
+        current_app.config['AI_ML_ANALYZER'] = analyzer
+    return analyzer
+
+
 @main_bp.route('/ai_ml_system_status')
 @login_required
 def ai_ml_system_status():
     try:
-        from app.services.ai_ml_analyzer import AIMLAnalyzer
-        analyzer = AIMLAnalyzer(_db_path)
+        analyzer = _get_ai_ml_analyzer()
         data_summary = analyzer.get_data_summary()
         ml_status = analyzer.get_ml_models_status()
         return jsonify({'success': True, 'data_summary': data_summary, 'ml_status': ml_status})
@@ -616,8 +628,7 @@ def ai_ml_system_status():
 @login_required
 def perform_ai_ml_analysis():
     try:
-        from app.services.ai_ml_analyzer import AIMLAnalyzer
-        analyzer = AIMLAnalyzer(_db_path)
+        analyzer = _get_ai_ml_analyzer()
         data = request.get_json()
         user_query = data.get('query', '')
 

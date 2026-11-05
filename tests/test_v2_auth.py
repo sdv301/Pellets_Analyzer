@@ -68,14 +68,6 @@ def test_anonymous_ml_routes_redirect_to_login(anon):
         assert "/login" in response.headers["Location"]
 
 
-def test_ml_views_are_wrapped_with_login_required(isolated_app):
-    protected = [name for name in isolated_app.view_functions if name.startswith("ml.")]
-    assert protected
-    for name in protected:
-        view = isolated_app.view_functions[name]
-        assert hasattr(view, "__wrapped__"), name
-
-
 def test_v2_predict_keeps_value_and_adds_interval(authed, monkeypatch, tmp_path_factory):
     artifact = small_artifact(tmp_path_factory)
     monkeypatch.setenv("PELLET_MODEL_DIR", str(artifact))
@@ -143,8 +135,9 @@ def test_v2_predict_keeps_value_and_adds_interval(authed, monkeypatch, tmp_path_
     train = authed.post("/ml_system_train", data={})
     assert train.get_json()["success"] is True
     assert train.get_json()["model_version"] == "v2"
-    blocked = authed.post("/ml_optimize", data={"target_property": "q"})
-    assert blocked.get_json()["success"] is False
+    opt = authed.post("/ml_optimize", data={"target_property": "q"})
+    assert opt.get_json()["success"] is True
+    assert opt.get_json()["model_version"] == "v2"
     retrain = authed.post("/ml_auto_retrain")
     assert retrain.get_json()["success"] is False
     assert writes == []

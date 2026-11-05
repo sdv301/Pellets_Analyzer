@@ -1,10 +1,12 @@
 # app/routes/ml.py — ML Dashboard, обучение, оптимизация
+import json
 import os
 import threading
 import time
 import logging
 from collections import deque
-from flask import Blueprint, render_template, request, jsonify, session
+from typing import Optional
+from flask import Blueprint, current_app, has_app_context, render_template, request, jsonify, session
 from app.auth.auth import login_required
 from app.database.database import query_db
 from app.services.ml_v2.switch import model_version, predict_one
@@ -14,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 _db_path = os.path.join('data', 'pellets_data.db')
 
-# Глобальное хранилище статуса обучения
+# Хранилище статуса обучения (синхронизируется с таблицей system_settings в SQLite)
 _training_status = {
     'is_training': False,
     'progress': 0,
@@ -34,6 +36,63 @@ _endpoint_timings = {
 }
 
 
+def _get_db_path() -> str:
+    if has_app_context():
+        return current_app.config.get('DATABASE_PATH') or current_app.config.get('DATABASE') or _db_path
+    return _db_path
+
+
+def set_db_path(path):
+    global _db_path
+    _db_path = path
+    if has_app_context():
+        current_app.config['DATABASE_PATH'] = path
+
+
+def _update_training_status(db_path: Optional[str] = None, **kwargs):
+    """Обновляет статус обучения в памяти и сохраняет в SQLite system_settings."""
+    global _training_status
+    _training_status.update(kwargs)
+    path = db_path or _get_db_path()
+    if path:
+        try:
+            from app.database.database import set_system_setting
+            set_system_setting(path, "ml_training_status", json.dumps(_training_status, default=str), updated_by="ml_worker")
+        except Exception as exc:
+            logger.debug("Could not persist ml_training_status to SQLite: %s", exc)
+
+
+def _read_training_status(db_path: Optional[str] = None) -> dict:
+    """Считывает статус обучения из SQLite system_settings с фолбэком на локальный кэш."""
+    global _training_status
+    path = db_path or _get_db_path()
+    if path:
+        try:
+            from app.database.database import get_system_setting
+            raw = get_system_setting(path, "ml_training_status")
+            if raw:
+                data = json.loads(raw)
+                if isinstance(data, dict):
+                    _training_status.update(data)
+        except Exception as exc:
+            logger.debug("Could not read ml_training_status from SQLite: %s", exc)
+    return _training_status
+
+
+def _get_ai_ml_analyzer():
+    """Получает синглтон AIMLAnalyzer из app.config вместо создания на каждый запрос."""
+    db_path = _get_db_path()
+    if has_app_context() and current_app.config.get('AI_ML_ANALYZER'):
+        analyzer = current_app.config['AI_ML_ANALYZER']
+        if getattr(analyzer, 'db_path', None) == db_path:
+            return analyzer
+    from app.services.ai_ml_analyzer import AIMLAnalyzer
+    analyzer = AIMLAnalyzer(db_path)
+    if has_app_context():
+        current_app.config['AI_ML_ANALYZER'] = analyzer
+    return analyzer
+
+
 def _percentile(values, q):
     if not values:
         return 0.0
@@ -43,7 +102,14 @@ def _percentile(values, q):
 
 
 def _record_endpoint_timing(endpoint, elapsed_sec):
-    timings = _endpoint_timings.get(endpoint)
+    timings = None
+    if has_app_context():
+        ext_timings = current_app.extensions.setdefault('endpoint_timings', {})
+        if endpoint not in ext_timings:
+            ext_timings[endpoint] = deque(maxlen=200)
+        timings = ext_timings[endpoint]
+    else:
+        timings = _endpoint_timings.get(endpoint)
     if timings is None:
         return
     elapsed_ms = elapsed_sec * 1000.0
@@ -52,21 +118,20 @@ def _record_endpoint_timing(endpoint, elapsed_sec):
     p95 = _percentile(list(timings), 95)
     logger.info("%s latency_ms=%.2f p50=%.2f p95=%.2f n=%s", endpoint, elapsed_ms, p50, p95, len(timings))
 
-def set_db_path(path):
-    global _db_path
-    _db_path = path
-
 
 def _resolve_ml_system():
     from app.services.ml_optimizer import get_ml_system
+    db_path = _get_db_path()
     started_at = time.perf_counter()
     ml_system = get_ml_system()
     # Переопределяем путь к БД (без полной перезагрузки)
-    if ml_system.db_path != _db_path:
-        ml_system.db_path = _db_path
+    if ml_system.db_path != db_path:
+        ml_system.db_path = db_path
         ml_system.reload_data()
+    if has_app_context():
+        current_app.extensions['ml_system'] = ml_system
     elapsed_ms = (time.perf_counter() - started_at) * 1000.0
-    logger.info("_get_ml_system resolve_ms=%.2f db=%s", elapsed_ms, _db_path)
+    logger.info("_get_ml_system resolve_ms=%.2f db=%s", elapsed_ms, db_path)
     return ml_system
 
 
@@ -85,9 +150,15 @@ def _warmup_ml_system_worker():
 def _ensure_ml_warmup():
     global _ml_warmup_started
     with _ml_warmup_lock:
-        if _ml_warmup_started:
-            return
-        _ml_warmup_started = True
+        if has_app_context():
+            warmup = current_app.extensions.setdefault('ml_warmup', {'started': False, 'completed': False, 'error': None})
+            if warmup['started']:
+                return
+            warmup['started'] = True
+        else:
+            if _ml_warmup_started:
+                return
+            _ml_warmup_started = True
     thread = threading.Thread(target=_warmup_ml_system_worker, daemon=True)
     thread.start()
 
@@ -125,43 +196,58 @@ def _v2_training_refused_payload():
         "Переобучение на данных продукта не выполняется, прогнозы в БД не пишутся. "
         "Метрики — nested CV из manifest."
     )
-    _training_status["is_training"] = False
-    _training_status["progress"] = 100
-    _training_status["message"] = message
-    _training_status["error"] = None
-    _training_status["result"] = {
-        "success": True,
-        "message": message,
-        "model_version": "v2",
-        "metrics": status["model_metrics"],
-    }
+    _update_training_status(
+        is_training=False,
+        progress=100,
+        message=message,
+        error=None,
+        result={
+            "success": True,
+            "message": message,
+            "model_version": "v2",
+            "metrics": status["model_metrics"],
+        },
+    )
     return message
 
 
 def _train_async_task(target_properties, algorithm, input_features, user_id=None):
     """Фоновая задача обучения."""
-    global _training_status
+    db_path = _get_db_path()
     started_at = time.perf_counter()
     try:
-        _training_status['is_training'] = True
-        _training_status['progress'] = 10
-        _training_status['message'] = 'Загрузка данных...'
-        _training_status['result'] = None
-        _training_status['error'] = None
+        _update_training_status(
+            db_path=db_path,
+            is_training=True,
+            progress=10,
+            message='Загрузка данных...',
+            result=None,
+            error=None,
+            started_at=time.time(),
+        )
 
         ml_system = _get_ml_system()
 
-        _training_status['progress'] = 30
-        _training_status['message'] = 'Подготовка данных...'
+        _update_training_status(
+            db_path=db_path,
+            progress=30,
+            message='Подготовка данных...',
+        )
         time.sleep(0.5)  # UI update
 
-        _training_status['progress'] = 50
-        _training_status['message'] = 'Обучение моделей...'
+        _update_training_status(
+            db_path=db_path,
+            progress=50,
+            message='Обучение моделей...',
+        )
 
         result = ml_system.train_models(target_properties, algorithm, selected_features=input_features)
 
-        _training_status['progress'] = 90
-        _training_status['message'] = 'Сохранение результатов...'
+        _update_training_status(
+            db_path=db_path,
+            progress=90,
+            message='Сохранение результатов...',
+        )
 
         if result.get('success'):
             # Сохраняем модели в user_ml_models для отображения
@@ -172,7 +258,7 @@ def _train_async_task(target_properties, algorithm, input_features, user_id=None
                     training_metrics = metrics.get('training_metrics', {})
                     composition_text = ', '.join(status.get('available_components', [])[:5])
                     save_ml_model(
-                        _db_path, user_id,
+                        db_path, user_id,
                         model_name=f'Model_{prop}',
                         target_property=prop,
                         algorithm=metrics.get('algorithm_used', algorithm),
@@ -183,19 +269,32 @@ def _train_async_task(target_properties, algorithm, input_features, user_id=None
                         composition_text=composition_text
                     )
 
-            _training_status['result'] = result
-            _training_status['progress'] = 100
-            _training_status['message'] = 'Обучение завершено!'
+            _update_training_status(
+                db_path=db_path,
+                result=result,
+                progress=100,
+                message='Обучение завершено!',
+            )
         else:
-            _training_status['error'] = result.get('error', 'Обучение не удалось')
-            _training_status['message'] = _training_status['error']
+            err = result.get('error', 'Обучение не удалось')
+            _update_training_status(
+                db_path=db_path,
+                error=err,
+                message=err,
+            )
 
     except Exception as e:
-        _training_status['error'] = str(e)
-        _training_status['message'] = f'Ошибка: {str(e)}'
+        _update_training_status(
+            db_path=db_path,
+            error=str(e),
+            message=f'Ошибка: {str(e)}',
+        )
     finally:
-        _training_status['is_training'] = False
-        _training_status['finished_at'] = time.time()
+        _update_training_status(
+            db_path=db_path,
+            is_training=False,
+            finished_at=time.time(),
+        )
         logger.info("ml_train_async completed in %.2fms", (time.perf_counter() - started_at) * 1000.0)
 
 
@@ -214,9 +313,9 @@ def ml_dashboard():
 @ml_bp.route('/ml_system_train', methods=['POST'])
 @login_required
 def ml_system_train():
-    global _training_status
     started_at = time.perf_counter()
-    if _training_status['is_training']:
+    status = _read_training_status()
+    if status.get('is_training'):
         return jsonify({'success': False, 'error': 'Обучение уже запущено. Дождитесь завершения.'})
 
     if model_version() == "v2":
@@ -259,13 +358,13 @@ def ml_system_train():
 @login_required
 def ml_train_status():
     """Проверка статуса обучения."""
-    global _training_status
+    status = _read_training_status()
     return jsonify({
-        'is_training': _training_status['is_training'],
-        'progress': _training_status['progress'],
-        'message': _training_status['message'],
-        'result': _training_status['result'],
-        'error': _training_status['error'],
+        'is_training': status.get('is_training', False),
+        'progress': status.get('progress', 0),
+        'message': status.get('message', ''),
+        'result': status.get('result'),
+        'error': status.get('error'),
     })
 
 
@@ -290,17 +389,7 @@ def ml_augment_database():
 @login_required
 def ml_optimize():
     started_at = time.perf_counter()
-    if model_version() == "v2":
-        return jsonify({
-            "success": False,
-            "model_version": "v2",
-            "error": (
-                "В режиме v2 оптимизация не запускается: она записала бы прогноз в обучающую таблицу. "
-                "Откат к прежнему оптимизатору — MODEL_VERSION=legacy."
-            ),
-        })
     try:
-        ml_system = _get_ml_system()
         target_property = request.form.get('target_property')
         maximize = request.form.get('maximize', 'true').lower() == 'true'
 
@@ -320,6 +409,17 @@ def ml_optimize():
                     return jsonify({'success': False, 'error': f'Некорректное значение для компонента {comp}'})
                 constraints[comp] = (min_val, max_val)
 
+        if model_version() == "v2":
+            from app.services.ml_v2.optimizer import optimize_composition_v2
+            result = optimize_composition_v2(
+                target_property=target_property,
+                maximize=maximize,
+                constraints=constraints,
+                db_path=_get_db_path(),
+            )
+            return jsonify(result)
+
+        ml_system = _get_ml_system()
         result = ml_system.optimize_composition(target_property=target_property, maximize=maximize, constraints=constraints)
         return jsonify(result)
     except Exception as e:
@@ -466,8 +566,7 @@ def ml_load_excel():
 @login_required
 def ai_ml_recommendations():
     try:
-        from app.services.ai_ml_analyzer import AIMLAnalyzer
-        analyzer = AIMLAnalyzer(_db_path)
+        analyzer = _get_ai_ml_analyzer()
         recommendations = analyzer.get_system_recommendations()
         return jsonify({'success': True, 'recommendations': recommendations['recommendations'], 'total_count': recommendations['total_count']})
     except Exception as e:
@@ -478,8 +577,7 @@ def ai_ml_recommendations():
 @login_required
 def ai_ml_history():
     try:
-        from app.services.ai_ml_analyzer import AIMLAnalyzer
-        analyzer = AIMLAnalyzer(_db_path)
+        analyzer = _get_ai_ml_analyzer()
         history = analyzer.get_analysis_history(limit=5)
         return jsonify({'success': True, 'history': history})
     except Exception as e:

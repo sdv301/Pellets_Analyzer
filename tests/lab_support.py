@@ -39,7 +39,7 @@ def ensure_lab():
 
 
 def small_artifact(tmp_path_factory) -> Path:
-    """Короткий артефакт q/density/kf для тестов API, без полного прогона GP."""
+    """Короткий артефакт q/density/kf/ad для тестов API, без полного прогона GP."""
     pellet_ml = ensure_lab()
     from app.services.ml_v2.lab_import import expected_lab_commit
     from app.services.ml_v2.predictor import stamp_manifest
@@ -48,11 +48,10 @@ def small_artifact(tmp_path_factory) -> Path:
     pellet_ml.train_and_save(
         lab_root() / "data" / "recipes.csv",
         destination,
-        targets=["q", "density", "kf"],
+        targets=["q", "density", "kf", "ad"],
         models=["ridge"],
     )
     stamp_manifest(destination, expected_lab_commit())
-    os.environ["PELLET_MODEL_DIR"] = str(destination)
     from app.services.ml_v2.predictor import reset_predictor
 
     reset_predictor()
