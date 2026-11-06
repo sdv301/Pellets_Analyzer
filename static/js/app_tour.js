@@ -1,25 +1,32 @@
 /**
  * static/js/app_tour.js — Интерактивный тур онбординга по системе Pellets Analyzer.
- * Поддерживает ролевые туры (оператор / лаборант / админ), контекстные шаги для активной страницы
- * и защиту от автозапуска на тяжёлых графических страницах.
+ * Поддерживает ролевые туры (оператор / лаборант / админ), контекстные шаги для активной страницы,
+ * локальный тур раздела и защиту от автозапуска на тяжёлых графических страницах.
  */
 (function() {
     'use strict';
 
     function buildTourSteps(userRole) {
         const isAdmin = userRole === 'admin';
-        const isOperator = userRole === 'operator' || userRole === 'user' || userRole === 'guest';
+        const isLab = userRole === 'lab' || userRole === 'laboratory' || userRole === 'chemist';
+
+        let welcomeTitle = '👋 Добро пожаловать в Pellets Analyzer!';
+        let welcomeDesc = 'Аналитическая платформа для оперативного расчёта теплофизических свойств, подбора рецептур и экономической оценки пеллет.';
+
+        if (isAdmin) {
+            welcomeTitle = '👋 Pellets Analyzer: Режим Администратора';
+            welcomeDesc = 'Полный доступ к управлению ML-моделями (v2 / legacy), ролями пользователей, системными метриками и базой данных.';
+        } else if (isLab) {
+            welcomeTitle = '🔬 Pellets Analyzer: Лабораторный контроль';
+            welcomeDesc = 'Инструмент верификации физико-химических свойств гранул, сверки фактических замеров с моделями и сохранения паспортов рецептур.';
+        }
 
         const steps = [
             {
                 element: '#navbar',
                 popover: {
-                    title: isAdmin
-                        ? '👋 Pellets Analyzer: Режим Администратора'
-                        : '👋 Добро пожаловать в Pellets Analyzer!',
-                    description: isAdmin
-                        ? 'Полный доступ к управлению ML-моделями (v2 / legacy), ролями пользователей, системными метриками и базой данных.'
-                        : 'Аналитическая платформа для оперативного расчёта теплофизических свойств, подбора рецептур и экономической оценки пеллет.',
+                    title: welcomeTitle,
+                    description: welcomeDesc,
                     side: 'bottom',
                     align: 'start'
                 }
@@ -57,6 +64,8 @@
                     title: '🧭 Навигация по модулям',
                     description: isAdmin
                         ? 'Переходите между Базой данных, Лабораторией ИИ, Экономикой, Сравнением, Графиками и закрытой Админ-панелью.'
+                        : isLab
+                        ? 'Быстрый переход между Базой данных, Лабораторией ИИ для сверки анализов и Таблицей сравнения.'
                         : 'Быстрый переход между Базой данных, Лабораторией ИИ, Калькулятором себестоимости и Сравнением рецептур.',
                     side: 'right',
                     align: 'start'
@@ -84,6 +93,19 @@
                 popover: {
                     title: '🧪 ML-Песочница рецептур',
                     description: 'Интерактивный ввод процентных долей компонентов, прогнозирование Q с доверительным интервалом и мгновенный расчёт невязки (Residual) с лабораторным фактом.',
+                    side: 'top',
+                    align: 'center'
+                }
+            });
+        }
+
+        // Контекстный шаг: Сверка с фактом лаборатории
+        if (document.getElementById('labVerificationSection')) {
+            steps.push({
+                element: '#labVerificationSection',
+                popover: {
+                    title: isLab ? '🔬 Лабораторный контроль и невязки' : '🔬 Сверка с фактом лаборатории',
+                    description: 'Вводите фактическую теплоту, зольность и влажность для сопоставления с ML-прогнозом. Система автоматически рассчитает невязку и подскажет, нужна ли калибровка.',
                     side: 'top',
                     align: 'center'
                 }
@@ -165,12 +187,35 @@
             }
         });
 
-        // Запуск по кнопке
+        // Запуск по глобальной кнопке
         const startBtn = document.getElementById('startTourBtn');
         if (startBtn) {
             startBtn.addEventListener('click', function(e) {
                 e.preventDefault();
                 driverObj.drive();
+            });
+        }
+
+        // Запуск тура конкретного раздела (если кнопка есть на странице)
+        const sectionBtn = document.getElementById('startSectionTourBtn');
+        if (sectionBtn) {
+            sectionBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                const sectionSteps = steps.filter(s => s.element !== '#navbar' && s.element !== '#notificationsDropdownWrapper' && s.element !== '#themeToggleBtn');
+                if (sectionSteps.length) {
+                    const sectionDriver = window.driver.js.driver({
+                        showProgress: true,
+                        animate: true,
+                        allowClose: true,
+                        doneBtnText: 'Завершить',
+                        closeBtnText: 'Закрыть',
+                        nextBtnText: 'Далее →',
+                        prevBtnText: '← Назад',
+                        popoverClass: 'pellet-tour-popover',
+                        steps: sectionSteps
+                    });
+                    sectionDriver.drive();
+                }
             });
         }
 

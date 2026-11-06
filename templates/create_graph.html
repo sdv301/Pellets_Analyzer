@@ -259,19 +259,34 @@
                     <div id="compositionControlsCollapse" class="collapse">
                         <!-- Кнопки управления -->
                         <div class="d-flex border-bottom py-2 px-2 gap-1">
-                            <button class="btn btn-sm btn-outline-primary flex-fill" id="selectAllCompositions" title="Выбрать все">
+                            <button class="btn btn-xs btn-outline-primary flex-fill" id="selectAllCompositions" title="Выбрать все">
                                 <i class="fas fa-check-double me-1"></i>Все
                             </button>
-                            <button class="btn btn-sm btn-outline-secondary flex-fill" id="deselectAllCompositions" title="Снять все">
+                            <button class="btn btn-xs btn-outline-secondary flex-fill" id="deselectAllCompositions" title="Снять все">
                                 <i class="fas fa-times me-1"></i>Ничего
+                            </button>
+                            <button class="btn btn-xs btn-outline-info flex-fill" id="invertCompositionsBtn" title="Инвертировать выбор">
+                                <i class="fas fa-exchange-alt me-1"></i>Инверт
                             </button>
                         </div>
                         <div class="px-2 py-2 border-bottom">
-                            <input
-                                type="text"
-                                id="compositionSearchInput"
-                                class="form-control form-control-sm border-radius-lg"
-                                placeholder="Поиск состава...">
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-transparent border-end-0 py-1 pe-1"><i class="fas fa-search text-muted text-xs"></i></span>
+                                <input
+                                    type="text"
+                                    id="compositionSearchInput"
+                                    class="form-control form-control-sm border-start-0 py-1 ps-1"
+                                    placeholder="Поиск состава...">
+                                <button class="btn btn-outline-secondary border-start-0 py-1 px-2 d-none" type="button" id="clearCompositionSearchBtn" title="Очистить поиск">
+                                    <i class="fas fa-times text-xs"></i>
+                                </button>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mt-1 px-1">
+                                <span class="text-xxs text-muted" id="compositionFilterStats">Показано: 0 из 0</span>
+                                <button type="button" class="btn btn-link btn-xs p-0 text-decoration-none text-muted" id="onlySelectedToggleBtn" style="font-size: 0.7rem;">
+                                    Только выбранные
+                                </button>
+                            </div>
                         </div>
                         <!-- Список составов -->
                         <div id="compositionControls" class="composition-list custom-scrollbar">
@@ -882,11 +897,15 @@
     }
 
     .results-sidebar {
-        gap: 0.25rem;
+        gap: 0.35rem;
+        position: relative;
     }
 
     .results-sidebar #compositionControlsCard {
         min-height: 0;
+        flex-shrink: 0;
+        z-index: 20;
+        position: relative;
     }
 
     .results-sidebar.is-mini #compositionControlsCollapse {
@@ -1390,6 +1409,13 @@
         const statsBtn = document.getElementById('toggleStatsTableBtn');
         if (statsBtn) {
             statsBtn.textContent = detailedStatsVisible ? 'Скрыть таблицу' : 'Показать таблицу';
+        }
+
+        if (typeof Plotly !== 'undefined') {
+            setTimeout(() => {
+                const plots = document.querySelectorAll('#dynamicGraphContainer .js-plotly-plot');
+                plots.forEach(p => Plotly.Plots.resize(p));
+            }, 250);
         }
     }
 
@@ -2158,15 +2184,40 @@
         }
     }
 
+    let onlySelectedFilter = false;
+
     function filterCompositionItems() {
         const searchInput = document.getElementById('compositionSearchInput');
+        const clearBtn = document.getElementById('clearCompositionSearchBtn');
+        const statsEl = document.getElementById('compositionFilterStats');
         const query = (searchInput?.value || '').trim().toLowerCase();
+
+        if (clearBtn) {
+            clearBtn.classList.toggle('d-none', !query);
+        }
+
         const items = document.querySelectorAll('#compositionControls .composition-item');
+        let visibleCount = 0;
 
         items.forEach(item => {
             const value = (item.getAttribute('data-composition') || '').toLowerCase();
-            item.style.display = (!query || value.includes(query)) ? '' : 'none';
+            const checkbox = item.querySelector('.composition-checkbox');
+            const isSelected = checkbox ? checkbox.checked : false;
+
+            const matchesSearch = !query || value.includes(query);
+            const matchesSelected = !onlySelectedFilter || isSelected;
+
+            if (matchesSearch && matchesSelected) {
+                item.style.display = '';
+                visibleCount++;
+            } else {
+                item.style.display = 'none';
+            }
         });
+
+        if (statsEl) {
+            statsEl.textContent = `Показано: ${visibleCount} из ${items.length}`;
+        }
     }
 
     function resetForm() {
@@ -2578,32 +2629,100 @@
     function setupCompositionControls() {
         const selectAllBtn = document.getElementById('selectAllCompositions');
         const deselectAllBtn = document.getElementById('deselectAllCompositions');
+        const invertBtn = document.getElementById('invertCompositionsBtn');
+        const clearSearchBtn = document.getElementById('clearCompositionSearchBtn');
+        const onlySelectedBtn = document.getElementById('onlySelectedToggleBtn');
+        const searchInput = document.getElementById('compositionSearchInput');
 
         if (selectAllBtn) {
-            // Удаляем старые обработчики
             selectAllBtn.replaceWith(selectAllBtn.cloneNode(true));
-            const newSelectAllBtn = document.getElementById('selectAllCompositions');
-
-            newSelectAllBtn.addEventListener('click', function (e) {
+            document.getElementById('selectAllCompositions').addEventListener('click', function (e) {
                 e.preventDefault();
-                console.log('🎯 Нажата кнопка "Все"');
                 selectAllCompositions();
             });
         }
 
         if (deselectAllBtn) {
-            // Удаляем старые обработчики
             deselectAllBtn.replaceWith(deselectAllBtn.cloneNode(true));
-            const newDeselectAllBtn = document.getElementById('deselectAllCompositions');
-
-            newDeselectAllBtn.addEventListener('click', function (e) {
+            document.getElementById('deselectAllCompositions').addEventListener('click', function (e) {
                 e.preventDefault();
-                console.log('🎯 Нажата кнопка "Ничего"');
                 deselectAllCompositions();
             });
         }
 
+        if (invertBtn) {
+            invertBtn.replaceWith(invertBtn.cloneNode(true));
+            document.getElementById('invertCompositionsBtn').addEventListener('click', function (e) {
+                e.preventDefault();
+                invertCompositions();
+            });
+        }
+
+        if (clearSearchBtn) {
+            clearSearchBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                if (searchInput) {
+                    searchInput.value = '';
+                    searchInput.focus();
+                }
+                filterCompositionItems();
+            });
+        }
+
+        if (onlySelectedBtn) {
+            onlySelectedBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                onlySelectedFilter = !onlySelectedFilter;
+                onlySelectedBtn.classList.toggle('text-primary', onlySelectedFilter);
+                onlySelectedBtn.classList.toggle('text-muted', !onlySelectedFilter);
+                onlySelectedBtn.classList.toggle('fw-bold', onlySelectedFilter);
+                filterCompositionItems();
+            });
+        }
+
         console.log('✅ Обработчики кнопок управления составами установлены');
+    }
+
+    function invertCompositions() {
+        if (availableCompositions.length === 0) return;
+        const newSelected = [];
+        document.querySelectorAll('.composition-checkbox').forEach(checkbox => {
+            const comp = checkbox.value;
+            checkbox.checked = !checkbox.checked;
+            const item = checkbox.closest('.composition-item');
+            const icon = item?.querySelector('.composition-item-icon');
+            if (checkbox.checked) {
+                newSelected.push(comp);
+                if (item) {
+                    item.classList.add('composition-active');
+                    item.classList.remove('composition-inactive');
+                }
+                if (icon) {
+                    icon.classList.remove('fa-circle');
+                    icon.classList.add('fa-check-circle');
+                }
+            } else {
+                if (item) {
+                    item.classList.add('composition-inactive');
+                    item.classList.remove('composition-active');
+                }
+                if (icon) {
+                    icon.classList.remove('fa-check-circle');
+                    icon.classList.add('fa-circle');
+                }
+            }
+        });
+        selectedCompositions = newSelected;
+        updateCompositionsCounter();
+        filterCompositionItems();
+
+        const dynamicContainer = document.getElementById('dynamicGraphContainer');
+        if (dynamicContainer && dynamicContainer.style.display !== 'none') {
+            clearTimeout(window.compositionUpdateTimeout);
+            window.compositionUpdateTimeout = setTimeout(() => {
+                updateGraphWithSelectedCompositions();
+            }, 300);
+        }
     }
 
     function selectAllCompositions() {

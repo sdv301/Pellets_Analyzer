@@ -1,6 +1,7 @@
 # app/routes/ml.py — ML Dashboard, обучение, оптимизация
 import json
 import os
+import sqlite3
 import threading
 import time
 import logging
@@ -310,10 +311,24 @@ def ml_dashboard():
     )
 
 
+def _require_admin_role():
+    """Проверяет роль администратора для защищённых ML операций."""
+    if session.get('role_name') != 'admin':
+        return jsonify({
+            'success': False,
+            'error': 'Доступ запрещён. Операция доступна только администраторам.'
+        }), 403
+    return None
+
+
 @ml_bp.route('/ml_system_train', methods=['POST'])
 @login_required
 def ml_system_train():
     started_at = time.perf_counter()
+    admin_gate = _require_admin_role()
+    if admin_gate:
+        return admin_gate
+
     status = _read_training_status()
     if status.get('is_training'):
         return jsonify({'success': False, 'error': 'Обучение уже запущено. Дождитесь завершения.'})
@@ -371,6 +386,10 @@ def ml_train_status():
 @ml_bp.route('/ml_augment_database', methods=['POST'])
 @login_required
 def ml_augment_database():
+    admin_gate = _require_admin_role()
+    if admin_gate:
+        return admin_gate
+
     try:
         ml_system = _get_ml_system()
         try:
@@ -389,6 +408,7 @@ def ml_augment_database():
 @login_required
 def ml_optimize():
     started_at = time.perf_counter()
+
     try:
         target_property = request.form.get('target_property')
         maximize = request.form.get('maximize', 'true').lower() == 'true'
@@ -536,6 +556,10 @@ def api_predict_composition():
 @ml_bp.route('/ml_auto_retrain', methods=['POST'])
 @login_required
 def ml_auto_retrain():
+    admin_gate = _require_admin_role()
+    if admin_gate:
+        return admin_gate
+
     if model_version() == "v2":
         return jsonify({
             'success': False,
@@ -554,6 +578,10 @@ def ml_auto_retrain():
 @login_required
 def ml_load_excel():
     """Загружает данные из Excel файла в БД."""
+    admin_gate = _require_admin_role()
+    if admin_gate:
+        return admin_gate
+
     try:
         ml_system = _get_ml_system()
         result = ml_system.load_excel_data()
@@ -582,3 +610,96 @@ def ai_ml_history():
         return jsonify({'success': True, 'history': history})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
+
+
+@ml_bp.route('/api/ml/save_recipe', methods=['POST'])
+@login_required
+def api_save_recipe():
+    """Сохраняет рецепт в серверную базу данных (для операторов и лаборантов)."""
+    try:
+        data = request.get_json(silent=True) or {}
+        composition = data.get('composition', {})
+        if not composition:
+            return jsonify({'success': False, 'error': 'Состав не указан'}), 400
+
+        user_id = session.get('user_id')
+        recipe_name = (data.get('recipe_name') or '').strip() or f"Рецепт {time.strftime('%Y-%m-%d %H:%M')}"
+        predictions = data.get('predictions', {})
+        lab_actuals = data.get('lab_actuals', {})
+        residuals = data.get('residuals', {})
+        notes = data.get('notes', '')
+
+        db_path = _get_db_path()
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+        cur.execute('''
+            INSERT INTO saved_recipes (user_id, recipe_name, composition_json, predictions_json, lab_actuals_json, residuals_json, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            user_id,
+            recipe_name,
+            json.dumps(composition, ensure_ascii=False),
+            json.dumps(predictions, ensure_ascii=False),
+            json.dumps(lab_actuals, ensure_ascii=False),
+            json.dumps(residuals, ensure_ascii=False),
+            notes
+        ))
+        conn.commit()
+        recipe_id = cur.lastrowid
+        conn.close()
+
+        return jsonify({
+            'success': True,
+            'message': 'Рецепт успешно сохранён в серверной базе данных',
+            'recipe_id': recipe_id
+        })
+    except Exception as e:
+        logger.warning(f"Ошибка сохранения рецепта: {e}")
+        return jsonify({'success': False, 'error': f'Ошибка сохранения: {str(e)}'}), 500
+
+
+@ml_bp.route('/api/ml/saved_recipes', methods=['GET'])
+@login_required
+def api_get_saved_recipes():
+    """Возвращает историю сохранённых рецептур."""
+    try:
+        user_id = session.get('user_id')
+        role_name = session.get('role_name', 'operator')
+        db_path = _get_db_path()
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+
+        if role_name == 'admin':
+            cur.execute('''
+                SELECT id, user_id, recipe_name, composition_json, predictions_json, lab_actuals_json, residuals_json, notes, created_at
+                FROM saved_recipes
+                ORDER BY created_at DESC
+                LIMIT 50
+            ''')
+        else:
+            cur.execute('''
+                SELECT id, user_id, recipe_name, composition_json, predictions_json, lab_actuals_json, residuals_json, notes, created_at
+                FROM saved_recipes
+                WHERE user_id = ? OR user_id IS NULL
+                ORDER BY created_at DESC
+                LIMIT 50
+            ''', (user_id,))
+
+        rows = []
+        for r in cur.fetchall():
+            rows.append({
+                'id': r['id'],
+                'recipe_name': r['recipe_name'],
+                'composition': json.loads(r['composition_json'] or '{}'),
+                'predictions': json.loads(r['predictions_json'] or '{}'),
+                'lab_actuals': json.loads(r['lab_actuals_json'] or '{}'),
+                'residuals': json.loads(r['residuals_json'] or '{}'),
+                'created_at': r['created_at'],
+                'notes': r['notes']
+            })
+        conn.close()
+        return jsonify({'success': True, 'recipes': rows})
+    except Exception as e:
+        logger.warning(f"Ошибка загрузки рецептов: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500

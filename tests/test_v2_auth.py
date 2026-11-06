@@ -56,7 +56,7 @@ def authed(anon):
     with anon.session_transaction() as sess:
         sess["user_id"] = 1
         sess["username"] = "tester"
-        sess["role_name"] = "user"
+        sess["role_name"] = "admin"
         sess["email"] = "tester@example.com"
     return anon
 
@@ -183,3 +183,31 @@ def test_dashboard_renders_for_authenticated_user(authed, monkeypatch):
     assert "avgAccuracyLabel" in page
     assert "Вне области применимости" in page
     assert "lo90" in page
+
+
+def test_operator_gated_from_admin_ml_routes(anon):
+    with anon.session_transaction() as sess:
+        sess["user_id"] = 2
+        sess["username"] = "operator"
+        sess["role_name"] = "operator"
+
+    for path in ["/ml_system_train", "/ml_auto_retrain", "/ml_augment_database", "/ml_load_excel"]:
+        res = anon.post(path, data={})
+        assert res.status_code == 403, f"{path} should be 403 for operator"
+        assert res.get_json()["success"] is False
+        assert "Доступ запрещён" in res.get_json()["error"]
+
+
+def test_saved_recipes_api(authed):
+    res = authed.post("/api/ml/save_recipe", json={
+        "composition": {"Сосна": 60, "Ель": 40},
+        "recipe_name": "Тестовый рецепт",
+        "predictions": {"q": {"value": 18.5}}
+    })
+    assert res.status_code == 200
+    assert res.get_json()["success"] is True
+
+    get_res = authed.get("/api/ml/saved_recipes")
+    assert get_res.status_code == 200
+    assert len(get_res.get_json()["recipes"]) >= 1
+    assert get_res.get_json()["recipes"][0]["recipe_name"] == "Тестовый рецепт"

@@ -2,6 +2,7 @@ import sqlite3
 import pandas as pd
 import json
 import os
+import time
 import logging
 from datetime import datetime
 from typing import Optional, Dict, Any
@@ -379,6 +380,21 @@ def init_db(db_path):
     )
     ''')
 
+    # Таблица сохранённых рецептов (серверная история для оператора и лаборатории)
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS saved_recipes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        recipe_name TEXT,
+        composition_json TEXT NOT NULL,
+        predictions_json TEXT,
+        lab_actuals_json TEXT,
+        residuals_json TEXT,
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    ''')
+
     # Добавление индексов
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_composition ON measured_parameters(composition)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_component ON components(component)')
@@ -388,6 +404,8 @@ def init_db(db_path):
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_ml_metrics_active ON ml_model_metrics(is_active)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_shadow_property ON ml_shadow_logs(target_property)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_shadow_timestamp ON ml_shadow_logs(timestamp)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_saved_recipes_user ON saved_recipes(user_id)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_saved_recipes_created ON saved_recipes(created_at)')
 
     conn.commit()
     conn.close()
@@ -618,7 +636,8 @@ def get_ml_optimizations(db_path, limit=50):
     """Получает историю ML оптимизаций"""
     conn = sqlite3.connect(db_path)
     query = '''
-    SELECT * FROM ml_optimizations 
+    SELECT id, timestamp, target_property, maximize, optimal_composition_json, optimal_value, constraints_json, algorithm, model_metrics_json, created_by
+    FROM ml_optimizations 
     ORDER BY timestamp DESC 
     LIMIT ?
     '''
@@ -637,7 +656,8 @@ def get_active_ml_models(db_path):
     """Получает активные ML модели"""
     conn = sqlite3.connect(db_path)
     query = '''
-    SELECT * FROM ml_model_metrics 
+    SELECT id, timestamp, target_property, algorithm, r2_score, mae, cv_r2, feature_importance_json, training_data_size, is_active
+    FROM ml_model_metrics 
     WHERE is_active = 1 
     ORDER BY timestamp DESC
     '''
@@ -713,14 +733,14 @@ def update_ml_optimization_with_actual(db_path, optimization_id, actual_properti
         cursor = conn.cursor()
         
         # Получаем оптимизацию
-        cursor.execute('SELECT * FROM ml_optimizations WHERE id = ?', (optimization_id,))
+        cursor.execute('SELECT optimal_composition_json FROM ml_optimizations WHERE id = ?', (optimization_id,))
         row = cursor.fetchone()
         if not row:
             conn.close()
             return False
         
         # Получаем оптимальный состав из JSON
-        optimal_composition = json.loads(row[4])  # optimal_composition_json
+        optimal_composition = json.loads(row[0])  # optimal_composition_json
         composition_text = ", ".join([f"{v}% {k}" for k, v in optimal_composition.items()])
         
         # Добавляем реальные измерения в measured_parameters
@@ -765,18 +785,34 @@ def update_ml_optimization_with_actual(db_path, optimization_id, actual_properti
         return False
 
 
-ALLOWED_TABLES = {'measured_parameters', 'components', 'ml_optimizations', 'ml_model_metrics', 'system_settings', 'ml_shadow_logs'}
+ALLOWED_TABLES = {'measured_parameters', 'components', 'ml_optimizations', 'ml_model_metrics', 'system_settings', 'ml_shadow_logs', 'saved_recipes'}
+
+_components_cache = {}
+_components_cache_time = 0.0
 
 def query_db(db_path, table, query="SELECT * FROM {}", params=None):
-    """Запрос данных из таблицы."""
+    """Запрос данных из таблицы с кэшированием справочника components."""
+    global _components_cache, _components_cache_time
     if table not in ALLOWED_TABLES:
         raise ValueError(f"Недопустимое имя таблицы: {table}")
+
+    # Кэш справочника компонентов на 60 секунд
+    if table == 'components' and params is None and query == "SELECT * FROM {}":
+        now = time.time()
+        if db_path in _components_cache and (now - _components_cache_time < 60.0):
+            return _components_cache[db_path].copy()
+
     conn = sqlite3.connect(db_path)
     if params:
         df = pd.read_sql_query(query.format(table), conn, params=params)
     else:
         df = pd.read_sql_query(query.format(table), conn)
     conn.close()
+
+    if table == 'components' and params is None and query == "SELECT * FROM {}":
+        _components_cache[db_path] = df.copy()
+        _components_cache_time = time.time()
+
     return df
 
 
@@ -835,14 +871,16 @@ def get_shadow_logs(db_path: str, limit: int = 100, property_name: Optional[str]
         cur = conn.cursor()
         if property_name and property_name.strip():
             cur.execute('''
-                SELECT * FROM ml_shadow_logs
+                SELECT id, timestamp, target_property, legacy_value, v2_value, delta, in_domain, informative, details
+                FROM ml_shadow_logs
                 WHERE target_property = ?
                 ORDER BY timestamp DESC
                 LIMIT ?
             ''', (property_name.strip(), max(1, min(limit, 500))))
         else:
             cur.execute('''
-                SELECT * FROM ml_shadow_logs
+                SELECT id, timestamp, target_property, legacy_value, v2_value, delta, in_domain, informative, details
+                FROM ml_shadow_logs
                 ORDER BY timestamp DESC
                 LIMIT ?
             ''', (max(1, min(limit, 500)),))

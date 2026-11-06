@@ -625,8 +625,19 @@
                     <div class="row g-4">
                         <div class="col-lg-5">
                             <div class="glass-card p-4 h-100">
-                                <h6 class="fw-bold mb-3 text-dark"><i class="fas fa-sliders-h text-warning me-2"></i>Ваш
-                                    Рецепт</h6>
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h6 class="fw-bold mb-0 text-dark"><i class="fas fa-sliders-h text-warning me-2"></i>Ваш Рецепт</h6>
+                                    <div class="dropdown">
+                                        <button class="btn btn-xs btn-outline-secondary dropdown-toggle py-1 px-2 mb-0" type="button" id="recipePresetsBtn" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 0.72rem;">
+                                            <i class="fas fa-magic me-1"></i>Пресеты
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-end shadow-sm" style="font-size: 0.8rem;">
+                                            <li><a class="dropdown-item py-1" href="javascript:;" onclick="applyRecipePreset('pine_pure')"><i class="fas fa-tree me-2 text-success"></i>100% Сосна (Хвойный)</a></li>
+                                            <li><a class="dropdown-item py-1" href="javascript:;" onclick="applyRecipePreset('mix_pine_birch')"><i class="fas fa-leaf me-2 text-warning"></i>60% Сосна / 40% Берёза</a></li>
+                                            <li><a class="dropdown-item py-1" href="javascript:;" onclick="applyRecipePreset('equal')"><i class="fas fa-balance-scale me-2 text-info"></i>Равные доли сырья</a></li>
+                                        </ul>
+                                    </div>
+                                </div>
 
                                 <div class="mb-3 p-2 theme-contrast-box rounded text-center border">
                                     <span class="text-xs fw-bold text-muted text-uppercase">Общая сумма</span>
@@ -1682,30 +1693,90 @@
         }
     }
 
+    function applyRecipePreset(presetType) {
+        const sliders = Array.from(document.querySelectorAll('.sandbox-slider'));
+        if (!sliders.length) return;
+
+        if (presetType === 'equal') {
+            const val = (100 / sliders.length).toFixed(1);
+            sliders.forEach(s => s.value = val);
+        } else if (presetType === 'pine_pure') {
+            sliders.forEach(s => {
+                const comp = (s.getAttribute('data-comp') || '').toLowerCase();
+                s.value = comp.includes('сосн') ? 100 : 0;
+            });
+        } else if (presetType === 'mix_pine_birch') {
+            sliders.forEach(s => {
+                const comp = (s.getAttribute('data-comp') || '').toLowerCase();
+                if (comp.includes('сосн')) s.value = 60;
+                else if (comp.includes('бер') || comp.includes('лист')) s.value = 40;
+                else s.value = 0;
+            });
+        }
+
+        // Update labels
+        sliders.forEach(s => {
+            const safeId = s.getAttribute('data-safe-id');
+            const valEl = document.getElementById(`val-${safeId}`);
+            if (valEl) valEl.textContent = parseFloat(s.value).toFixed(1) + '%';
+        });
+
+        // Normalize
+        const total = sliders.reduce((sum, s) => sum + parseFloat(s.value || 0), 0);
+        const totalText = document.getElementById('sandboxTotalText');
+        const totalBar = document.getElementById('sandboxTotalBar');
+        if (totalText) totalText.textContent = total.toFixed(1) + '%';
+        if (totalBar) totalBar.style.width = Math.min(total, 100) + '%';
+
+        updateSandbox();
+        setWizardStep(1, 'Шаг 1: Пресет применён');
+    }
+
     function saveRecipeToScenarios() {
         const comp = window.currentSandboxComposition || {};
         const results = window.currentSandboxPredictions || {};
-        const saved = JSON.parse(localStorage.getItem('pellet_saved_recipes') || '[]');
+        if (Object.keys(comp).length === 0) return;
+
+        const labActuals = {
+            heat: document.getElementById('labActualHeat')?.value || null,
+            ash: document.getElementById('labActualAsh')?.value || null,
+            moisture: document.getElementById('labActualMoisture')?.value || null
+        };
+
         const recipeRecord = {
             id: Date.now(),
             timestamp: new Date().toISOString(),
             composition: comp,
             predictions: results,
-            labActuals: {
-                heat: document.getElementById('labActualHeat')?.value || null,
-                ash: document.getElementById('labActualAsh')?.value || null,
-                moisture: document.getElementById('labActualMoisture')?.value || null
-            }
+            labActuals: labActuals
         };
+
+        // Local storage cache
+        const saved = JSON.parse(localStorage.getItem('pellet_saved_recipes') || '[]');
         saved.unshift(recipeRecord);
         localStorage.setItem('pellet_saved_recipes', JSON.stringify(saved.slice(0, 25)));
-        setWizardStep(4, 'Шаг 4: Рецепт сохранён');
+
+        // Server-side persistent storage in SQLite
+        fetch('/api/ml/save_recipe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                composition: comp,
+                predictions: results,
+                lab_actuals: labActuals,
+                recipe_name: `Рецепт (${new Date().toLocaleTimeString('ru-RU', {hour: '2-digit', minute:'2-digit'})})`
+            })
+        }).then(r => r.json()).then(data => {
+            console.log('✅ Рецепт сохранён в базе данных, id:', data.recipe_id);
+        }).catch(err => console.warn('Сервер недоступен для сохранения рецепта:', err));
+
+        setWizardStep(4, 'Шаг 4: Рецепт сохранён в БД');
 
         if (typeof Swal !== 'undefined') {
             Swal.fire({
                 icon: 'success',
                 title: 'Рецепт сохранён!',
-                text: 'Сценарий добавлен в локальную историю.',
+                text: 'Сценарий сохранён в серверную базу данных и локальную историю.',
                 timer: 2000,
                 showConfirmButton: false
             });
