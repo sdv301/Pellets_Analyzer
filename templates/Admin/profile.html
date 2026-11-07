@@ -136,7 +136,10 @@
 
     <!-- Hero Banner -->
     <div class="profile-header">
-        <img src="{{ url_for('static', filename='assets/img/curved-images/curved0.jpg') }}" alt="Banner" class="profile-header-img">
+        <picture>
+            <source srcset="{{ url_for('static', filename='assets/img/curved-images/curved0.webp') }}" type="image/webp">
+            <img src="{{ url_for('static', filename='assets/img/curved-images/curved0.jpg') }}" alt="Banner" class="profile-header-img">
+        </picture>
         <div class="profile-header-overlay"></div>
         <div class="profile-header-content w-100">
             <div class="profile-avatar">
@@ -322,6 +325,7 @@
                             <div class="col-lg-6">
                                 <h5 class="fw-bold mb-3"><i class="fas fa-user-edit me-2 text-primary"></i>Редактировать профиль</h5>
                                 <form method="POST" action="{{ url_for('auth.profile_update') }}">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <div class="mb-3">
                                         <label class="form-label fw-semibold">Полное имя</label>
                                         <input type="text" name="full_name" class="form-control" value="{{ user.full_name or '' }}">
@@ -342,6 +346,7 @@
                             <div class="col-lg-6">
                                 <h5 class="fw-bold mb-3"><i class="fas fa-key me-2 text-warning"></i>Сменить пароль</h5>
                                 <form method="POST" action="{{ url_for('auth.change_password') }}">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <div class="mb-3">
                                         <label class="form-label fw-semibold">Текущий пароль</label>
                                         <input type="password" name="old_password" class="form-control" required>

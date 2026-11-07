@@ -75,6 +75,9 @@ def _query_table_page(table_name: str, page: int, per_page: int) -> pd.DataFrame
 @main_bp.route('/landing')
 def index():
     """Лендинг-визитка — доступна без авторизации."""
+    from flask import current_app
+    if current_app.config.get('UI_V2', False) or request.args.get('v2') == '1':
+        return render_template('landing_v2.html')
     return render_template('landing.html')
 
 
@@ -86,12 +89,38 @@ def dashboard():
 
     total_measured_count = 0
     total_components_count = 0
+    total_recipes_count = 0
+    recent_optimizations = []
     chart_labels = []
     chart_data = []
+
+    from app.services.ml_v2.switch import model_version, shadow_enabled
+    active_model_ver = model_version()
+    is_shadow = shadow_enabled()
 
     try:
         total_measured_count = _query_table_count("measured_parameters")
         total_components_count = _query_table_count("components")
+
+        # Число уникальных рецептур в базе (F1)
+        recipes_df = query_db(
+            _db_path,
+            "measured_parameters",
+            query="SELECT COUNT(DISTINCT composition) AS cnt FROM {} WHERE composition IS NOT NULL",
+        )
+        if not recipes_df.empty and 'cnt' in recipes_df.columns:
+            total_recipes_count = int(recipes_df.iloc[0]['cnt'])
+        else:
+            total_recipes_count = total_measured_count
+
+        # Последние ML-оптимизации и расчёты (F1)
+        try:
+            from app.database.database import get_ml_optimizations
+            opts_df = get_ml_optimizations(_db_path, limit=5)
+            if not opts_df.empty:
+                recent_optimizations = opts_df.to_dict('records')
+        except Exception:
+            recent_optimizations = []
 
         # Для ускорения дашборда используем выборку, а не полный набор.
         # Этого достаточно для сводной визуализации в виджете.
@@ -128,6 +157,10 @@ def dashboard():
         show_data=show_data,
         total_measured_count=total_measured_count,
         total_components_count=total_components_count,
+        total_recipes_count=total_recipes_count,
+        model_version=active_model_ver,
+        shadow_active=is_shadow,
+        recent_optimizations=recent_optimizations,
         chart_labels=chart_labels,
         chart_data=chart_data
     )
@@ -143,9 +176,28 @@ def upload_file():
     if file.filename == '':
         return jsonify({'success': False, 'message': 'Файл не выбран.', 'uploaded_files': uploaded_files})
 
-    upload_folder = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'Uploads')
-    if file and (file.filename.endswith('.csv') or file.filename.endswith('.xlsx')):
-        file_path = os.path.join(upload_folder, file.filename)
+    from werkzeug.utils import secure_filename
+    from flask import current_app
+    from app.utils.security import is_safe_path
+
+    upload_folder = current_app.config.get('UPLOAD_FOLDER') or os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'Uploads')
+    clean_filename = secure_filename(file.filename)
+    if not clean_filename:
+        flash('Недопустимое имя файла.', 'danger')
+        return jsonify({'success': False, 'message': 'Недопустимое имя файла.', 'uploaded_files': uploaded_files}), 400
+
+    ext = os.path.splitext(clean_filename)[1].lower()
+    if ext not in ('.csv', '.xlsx', '.xls'):
+        flash('Недопустимый формат файла.', 'danger')
+        return jsonify({'success': False, 'message': 'Недопустимый формат файла.', 'uploaded_files': uploaded_files}), 400
+
+    file_path = os.path.join(upload_folder, clean_filename)
+    if not is_safe_path(upload_folder, file_path):
+        flash('Недопустимый путь к файлу.', 'danger')
+        return jsonify({'success': False, 'message': 'Недопустимый путь к файлу.', 'uploaded_files': uploaded_files}), 400
+
+    os.makedirs(upload_folder, exist_ok=True)
+    if file:
         file.save(file_path)
         try:
             messages, components_sheet_name, sheet_data = process_data_source(file_path, _db_path)
@@ -195,10 +247,18 @@ def load_file():
     if not selected_file:
         return jsonify({'success': False, 'message': 'Файл не выбран.', 'uploaded_files': uploaded_files})
 
-    upload_folder = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'Uploads')
-    file_path = os.path.join(upload_folder, selected_file)
-    if not os.path.exists(file_path):
-        return jsonify({'success': False, 'message': f'Файл {selected_file} не найден.', 'uploaded_files': uploaded_files})
+    from werkzeug.utils import secure_filename
+    from flask import current_app
+    from app.utils.security import is_safe_path
+
+    clean_file = secure_filename(selected_file)
+    if not clean_file or clean_file != selected_file:
+        return jsonify({'success': False, 'message': f'Недопустимое имя файла: {selected_file}', 'uploaded_files': uploaded_files}), 400
+
+    upload_folder = current_app.config.get('UPLOAD_FOLDER') or os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'Uploads')
+    file_path = os.path.join(upload_folder, clean_file)
+    if not is_safe_path(upload_folder, file_path) or not os.path.exists(file_path):
+        return jsonify({'success': False, 'message': f'Файл {clean_file} не найден.', 'uploaded_files': uploaded_files}), 404
 
     try:
         process_messages, components_sheet_name, sheet_data = process_data_source(file_path, _db_path)
@@ -387,6 +447,58 @@ def global_search():
         return jsonify({'success': False, 'message': str(e)})
 
 
+@main_bp.route('/api/notifications', methods=['GET'])
+@login_required
+def get_notifications():
+    """Возвращает список системных и статусных уведомлений для колокольчика."""
+    notifications = []
+
+    # 1. Текущая модель
+    try:
+        from app.services.ml_v2.switch import model_version
+        active_version = model_version()
+        notifications.append({
+            'id': 'model-status',
+            'title': f'Модель ML: {active_version.upper()}',
+            'message': 'Используется честная валидация v2' if active_version == 'v2' else 'Активна базовая модель legacy',
+            'category': 'info',
+            'time': 'Текущий статус'
+        })
+    except Exception:
+        pass
+
+    # 2. Количество образцов в базе
+    try:
+        df = query_db(_db_path, "measured_parameters", query="SELECT COUNT(*) as cnt FROM {}")
+        cnt = int(df['cnt'].iloc[0]) if not df.empty else 0
+        notifications.append({
+            'id': 'db-samples',
+            'title': 'База данных пеллет',
+            'message': f'В системе зарегистрировано образцов: {cnt}',
+            'category': 'success',
+            'time': 'Актуально'
+        })
+    except Exception:
+        pass
+
+    # 3. Статус обучения
+    try:
+        from app.routes.ml import _read_training_status
+        train_status = _read_training_status()
+        if train_status and train_status.get('status') == 'training':
+            notifications.append({
+                'id': 'ml-training',
+                'title': 'Обучение модели',
+                'message': train_status.get('message', 'Идет обучение модели...'),
+                'category': 'warning',
+                'time': 'В процессе'
+            })
+    except Exception:
+        pass
+
+    return jsonify({'success': True, 'notifications': notifications})
+
+
 @main_bp.route('/add_data', methods=['POST'])
 @login_required
 def add_data():
@@ -539,12 +651,24 @@ def ai_analysis():
     return render_template('ai_analysis.html', segment='ИИ-анализ', uploaded_files=uploaded_files)
 
 
+def _get_ai_ml_analyzer():
+    from flask import current_app, has_app_context
+    if has_app_context() and current_app.config.get('AI_ML_ANALYZER'):
+        analyzer = current_app.config['AI_ML_ANALYZER']
+        if getattr(analyzer, 'db_path', None) == _db_path:
+            return analyzer
+    from app.services.ai_ml_analyzer import AIMLAnalyzer
+    analyzer = AIMLAnalyzer(_db_path)
+    if has_app_context():
+        current_app.config['AI_ML_ANALYZER'] = analyzer
+    return analyzer
+
+
 @main_bp.route('/ai_ml_system_status')
 @login_required
 def ai_ml_system_status():
     try:
-        from app.services.ai_ml_analyzer import AIMLAnalyzer
-        analyzer = AIMLAnalyzer(_db_path)
+        analyzer = _get_ai_ml_analyzer()
         data_summary = analyzer.get_data_summary()
         ml_status = analyzer.get_ml_models_status()
         return jsonify({'success': True, 'data_summary': data_summary, 'ml_status': ml_status})
@@ -556,8 +680,7 @@ def ai_ml_system_status():
 @login_required
 def perform_ai_ml_analysis():
     try:
-        from app.services.ai_ml_analyzer import AIMLAnalyzer
-        analyzer = AIMLAnalyzer(_db_path)
+        analyzer = _get_ai_ml_analyzer()
         data = request.get_json()
         user_query = data.get('query', '')
 
@@ -586,3 +709,25 @@ def economics():
 @main_bp.route('/<path:path>.map')
 def ignore_map_files(path):
     return '', 204
+
+
+@main_bp.route('/health')
+def health():
+    """Быстрый healthcheck-эндпоинт для Docker, Nginx и мониторинга."""
+    try:
+        from app.database.database import get_db_connection
+        conn_mgr = get_db_connection()
+        conn = conn_mgr.get_connection() if hasattr(conn_mgr, 'get_connection') else None
+        db_ok = True
+        if conn:
+            try:
+                conn.execute("SELECT 1").fetchone()
+            except Exception:
+                db_ok = False
+        return jsonify({
+            'status': 'healthy',
+            'database': 'connected' if db_ok else 'disconnected',
+            'version': '2.0.0'
+        }), 200
+    except Exception as e:
+        return jsonify({'status': 'unhealthy', 'error': str(e)}), 503

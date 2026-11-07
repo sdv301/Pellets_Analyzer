@@ -10,6 +10,7 @@ import time
 import re
 import hashlib
 import os
+import secrets
 from collections import defaultdict
 
 
@@ -25,11 +26,13 @@ class RateLimiter:
         self.max_requests = 100  # Максимум запросов
         self.window = 60  # Окно в секундах
     
-    def is_allowed(self, key):
+    def is_allowed(self, key, max_requests=None, window=None):
+        limit = max_requests if max_requests is not None else self.max_requests
+        win = window if window is not None else self.window
         now = time.time()
         # Очистка старых запросов
-        self.requests[key] = [t for t in self.requests[key] if now - t < self.window]
-        if len(self.requests[key]) >= self.max_requests:
+        self.requests[key] = [t for t in self.requests[key] if now - t < win]
+        if len(self.requests[key]) >= limit:
             return False
         self.requests[key].append(now)
         return True
@@ -144,19 +147,49 @@ def validate_sql_input(text):
 def generate_csrf_token():
     """Генерация CSRF-токена."""
     if 'csrf_token' not in session:
-        session['csrf_token'] = hashlib.sha256(os.urandom(64)).hexdigest()
+        session['csrf_token'] = secrets.token_hex(32)
     return session['csrf_token']
 
 
 def validate_csrf_token():
     """Валидация CSRF-токена."""
-    token = request.form.get('csrf_token') or request.headers.get('X-CSRF-Token')
-    if not token or token != session.get('csrf_token'):
-        abort(403, description='CSRF token validation failed')
+    token = (
+        request.form.get('csrf_token')
+        or request.headers.get('X-CSRFToken')
+        or request.headers.get('X-CSRF-Token')
+    )
+    if not token and request.is_json:
+        json_data = request.get_json(silent=True)
+        if isinstance(json_data, dict):
+            token = json_data.get('csrf_token')
+
+    expected = session.get('csrf_token')
+    if not token or not expected or not secrets.compare_digest(str(token), str(expected)):
+        abort(400, description='CSRF token missing or invalid')
+
+
+def csrf_exempt(f):
+    """Декоратор для исключения роута из проверки CSRF."""
+    f._csrf_exempt = True
+    return f
+
+
+def check_csrf():
+    """Проверка CSRF-токена перед обработкой запроса."""
+    from flask import current_app
+    if not current_app.config.get('WTF_CSRF_ENABLED', not current_app.config.get('TESTING', False)):
+        return
+    if request.method not in ['POST', 'PUT', 'DELETE', 'PATCH']:
+        return
+    if request.endpoint:
+        view = current_app.view_functions.get(request.endpoint)
+        if getattr(view, '_csrf_exempt', False):
+            return
+    validate_csrf_token()
 
 
 def csrf_protect(f):
-    """Декоратор для защиты от CSRF."""
+    """Декоратор для явной защиты от CSRF."""
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if request.method in ['POST', 'PUT', 'DELETE', 'PATCH']:
@@ -182,10 +215,10 @@ def add_security_headers(response):
     # Политика реферера
     response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
     
-    # Content Security Policy
+    # Content Security Policy (без 'unsafe-eval' - D5)
     response.headers['Content-Security-Policy'] = (
         "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdn.plot.ly https://cdnjs.cloudflare.com https://buttons.github.io https://unpkg.com; "
+        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.plot.ly https://cdnjs.cloudflare.com https://buttons.github.io https://unpkg.com; "
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com https://demos.creative-tim.com https://unpkg.com; "
         "img-src 'self' data: blob: https://cdn.plot.ly https://cdnjs.cloudflare.com; "
         "font-src 'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com https://demos.creative-tim.com; "
@@ -211,8 +244,8 @@ def add_security_headers(response):
 class BruteForceProtector:
     """Защита от перебора паролей."""
     
-    def __init__(self, max_attempts=5, lockout_time=900):
-        self.max_attempts = max_attempts  # Максимум попыток
+    def __init__(self, max_attempts=10, lockout_time=900):
+        self.max_attempts = max_attempts  # Максимум 10 попыток (D5)
         self.lockout_time = lockout_time  # Время блокировки (15 мин)
         self.attempts = defaultdict(list)
         self.locked = {}
@@ -244,6 +277,11 @@ class BruteForceProtector:
             del self.attempts[identifier]
         if identifier in self.locked:
             del self.locked[identifier]
+
+    def reset(self):
+        """Полная очистка состояния (для тестов)."""
+        self.attempts.clear()
+        self.locked.clear()
     
     def get_remaining_attempts(self, identifier):
         """Количество оставшихся попыток."""
@@ -252,7 +290,7 @@ class BruteForceProtector:
         return max(0, self.max_attempts - len(valid_attempts))
 
 
-brute_force = BruteForceProtector(max_attempts=5, lockout_time=900)
+brute_force = BruteForceProtector(max_attempts=10, lockout_time=900)
 
 
 # ============================================================
@@ -329,3 +367,15 @@ def log_security_event(event_type, details, ip=None):
     security_logger.warning(
         f"[{event_type}] IP: {ip or request.remote_addr} | {details}"
     )
+
+def is_safe_path(base_dir, path, follow_symlinks=True):
+    """Проверяет, что путь path действительно находится внутри base_dir (защита от path traversal)."""
+    if not path or not base_dir:
+        return False
+    try:
+        resolved_base = os.path.realpath(base_dir) if follow_symlinks else os.path.abspath(base_dir)
+        resolved_path = os.path.realpath(path) if follow_symlinks else os.path.abspath(path)
+        return os.path.commonpath([resolved_base, resolved_path]) == resolved_base
+    except (ValueError, Exception):
+        return False
+

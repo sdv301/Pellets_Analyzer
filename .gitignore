@@ -111,6 +111,7 @@ security.log
 # ===========================================
 *.txt
 !requirements.txt
+!requirements-dev.txt
 
 # ===========================================
 # ML Models (large files)
@@ -269,4 +270,20 @@ COMPLETION_CHECKLIST.md
 ENV_SETUP_INSTRUCTIONS.txt
 GITIGNORE_DOCS.md
 test-project/
-.github/workflows/
+
+# CI должен попасть в репозиторий. Секретов в workflow нет.
+!.github/
+!.github/workflows/
+!.github/workflows/*.yml
+
+# Скрипт обновления пина для Windows. Остальные *.ps1 по-прежнему скрыты.
+!scripts/update_lab.ps1
+
+# Тесты интеграции. Корневые test_*.py по-прежнему игнорируются.
+!tests/
+!tests/**
+!tests/test_*.py
+!tests/fixtures/
+!tests/fixtures/**
+tests/**/__pycache__/
+tests/**/*.py[cod]

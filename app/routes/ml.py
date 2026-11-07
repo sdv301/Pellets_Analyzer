@@ -1,19 +1,23 @@
 # app/routes/ml.py — ML Dashboard, обучение, оптимизация
+import json
 import os
+import sqlite3
 import threading
 import time
 import logging
 from collections import deque
-from flask import Blueprint, render_template, request, jsonify, session
+from typing import Optional
+from flask import Blueprint, current_app, has_app_context, render_template, request, jsonify, session
 from app.auth.auth import login_required
 from app.database.database import query_db
+from app.services.ml_v2.switch import model_version, predict_one
 
 ml_bp = Blueprint('ml', __name__)
 logger = logging.getLogger(__name__)
 
 _db_path = os.path.join('data', 'pellets_data.db')
 
-# Глобальное хранилище статуса обучения
+# Хранилище статуса обучения (синхронизируется с таблицей system_settings в SQLite)
 _training_status = {
     'is_training': False,
     'progress': 0,
@@ -33,6 +37,63 @@ _endpoint_timings = {
 }
 
 
+def _get_db_path() -> str:
+    if has_app_context():
+        return current_app.config.get('DATABASE_PATH') or current_app.config.get('DATABASE') or _db_path
+    return _db_path
+
+
+def set_db_path(path):
+    global _db_path
+    _db_path = path
+    if has_app_context():
+        current_app.config['DATABASE_PATH'] = path
+
+
+def _update_training_status(db_path: Optional[str] = None, **kwargs):
+    """Обновляет статус обучения в памяти и сохраняет в SQLite system_settings."""
+    global _training_status
+    _training_status.update(kwargs)
+    path = db_path or _get_db_path()
+    if path:
+        try:
+            from app.database.database import set_system_setting
+            set_system_setting(path, "ml_training_status", json.dumps(_training_status, default=str), updated_by="ml_worker")
+        except Exception as exc:
+            logger.debug("Could not persist ml_training_status to SQLite: %s", exc)
+
+
+def _read_training_status(db_path: Optional[str] = None) -> dict:
+    """Считывает статус обучения из SQLite system_settings с фолбэком на локальный кэш."""
+    global _training_status
+    path = db_path or _get_db_path()
+    if path:
+        try:
+            from app.database.database import get_system_setting
+            raw = get_system_setting(path, "ml_training_status")
+            if raw:
+                data = json.loads(raw)
+                if isinstance(data, dict):
+                    _training_status.update(data)
+        except Exception as exc:
+            logger.debug("Could not read ml_training_status from SQLite: %s", exc)
+    return _training_status
+
+
+def _get_ai_ml_analyzer():
+    """Получает синглтон AIMLAnalyzer из app.config вместо создания на каждый запрос."""
+    db_path = _get_db_path()
+    if has_app_context() and current_app.config.get('AI_ML_ANALYZER'):
+        analyzer = current_app.config['AI_ML_ANALYZER']
+        if getattr(analyzer, 'db_path', None) == db_path:
+            return analyzer
+    from app.services.ai_ml_analyzer import AIMLAnalyzer
+    analyzer = AIMLAnalyzer(db_path)
+    if has_app_context():
+        current_app.config['AI_ML_ANALYZER'] = analyzer
+    return analyzer
+
+
 def _percentile(values, q):
     if not values:
         return 0.0
@@ -42,7 +103,14 @@ def _percentile(values, q):
 
 
 def _record_endpoint_timing(endpoint, elapsed_sec):
-    timings = _endpoint_timings.get(endpoint)
+    timings = None
+    if has_app_context():
+        ext_timings = current_app.extensions.setdefault('endpoint_timings', {})
+        if endpoint not in ext_timings:
+            ext_timings[endpoint] = deque(maxlen=200)
+        timings = ext_timings[endpoint]
+    else:
+        timings = _endpoint_timings.get(endpoint)
     if timings is None:
         return
     elapsed_ms = elapsed_sec * 1000.0
@@ -51,21 +119,20 @@ def _record_endpoint_timing(endpoint, elapsed_sec):
     p95 = _percentile(list(timings), 95)
     logger.info("%s latency_ms=%.2f p50=%.2f p95=%.2f n=%s", endpoint, elapsed_ms, p50, p95, len(timings))
 
-def set_db_path(path):
-    global _db_path
-    _db_path = path
-
 
 def _resolve_ml_system():
     from app.services.ml_optimizer import get_ml_system
+    db_path = _get_db_path()
     started_at = time.perf_counter()
     ml_system = get_ml_system()
     # Переопределяем путь к БД (без полной перезагрузки)
-    if ml_system.db_path != _db_path:
-        ml_system.db_path = _db_path
+    if ml_system.db_path != db_path:
+        ml_system.db_path = db_path
         ml_system.reload_data()
+    if has_app_context():
+        current_app.extensions['ml_system'] = ml_system
     elapsed_ms = (time.perf_counter() - started_at) * 1000.0
-    logger.info("_get_ml_system resolve_ms=%.2f db=%s", elapsed_ms, _db_path)
+    logger.info("_get_ml_system resolve_ms=%.2f db=%s", elapsed_ms, db_path)
     return ml_system
 
 
@@ -82,43 +149,112 @@ def _warmup_ml_system_worker():
 
 
 def _ensure_ml_warmup():
-    global _ml_warmup_started
+    """Синхронная или ленивая инициализация без запуска фоновых потоков в воркере."""
+    if model_version() == "v2":
+        return
+    global _ml_warmup_started, _ml_warmup_completed
     with _ml_warmup_lock:
-        if _ml_warmup_started:
-            return
-        _ml_warmup_started = True
-    thread = threading.Thread(target=_warmup_ml_system_worker, daemon=True)
-    thread.start()
+        if has_app_context():
+            warmup = current_app.extensions.setdefault('ml_warmup', {'started': False, 'completed': False, 'error': None})
+            if warmup['started']:
+                return
+            warmup['started'] = True
+        else:
+            if _ml_warmup_started:
+                return
+            _ml_warmup_started = True
+    # Выполняется ленивая инициализация без фонового потока
+    try:
+        _warmup_ml_system_worker()
+    except Exception as exc:
+        logger.warning("ML warmup failed: %s", exc)
 
 
 def _get_ml_system():
     return _resolve_ml_system()
 
 
+def _legacy_predict(ml_system, composition, target_property):
+    return ml_system.predictor.predict(composition, target_property)
+
+
+def _contract_fields(contract):
+    if not contract:
+        return {}
+    return {
+        "std": contract.get("std"),
+        "lo90": contract.get("lo90"),
+        "hi90": contract.get("hi90"),
+        "in_domain": contract.get("in_domain"),
+        "informative": contract.get("informative"),
+        "note": contract.get("note") or "",
+        "model_name": contract.get("model_name"),
+        "model_version": "v2",
+    }
+
+
+def _v2_training_refused_payload():
+    """v2 не переобучается на БД продукта и не пишет туда прогнозы."""
+    from app.services.ml_v2.predictor import v2_system_status
+
+    status = v2_system_status()
+    message = (
+        "Режим v2 использует зафиксированный артефакт. "
+        "Переобучение на данных продукта не выполняется, прогнозы в БД не пишутся. "
+        "Метрики — nested CV из manifest."
+    )
+    _update_training_status(
+        is_training=False,
+        progress=100,
+        message=message,
+        error=None,
+        result={
+            "success": True,
+            "message": message,
+            "model_version": "v2",
+            "metrics": status["model_metrics"],
+        },
+    )
+    return message
+
+
 def _train_async_task(target_properties, algorithm, input_features, user_id=None):
     """Фоновая задача обучения."""
-    global _training_status
+    db_path = _get_db_path()
     started_at = time.perf_counter()
     try:
-        _training_status['is_training'] = True
-        _training_status['progress'] = 10
-        _training_status['message'] = 'Загрузка данных...'
-        _training_status['result'] = None
-        _training_status['error'] = None
+        _update_training_status(
+            db_path=db_path,
+            is_training=True,
+            progress=10,
+            message='Загрузка данных...',
+            result=None,
+            error=None,
+            started_at=time.time(),
+        )
 
         ml_system = _get_ml_system()
 
-        _training_status['progress'] = 30
-        _training_status['message'] = 'Подготовка данных...'
+        _update_training_status(
+            db_path=db_path,
+            progress=30,
+            message='Подготовка данных...',
+        )
         time.sleep(0.5)  # UI update
 
-        _training_status['progress'] = 50
-        _training_status['message'] = 'Обучение моделей...'
+        _update_training_status(
+            db_path=db_path,
+            progress=50,
+            message='Обучение моделей...',
+        )
 
         result = ml_system.train_models(target_properties, algorithm, selected_features=input_features)
 
-        _training_status['progress'] = 90
-        _training_status['message'] = 'Сохранение результатов...'
+        _update_training_status(
+            db_path=db_path,
+            progress=90,
+            message='Сохранение результатов...',
+        )
 
         if result.get('success'):
             # Сохраняем модели в user_ml_models для отображения
@@ -129,7 +265,7 @@ def _train_async_task(target_properties, algorithm, input_features, user_id=None
                     training_metrics = metrics.get('training_metrics', {})
                     composition_text = ', '.join(status.get('available_components', [])[:5])
                     save_ml_model(
-                        _db_path, user_id,
+                        db_path, user_id,
                         model_name=f'Model_{prop}',
                         target_property=prop,
                         algorithm=metrics.get('algorithm_used', algorithm),
@@ -140,90 +276,104 @@ def _train_async_task(target_properties, algorithm, input_features, user_id=None
                         composition_text=composition_text
                     )
 
-            _training_status['result'] = result
-            _training_status['progress'] = 100
-            _training_status['message'] = 'Обучение завершено!'
+            _update_training_status(
+                db_path=db_path,
+                result=result,
+                progress=100,
+                message='Обучение завершено!',
+            )
         else:
-            _training_status['error'] = result.get('error', 'Обучение не удалось')
-            _training_status['message'] = _training_status['error']
+            err = result.get('error', 'Обучение не удалось')
+            _update_training_status(
+                db_path=db_path,
+                error=err,
+                message=err,
+            )
 
     except Exception as e:
-        _training_status['error'] = str(e)
-        _training_status['message'] = f'Ошибка: {str(e)}'
+        _update_training_status(
+            db_path=db_path,
+            error=str(e),
+            message=f'Ошибка: {str(e)}',
+        )
     finally:
-        _training_status['is_training'] = False
-        _training_status['finished_at'] = time.time()
+        _update_training_status(
+            db_path=db_path,
+            is_training=False,
+            finished_at=time.time(),
+        )
         logger.info("ml_train_async completed in %.2fms", (time.perf_counter() - started_at) * 1000.0)
 
 
 @ml_bp.route('/ml_dashboard')
 @login_required
 def ml_dashboard():
-    # Минимальная загрузка — данные подгружаются асинхронно через JS
-    _ensure_ml_warmup()
+    # В режиме v2 legacy-прогрев не нужен: он мог бы обучить старую модель и записать её на диск.
+    if model_version() != "v2":
+        _ensure_ml_warmup()
     return render_template(
         'ml_dashboard.html',
         segment='ML Анализ'
     )
 
 
+def _require_admin_role():
+    """Проверяет роль администратора для защищённых ML операций."""
+    if session.get('role_name') != 'admin':
+        return jsonify({
+            'success': False,
+            'error': 'Доступ запрещён. Операция доступна только администраторам.'
+        }), 403
+    return None
+
+
 @ml_bp.route('/ml_system_train', methods=['POST'])
 @login_required
 def ml_system_train():
-    global _training_status
     started_at = time.perf_counter()
-    if _training_status['is_training']:
+    admin_gate = _require_admin_role()
+    if admin_gate:
+        return admin_gate
+
+    status = _read_training_status()
+    if status.get('is_training'):
         return jsonify({'success': False, 'error': 'Обучение уже запущено. Дождитесь завершения.'})
 
-    try:
-        target_properties = request.form.getlist('target_properties[]')
-        if not target_properties:
-            from app.services.ml_optimizer import PelletPropertyPredictor
-            target_properties = list(PelletPropertyPredictor().target_properties_mapping.keys())
+    if model_version() == "v2":
+        message = _v2_training_refused_payload()
+        return jsonify({"success": True, "message": message, "task_id": "ml_train", "model_version": "v2"})
 
-        algorithm = request.form.get('algorithm', 'random_forest').lower()
-        input_features = request.form.getlist('input_features[]')
-        if not input_features:
-            input_features = None
-
-        user_id = session.get('user_id')
-
-        # Запуск обучения в фоне
-        thread = threading.Thread(
-            target=_train_async_task,
-            args=(target_properties, algorithm, input_features, user_id)
-        )
-        thread.daemon = True
-        thread.start()
-
-        return jsonify({
-            'success': True,
-            'message': 'Обучение запущено в фоновом режиме. Отслеживайте прогресс.',
-            'task_id': 'ml_train'
-        })
-    except Exception as e:
-        return jsonify({'success': False, 'error': f'Ошибка запуска обучения: {str(e)}'})
-    finally:
-        _record_endpoint_timing('/ml_system_train', time.perf_counter() - started_at)
+    # Legacy: запуск обучения в веб-процессе отключен согласно политике безопасности
+    _record_endpoint_timing('/ml_system_train', time.perf_counter() - started_at)
+    return jsonify({
+        'success': False,
+        'error': 'Обучение моделей в веб-воркере отключено согласно политике безопасности (ML_TRAINING_POLICY). '
+                 'Запустите переобучение через CLI: python scripts/train_legacy.py',
+        'cli_command': 'python scripts/train_legacy.py',
+    })
 
 
 @ml_bp.route('/ml_train_status')
 @login_required
 def ml_train_status():
     """Проверка статуса обучения."""
-    global _training_status
+    status = _read_training_status()
     return jsonify({
-        'is_training': _training_status['is_training'],
-        'progress': _training_status['progress'],
-        'message': _training_status['message'],
-        'result': _training_status['result'],
-        'error': _training_status['error'],
+        'is_training': status.get('is_training', False),
+        'progress': status.get('progress', 0),
+        'message': status.get('message', ''),
+        'result': status.get('result'),
+        'error': status.get('error'),
     })
 
 
 @ml_bp.route('/ml_augment_database', methods=['POST'])
 @login_required
 def ml_augment_database():
+    admin_gate = _require_admin_role()
+    if admin_gate:
+        return admin_gate
+
     try:
         ml_system = _get_ml_system()
         try:
@@ -242,8 +392,8 @@ def ml_augment_database():
 @login_required
 def ml_optimize():
     started_at = time.perf_counter()
+
     try:
-        ml_system = _get_ml_system()
         target_property = request.form.get('target_property')
         maximize = request.form.get('maximize', 'true').lower() == 'true'
 
@@ -263,6 +413,17 @@ def ml_optimize():
                     return jsonify({'success': False, 'error': f'Некорректное значение для компонента {comp}'})
                 constraints[comp] = (min_val, max_val)
 
+        if model_version() == "v2":
+            from app.services.ml_v2.optimizer import optimize_composition_v2
+            result = optimize_composition_v2(
+                target_property=target_property,
+                maximize=maximize,
+                constraints=constraints,
+                db_path=_get_db_path(),
+            )
+            return jsonify(result)
+
+        ml_system = _get_ml_system()
         result = ml_system.optimize_composition(target_property=target_property, maximize=maximize, constraints=constraints)
         return jsonify(result)
     except Exception as e:
@@ -275,7 +436,6 @@ def ml_optimize():
 @login_required
 def ml_predict():
     try:
-        ml_system = _get_ml_system()
         data = request.get_json(silent=True) or {}
         if not isinstance(data, dict):
             return jsonify({'success': False, 'error': 'Некорректный формат запроса'})
@@ -285,11 +445,27 @@ def ml_predict():
         if not composition or not target_property:
             return jsonify({'success': False, 'error': 'Не указаны состав или свойство'})
 
-        prediction = ml_system.predictor.predict(composition, target_property)
-        if prediction is not None:
-            return jsonify({'success': True, 'prediction': prediction, 'property': target_property})
+        if model_version() == "v2":
+            result = predict_one(composition, target_property, legacy_predict=lambda *_args: None)
         else:
-            return jsonify({'success': False, 'error': 'Не удалось сделать предсказание'})
+            ml_system = _get_ml_system()
+            result = predict_one(
+                composition,
+                target_property,
+                legacy_predict=lambda comp, prop: _legacy_predict(ml_system, comp, prop),
+            )
+        prediction = result["prediction"]
+        if prediction is None:
+            return jsonify({'success': False, 'error': 'Не удалось сделать предсказание', 'model_version': result['model_version']})
+        body = {
+            'success': True,
+            'prediction': float(prediction),
+            'property': target_property,
+            'model_version': result['model_version'],
+        }
+        if result.get('contract'):
+            body['contract'] = result['contract']
+        return jsonify(body)
     except Exception as e:
         return jsonify({'success': False, 'error': f'Ошибка предсказания: {str(e)}'})
 
@@ -297,6 +473,12 @@ def ml_predict():
 @ml_bp.route('/ml_system_status')
 @login_required
 def ml_system_status():
+    if model_version() == "v2":
+        try:
+            from app.services.ml_v2.predictor import v2_system_status
+            return jsonify({'success': True, 'system_status': v2_system_status()})
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e), 'model_version': 'v2'})
     try:
         ml_system = _get_ml_system()
         # Не перезагружаем данные каждый раз — используем кэш
@@ -316,6 +498,22 @@ def api_predict_composition():
         composition = data.get('composition', {})
         if not isinstance(composition, dict) or not composition:
             return jsonify({'success': False, 'error': 'Не указан состав для предсказания'})
+        if model_version() == "v2":
+            from app.services.ml_v2.lab_import import require_lab
+            from app.services.ml_v2.predictor import get_predictor
+
+            predictor = get_predictor()
+            pellet_ml = require_lab()
+            contracts = predictor.predict_all(composition)
+            results = {}
+            for prop, contract in contracts.items():
+                results[prop] = {
+                    'value': round(float(contract['value']), 3),
+                    'display_name': pellet_ml.properties.display_name(prop),
+                    **_contract_fields(contract),
+                }
+            return jsonify({'success': True, 'model_version': 'v2', 'results': results})
+
         ml_system = _get_ml_system()
 
         if not ml_system.predictor.is_trained:
@@ -324,12 +522,17 @@ def api_predict_composition():
         results = {}
         target_props = ml_system.predictor.main_target_properties
         for prop in target_props:
-            pred = ml_system.predictor.predict(composition, prop)
+            outcome = predict_one(
+                composition,
+                prop,
+                legacy_predict=lambda comp, target: _legacy_predict(ml_system, comp, target),
+            )
+            pred = outcome['prediction']
             if pred is not None:
                 display_name = ml_system.predictor.target_properties_mapping.get(prop, prop)
                 results[prop] = {'value': round(float(pred), 3), 'display_name': display_name}
 
-        return jsonify({'success': True, 'results': results})
+        return jsonify({'success': True, 'model_version': 'legacy', 'results': results})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
@@ -337,18 +540,33 @@ def api_predict_composition():
 @ml_bp.route('/ml_auto_retrain', methods=['POST'])
 @login_required
 def ml_auto_retrain():
-    try:
-        ml_system = _get_ml_system()
-        result = ml_system.retrain_on_new_data()
-        return jsonify(result)
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)})
+    admin_gate = _require_admin_role()
+    if admin_gate:
+        return admin_gate
+
+    if model_version() == "v2":
+        return jsonify({
+            'success': False,
+            'model_version': 'v2',
+            'error': 'v2 не переобучается на данных продукта и не записывает прогнозы в БД.',
+        })
+    return jsonify({
+        'success': False,
+        'model_version': 'legacy',
+        'error': 'Автоматическое переобучение в веб-воркере отключено согласно политике безопасности (ML_TRAINING_POLICY). '
+                 'Используйте CLI: python scripts/train_legacy.py',
+        'cli_command': 'python scripts/train_legacy.py',
+    })
 
 
 @ml_bp.route('/ml_load_excel', methods=['POST'])
 @login_required
 def ml_load_excel():
     """Загружает данные из Excel файла в БД."""
+    admin_gate = _require_admin_role()
+    if admin_gate:
+        return admin_gate
+
     try:
         ml_system = _get_ml_system()
         result = ml_system.load_excel_data()
@@ -361,8 +579,7 @@ def ml_load_excel():
 @login_required
 def ai_ml_recommendations():
     try:
-        from app.services.ai_ml_analyzer import AIMLAnalyzer
-        analyzer = AIMLAnalyzer(_db_path)
+        analyzer = _get_ai_ml_analyzer()
         recommendations = analyzer.get_system_recommendations()
         return jsonify({'success': True, 'recommendations': recommendations['recommendations'], 'total_count': recommendations['total_count']})
     except Exception as e:
@@ -373,9 +590,101 @@ def ai_ml_recommendations():
 @login_required
 def ai_ml_history():
     try:
-        from app.services.ai_ml_analyzer import AIMLAnalyzer
-        analyzer = AIMLAnalyzer(_db_path)
+        analyzer = _get_ai_ml_analyzer()
         history = analyzer.get_analysis_history(limit=5)
         return jsonify({'success': True, 'history': history})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
+
+
+@ml_bp.route('/api/ml/save_recipe', methods=['POST'])
+@login_required
+def api_save_recipe():
+    """Сохраняет рецепт в серверную базу данных (для операторов и лаборантов)."""
+    try:
+        data = request.get_json(silent=True) or {}
+        composition = data.get('composition', {})
+        if not composition:
+            return jsonify({'success': False, 'error': 'Состав не указан'}), 400
+
+        user_id = session.get('user_id')
+        recipe_name = (data.get('recipe_name') or '').strip() or f"Рецепт {time.strftime('%Y-%m-%d %H:%M')}"
+        predictions = data.get('predictions', {})
+        lab_actuals = data.get('lab_actuals', {})
+        residuals = data.get('residuals', {})
+        notes = data.get('notes', '')
+
+        db_path = _get_db_path()
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+        cur.execute('''
+            INSERT INTO saved_recipes (user_id, recipe_name, composition_json, predictions_json, lab_actuals_json, residuals_json, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            user_id,
+            recipe_name,
+            json.dumps(composition, ensure_ascii=False),
+            json.dumps(predictions, ensure_ascii=False),
+            json.dumps(lab_actuals, ensure_ascii=False),
+            json.dumps(residuals, ensure_ascii=False),
+            notes
+        ))
+        conn.commit()
+        recipe_id = cur.lastrowid
+        conn.close()
+
+        return jsonify({
+            'success': True,
+            'message': 'Рецепт успешно сохранён в серверной базе данных',
+            'recipe_id': recipe_id
+        })
+    except Exception as e:
+        logger.warning(f"Ошибка сохранения рецепта: {e}")
+        return jsonify({'success': False, 'error': f'Ошибка сохранения: {str(e)}'}), 500
+
+
+@ml_bp.route('/api/ml/saved_recipes', methods=['GET'])
+@login_required
+def api_get_saved_recipes():
+    """Возвращает историю сохранённых рецептур."""
+    try:
+        user_id = session.get('user_id')
+        role_name = session.get('role_name', 'operator')
+        db_path = _get_db_path()
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+
+        if role_name == 'admin':
+            cur.execute('''
+                SELECT id, user_id, recipe_name, composition_json, predictions_json, lab_actuals_json, residuals_json, notes, created_at
+                FROM saved_recipes
+                ORDER BY created_at DESC
+                LIMIT 50
+            ''')
+        else:
+            cur.execute('''
+                SELECT id, user_id, recipe_name, composition_json, predictions_json, lab_actuals_json, residuals_json, notes, created_at
+                FROM saved_recipes
+                WHERE user_id = ? OR user_id IS NULL
+                ORDER BY created_at DESC
+                LIMIT 50
+            ''', (user_id,))
+
+        rows = []
+        for r in cur.fetchall():
+            rows.append({
+                'id': r['id'],
+                'recipe_name': r['recipe_name'],
+                'composition': json.loads(r['composition_json'] or '{}'),
+                'predictions': json.loads(r['predictions_json'] or '{}'),
+                'lab_actuals': json.loads(r['lab_actuals_json'] or '{}'),
+                'residuals': json.loads(r['residuals_json'] or '{}'),
+                'created_at': r['created_at'],
+                'notes': r['notes']
+            })
+        conn.close()
+        return jsonify({'success': True, 'recipes': rows})
+    except Exception as e:
+        logger.warning(f"Ошибка загрузки рецептов: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500

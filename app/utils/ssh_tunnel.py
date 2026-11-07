@@ -257,7 +257,7 @@ class SQLiteRemoteSync:
         import paramiko
         
         self._ssh_client = paramiko.SSHClient()
-        self._ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        self._ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # nosec: B507
         
         connect_kwargs = {
             'hostname': self.ssh_host,

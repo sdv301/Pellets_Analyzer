@@ -1092,7 +1092,18 @@ class PelletMLSystem:
     def optimize_composition(self, target_property: str, maximize: bool = True, constraints: Dict[str, Tuple[float, float]] = None, available_components: List[str] = None) -> Dict:
         """Оптимизирует состав с логированием и улучшенной обработкой ошибок"""
         logger.info(f"Оптимизация для {target_property}, maximize={maximize}")
-        
+
+        from app.services.ml_v2.switch import model_version
+        if model_version() == "v2":
+            from app.services.ml_v2.optimizer import optimize_composition_v2
+            return optimize_composition_v2(
+                target_property=target_property,
+                maximize=maximize,
+                constraints=constraints,
+                available_components=available_components,
+                db_path=self.db_path,
+            )
+
         if target_property not in self.predictor.models:
             if self.components.empty:
                 return {'success': False, 'error': f'Модель для {target_property} не обучена и нет данных компонентов'}

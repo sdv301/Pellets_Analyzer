@@ -5,6 +5,7 @@ import pandas as pd
 import pytest
 
 import app as app_module
+from app.auth.auth import hash_password
 
 
 @pytest.fixture
@@ -19,12 +20,13 @@ def app(test_db_path, monkeypatch, tmp_path):
         from app.database.database import init_db
         from app.routes import admin, compare, economics, graphs, main, ml
         from app.auth import routes as auth_routes
+        from app.services.ml_v2 import switch
         from app.services.ai_ml_analyzer import AIMLAnalyzer
 
         init_db(test_db_path)
         init_auth_tables(test_db_path)
 
-        for module in [main, compare, economics, graphs, ml, admin, auth_routes]:
+        for module in [main, compare, economics, graphs, ml, admin, auth_routes, switch]:
             if hasattr(module, "set_db_path"):
                 module.set_db_path(test_db_path)
 
@@ -37,6 +39,7 @@ def app(test_db_path, monkeypatch, tmp_path):
             "TESTING": True,
             "SECRET_KEY": "test-secret-key",
             "UPLOAD_FOLDER": str(tmp_path / "Uploads"),
+            "DATABASE_PATH": test_db_path,
         }
     )
     Path(flask_app.config["UPLOAD_FOLDER"]).mkdir(parents=True, exist_ok=True)
@@ -50,6 +53,16 @@ def client(app):
 
 
 @pytest.fixture
+def runner(app):
+    return app.test_cli_runner()
+
+
+@pytest.fixture
+def db_path(app):
+    return app.config["DATABASE_PATH"]
+
+
+@pytest.fixture
 def authed_client(client):
     with client.session_transaction() as sess:
         sess["user_id"] = 1
@@ -60,107 +73,7 @@ def authed_client(client):
 
 
 @pytest.fixture
-def seeded_components(test_db_path):
-    conn = sqlite3.connect(test_db_path)
-    pd.DataFrame(
-        [
-            {
-                "component": "Опилки",
-                "war": 10.8,
-                "ad": 0.18,
-                "vd": 0.0,
-                "q": 18.18,
-                "cd": 0.0,
-                "hd": 0.0,
-                "nd": 0.0,
-                "sd": 0.0,
-                "od": 0.0,
-                "ro": 1048.0,
-                "cost_raw": 1.0,
-                "cost_crush": 0.2,
-                "cost_granule": 1.2,
-            }
-        ]
-    ).to_sql("components", conn, if_exists="append", index=False)
-    conn.commit()
-    conn.close()
-    return test_db_path
-"""
-Pytest конфигурация и фикстуры для Pellets Analyzer.
-"""
-import os
-import sys
-import tempfile
-import pytest
-
-# Добавляем корень проекта в path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from app import create_app
-from app.database.database import init_db, insert_data
-import pandas as pd
-
-
-@pytest.fixture
-def app():
-    """Создаёт тестовое Flask-приложение."""
-    db_fd, db_path = tempfile.mkstemp(suffix='.db')
-
-    app = create_app({
-        'TESTING': True,
-        'SECRET_KEY': 'test-secret-key',
-        'WTF_CSRF_ENABLED': False,
-    })
-
-    # Переопределяем путь к БД — патчим все модули через monkeypatch
-    app.config['DATABASE_PATH'] = db_path
-
-    # Инициализируем БД
-    init_db(db_path)
-
-    # Патчим _db_path во всех blueprints
-    import app.routes.main as main_mod
-    import app.routes.compare as compare_mod
-    import app.routes.economics as economics_mod
-    import app.routes.graphs as graphs_mod
-    import app.routes.ml as ml_mod
-    import app.routes.admin as admin_mod
-    import app.auth.routes as auth_routes_mod
-
-    for mod in [main_mod, compare_mod, economics_mod, graphs_mod, ml_mod, admin_mod, auth_routes_mod]:
-        if hasattr(mod, '_db_path'):
-            mod._db_path = db_path
-        if hasattr(mod, 'set_db_path'):
-            mod.set_db_path(db_path)
-
-    yield app
-
-    # Cleanup
-    os.close(db_fd)
-    os.unlink(db_path)
-
-
-@pytest.fixture
-def client(app):
-    """Тестовый клиент Flask."""
-    return app.test_client()
-
-
-@pytest.fixture
-def runner(app):
-    """Тестовый CLI-раннер."""
-    return app.test_cli_runner()
-
-
-@pytest.fixture
-def db_path(app):
-    """Путь к тестовой БД."""
-    return app.config['DATABASE_PATH']
-
-
-@pytest.fixture
 def sample_measured_data():
-    """Пример данных измеренных параметров."""
     return pd.DataFrame([
         {
             'composition': '60% Опилки, 30% Солома, 10% Картон',
@@ -191,7 +104,6 @@ def sample_measured_data():
 
 @pytest.fixture
 def sample_components_data():
-    """Пример данных компонентов."""
     return pd.DataFrame([
         {
             'component': 'Опилки', 'war': 10.8, 'ad': 0.18, 'vd': 80.0,
@@ -212,27 +124,30 @@ def sample_components_data():
 
 
 @pytest.fixture
-def authenticated_client(client, db_path):
-    """Клиент с авторизованным пользователем."""
-    from app.auth.auth import init_auth_tables, hash_password
+def seeded_components(test_db_path, sample_components_data):
+    conn = sqlite3.connect(test_db_path)
+    sample_components_data.to_sql("components", conn, if_exists="append", index=False)
+    conn.commit()
+    conn.close()
+    return test_db_path
 
+
+@pytest.fixture
+def authenticated_client(client, db_path):
+    from app.auth.auth import init_auth_tables
     init_auth_tables(db_path)
 
-    # Создаём тестового пользователя напрямую в БД
-    import sqlite3
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    password_hash = hash_password('testpassword123')
+    pwd_hash = hash_password('testpassword123')
     cursor.execute('''
         INSERT OR IGNORE INTO users (username, email, password_hash, role_id, is_active, is_verified, full_name)
         VALUES (?, ?, ?, ?, 1, 1, ?)
-    ''', ('testuser', 'test@example.com', password_hash, 1, 'Test User'))
+    ''', ('testuser', 'test@example.com', pwd_hash, 1, 'Test User'))
     conn.commit()
-
     user_id = cursor.lastrowid or 1
     conn.close()
 
-    # Логинимся через клиент
     with client.session_transaction() as sess:
         sess['user_id'] = user_id
         sess['username'] = 'testuser'
@@ -245,18 +160,13 @@ def authenticated_client(client, db_path):
 
 @pytest.fixture
 def admin_client(client, db_path):
-    """Клиент с администратором."""
-    from app.auth.auth import init_auth_tables, hash_password
-
+    from app.auth.auth import init_auth_tables
     init_auth_tables(db_path)
 
-    # Создаём админа
-    import sqlite3
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    password_hash = hash_password('adminpass123')
-
-    # Убедимся что роль admin существует
+    pwd_hash = hash_password('adminpass123')
+    
     cursor.execute('SELECT id FROM roles WHERE name = ?', ('admin',))
     admin_role = cursor.fetchone()
     role_id = admin_role[0] if admin_role else 2
@@ -264,9 +174,8 @@ def admin_client(client, db_path):
     cursor.execute('''
         INSERT OR IGNORE INTO users (username, email, password_hash, role_id, is_active, is_verified, full_name)
         VALUES (?, ?, ?, ?, 1, 1, ?)
-    ''', ('adminuser', 'admin@example.com', password_hash, role_id, 'Admin User'))
+    ''', ('adminuser', 'admin@example.com', pwd_hash, role_id, 'Admin User'))
     conn.commit()
-
     user_id = cursor.lastrowid or 1
     conn.close()
 

@@ -126,7 +126,7 @@
         opacity: 0.05;
     }
 
-    [data-theme="dark"] .scrolly-section.bg-gray-50 {
+    [data-theme="dark"] .scrolly-section.theme-contrast-box {
         background-color: var(--bank-bg-color) !important;
     }
 
@@ -203,14 +203,16 @@
     <div class="step-dot" onclick="scrollToSection('ai-step-3')" title="Результат Анализа"></div>
 </div>
 
-<div class="scrolly-container" id="scrollyContainer">
+<div class="scrolly-container density-compact" id="scrollyContainer">
 
     <!-- SECTION 1: System Status & Introduction -->
     <section class="scrolly-section" id="ai-step-1">
         <i class="fas fa-robot floating-icon"></i>
         <div class="text-center mb-5 animate-on-scroll stagger-1">
+            <span class="badge bg-gradient-info mb-2 text-xs text-uppercase"><i class="fas fa-comments me-1"></i>NLP-ассистент базы данных</span>
             <h1 class="display-4 font-weight-bolder text-primary">ИИ-Анализатор</h1>
-            <p class="lead text-muted">Интеллектуальный помощник для работы с базой данных топливных брикетов</p>
+            <p class="lead text-muted mb-1">Интеллектуальный помощник для текстовых запросов к базе топливных брикетов</p>
+            <p class="text-xs text-muted">Для точного физико-химического прогноза и валидации рецептов используйте <a href="{{ url_for('ml.ml_dashboard') }}" class="text-primary fw-semibold">Лабораторию ИИ (ML v2)</a></p>
         </div>
 
         <div class="row m-0 justify-content-center max-w-1000 w-100 mx-auto">
@@ -288,28 +290,28 @@
             </div>
 
             <div class="col-lg-5 mb-4 animate-on-scroll stagger-2">
-                <div class="bank-card h-100 bg-gray-50">
+                <div class="bank-card h-100 theme-contrast-box">
                     <h6 class="font-weight-bolder mb-3"><i class="fas fa-bolt text-warning me-2"></i>Быстрые Шаблоны
                     </h6>
                     <div class="d-flex flex-column gap-2 overflow-auto quick-query-list">
-                        <button class="btn btn-white text-dark shadow-sm text-start quick-query"
+                        <button class="btn btn-outline-secondary text-body shadow-sm text-start quick-query"
                             data-query="Проанализируй основные тенденции в данных">
                             <i class="fas fa-chart-line text-primary w-10 text-center me-2"></i>Анализ трендов и
                             корреляций
                         </button>
-                        <button class="btn btn-white text-dark shadow-sm text-start quick-query"
+                        <button class="btn btn-outline-secondary text-body shadow-sm text-start quick-query"
                             data-query="Найди оптимальный состав для максимальной теплоты сгорания">
                             <i class="fas fa-fire text-danger w-10 text-center me-2"></i>Максимизация калорийности
                         </button>
-                        <button class="btn btn-white text-dark shadow-sm text-start quick-query"
+                        <button class="btn btn-outline-secondary text-body shadow-sm text-start quick-query"
                             data-query="Какие компоненты лучше всего влияют на прочность?">
                             <i class="fas fa-dumbbell text-success w-10 text-center me-2"></i>Факторы прочности
                         </button>
-                        <button class="btn btn-white text-dark shadow-sm text-start quick-query"
+                        <button class="btn btn-outline-secondary text-body shadow-sm text-start quick-query"
                             data-query="Предскажи свойства для состава: 60% опилки, 30% солома, 10% лигнин">
                             <i class="fas fa-crystal-ball text-info w-10 text-center me-2"></i>Прогноз по пропорциям
                         </button>
-                        <button class="btn btn-white text-dark shadow-sm text-start quick-query"
+                        <button class="btn btn-outline-secondary text-body shadow-sm text-start quick-query"
                             data-query="Какие параметры наиболее важны для качества пеллет?">
                             <i class="fas fa-star text-warning w-10 text-center me-2"></i>Матрица важности
                         </button>

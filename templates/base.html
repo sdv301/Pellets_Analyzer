@@ -7,16 +7,20 @@
     <!-- Темная тема (Global Loader) -->
   <script>
     (function () {
-      const currentTheme = localStorage.getItem('theme');
+      const currentTheme = localStorage.getItem('theme') || localStorage.getItem('aw-theme');
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
       if (currentTheme === 'dark' || (!currentTheme && prefersDark)) {
         document.documentElement.setAttribute('data-theme', 'dark');
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.removeAttribute('data-theme');
+        document.documentElement.classList.remove('dark');
       }
     })();
   </script>
 </head>
 
-<body class="g-sidenav-show g-sidenav-hidden bg-gray-100 app-shell">
+<body class="g-sidenav-show g-sidenav-hidden bg-gray-100 app-shell" data-user-role="{% if current_user and current_user.is_authenticated %}{{ current_user.role_name }}{% else %}guest{% endif %}">
   {% block sidebar %}
   {% include "includes/sidebar.html" %}
   {% endblock sidebar %}

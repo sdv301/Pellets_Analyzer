@@ -21,17 +21,34 @@ def set_db_path(path):
     _db_path = path
 
 
+def _get_auth_template(template_name):
+    """Выбирает шаблон: AstroWind v2 при UI_V2=1 (или ?v2=1), иначе классический."""
+    from flask import current_app
+    if current_app.config.get('UI_V2', False) or request.args.get('v2') == '1':
+        return f'auth/v2/{template_name}'
+    return f'auth/{template_name}'
+
+
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     """Вход в систему."""
+    from app.utils.security import brute_force
     if request.method == 'POST':
+        client_ip = request.remote_addr or '127.0.0.1'
         email_or_username = request.form.get('email_or_username', '').strip()
         password = request.form.get('password', '')
         remember = request.form.get('remember') == 'on'
 
+        identifier = f"{client_ip}:{email_or_username.lower()}"
+        if brute_force.is_locked(identifier) or brute_force.is_locked(client_ip):
+            flash('Слишком много неудачных попыток входа. Пожалуйста, подождите 15 минут.', 'danger')
+            return render_template(_get_auth_template('login.html')), 429
+
         result = authenticate_user(_db_path, email_or_username, password)
 
         if result['success']:
+            brute_force.clear_attempts(identifier)
+            brute_force.clear_attempts(client_ip)
             user = result['user']
             session['user_id'] = user['id']
             session['username'] = user['username']
@@ -44,15 +61,26 @@ def login():
             flash(f'Добро пожаловать, {user["username"]}!', 'success')
             return redirect(url_for('main.dashboard'))
         else:
+            locked_ident = brute_force.record_attempt(identifier)
+            locked_ip = brute_force.record_attempt(client_ip)
+            if locked_ident or locked_ip:
+                flash('Слишком много неудачных попыток входа. Пожалуйста, подождите 15 минут.', 'danger')
+                return render_template(_get_auth_template('login.html')), 429
             flash(result['error'], 'danger')
 
-    return render_template('auth/login.html')
+    return render_template(_get_auth_template('login.html'))
 
 
 @auth_bp.route('/register', methods=['GET', 'POST'])
 def register():
     """Регистрация нового пользователя."""
+    from app.utils.security import rate_limiter
     if request.method == 'POST':
+        client_ip = request.remote_addr or '127.0.0.1'
+        if not rate_limiter.is_allowed(f"register:{client_ip}", max_requests=10, window=60):
+            flash('Слишком много попыток регистрации. Попробуйте позже.', 'danger')
+            return render_template(_get_auth_template('register.html')), 429
+
         username = request.form.get('username', '').strip()
         email = request.form.get('email', '').strip()
         password = request.form.get('password', '')
@@ -62,11 +90,11 @@ def register():
 
         if password != confirm_password:
             flash('Пароли не совпадают!', 'danger')
-            return render_template('auth/register.html')
+            return render_template(_get_auth_template('register.html'))
 
         if len(password) < 6:
             flash('Пароль должен быть минимум 6 символов!', 'danger')
-            return render_template('auth/register.html')
+            return render_template(_get_auth_template('register.html'))
 
         result = create_user(_db_path, username, email, password, full_name=full_name or username)
 
@@ -92,7 +120,7 @@ def register():
         else:
             flash(result['error'], 'danger')
 
-    return render_template('auth/register.html')
+    return render_template(_get_auth_template('register.html'))
 
 
 @auth_bp.route('/verify/<token>')
@@ -100,7 +128,7 @@ def verify_email(token):
     """Подтверждение email."""
     result = verify_user(_db_path, token)
     if result['success']:
-        return render_template('auth/email_verified.html')
+        return render_template(_get_auth_template('email_verified.html'))
     else:
         flash(result['error'], 'danger')
         return redirect(url_for('auth.login'))
@@ -109,11 +137,17 @@ def verify_email(token):
 @auth_bp.route('/resend-verification', methods=['GET', 'POST'])
 def resend_verification():
     """Повторная отправка email подтверждения."""
+    from app.utils.security import rate_limiter
     if request.method == 'POST':
+        client_ip = request.remote_addr or '127.0.0.1'
+        if not rate_limiter.is_allowed(f"resend_verif:{client_ip}", max_requests=10, window=60):
+            flash('Слишком много запросов. Попробуйте позже.', 'danger')
+            return render_template(_get_auth_template('resend_verification.html')), 429
+
         email = request.form.get('email', '').strip()
         if not email:
             flash('Введите email!', 'danger')
-            return render_template('auth/resend_verification.html')
+            return render_template(_get_auth_template('resend_verification.html'))
 
         base_url = request.url_root.rstrip('/')
         result = resend_verification_email(email, _db_path, base_url)
@@ -124,7 +158,7 @@ def resend_verification():
         else:
             flash(result['error'], 'danger')
 
-    return render_template('auth/resend_verification.html')
+    return render_template(_get_auth_template('resend_verification.html'))
 
 
 @auth_bp.route('/logout')
@@ -141,7 +175,13 @@ def logout():
 @auth_bp.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():
     """Запрос сброса пароля."""
+    from app.utils.security import rate_limiter
     if request.method == 'POST':
+        client_ip = request.remote_addr or '127.0.0.1'
+        if not rate_limiter.is_allowed(f"forgot:{client_ip}", max_requests=10, window=60):
+            flash('Слишком много запросов на сброс пароля. Попробуйте позже.', 'danger')
+            return render_template(_get_auth_template('forgot_password.html')), 429
+
         email = request.form.get('email', '').strip()
         result = request_password_reset(_db_path, email)
 
@@ -152,7 +192,7 @@ def forgot_password():
         flash(result.get('message', 'Если email существует, мы отправили ссылку для сброса.'), 'info')
         return redirect(url_for('auth.login'))
 
-    return render_template('auth/forgot_password.html')
+    return render_template(_get_auth_template('forgot_password.html'))
 
 
 @auth_bp.route('/reset-password/<token>', methods=['GET', 'POST'])
@@ -164,7 +204,7 @@ def reset_password_route(token):
 
         if password != confirm_password:
             flash('Пароли не совпадают!', 'danger')
-            return render_template('auth/reset_password.html', token=token)
+            return render_template(_get_auth_template('reset_password.html'), token=token)
 
         result = reset_password(_db_path, token, password)
         if result['success']:
@@ -173,7 +213,7 @@ def reset_password_route(token):
         else:
             flash(result['error'], 'danger')
 
-    return render_template('auth/reset_password.html', token=token)
+    return render_template(_get_auth_template('reset_password.html'), token=token)
 
 
 @auth_bp.route('/profile')

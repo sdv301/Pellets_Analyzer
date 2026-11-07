@@ -1,0 +1,366 @@
+{% extends "base_public.html" %}
+
+{% block title %}Pellets Analyzer — Аналитическая система топливных гранул{% endblock %}
+
+{% block content %}
+<!-- ==================== HERO SECTION ==================== -->
+<section class="relative overflow-hidden py-16 md:py-24 lg:py-28 border-b border-gray-200/60 dark:border-slate-800/60">
+  <!-- Subtle Gradient Background Glow -->
+  <div class="absolute inset-0 -z-10 pointer-events-none flex justify-center">
+    <div class="w-[60rem] h-[30rem] bg-gradient-to-tr from-blue-500/10 via-indigo-500/10 to-transparent blur-3xl rounded-full"></div>
+  </div>
+
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 text-center">
+    <!-- Announcement Badge -->
+    <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60 mb-6 shadow-sm">
+      <span class="w-2 h-2 rounded-full bg-blue-600 animate-pulse"></span>
+      Научно верифицированные ML-модели v2 на реальных опытах
+    </div>
+
+    <!-- Main Headline -->
+    <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-heading max-w-4xl mx-auto leading-tight sm:leading-tight">
+      Прогнозирование и оптимизация свойств <span class="text-blue-600 dark:text-blue-400">топливных пеллет</span>
+    </h1>
+
+    <!-- Subtitle -->
+    <p class="mt-6 text-lg sm:text-xl text-muted max-w-2xl mx-auto font-normal leading-relaxed">
+      Система анализа теплофизических и механических характеристик композитных пеллет. Расчёт теплоты сгорания, задержки зажигания, прочности и экономической себестоимости.
+    </p>
+
+    <!-- CTAs -->
+    <div class="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
+      <a href="{{ url_for('auth.login') }}" class="btn btn-primary w-full sm:w-auto text-base px-8 py-3.5 shadow-lg shadow-blue-500/20">
+        Начать расчёт <i class="fa-solid fa-arrow-right ml-2 text-sm"></i>
+      </a>
+      <a href="#metrics" class="btn btn-secondary w-full sm:w-auto text-base px-8 py-3.5">
+        Точность моделей <i class="fa-solid fa-chart-simple ml-2 text-sm text-muted"></i>
+      </a>
+    </div>
+
+    <!-- Quick Stats Summary -->
+    <div class="mt-14 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
+      <div class="p-4 rounded-2xl bg-white/60 dark:bg-slate-900/60 border border-gray-200 dark:border-slate-800 backdrop-blur-sm shadow-sm">
+        <div class="text-2xl sm:text-3xl font-extrabold text-blue-600 dark:text-blue-400">95.1%</div>
+        <div class="text-xs font-medium text-muted mt-1">R² теплоты сгорания (q)</div>
+      </div>
+      <div class="p-4 rounded-2xl bg-white/60 dark:bg-slate-900/60 border border-gray-200 dark:border-slate-800 backdrop-blur-sm shadow-sm">
+        <div class="text-2xl sm:text-3xl font-extrabold text-heading">13</div>
+        <div class="text-xs font-medium text-muted mt-1">Видов сырья и отходов</div>
+      </div>
+      <div class="p-4 rounded-2xl bg-white/60 dark:bg-slate-900/60 border border-gray-200 dark:border-slate-800 backdrop-blur-sm shadow-sm">
+        <div class="text-2xl sm:text-3xl font-extrabold text-heading">90%</div>
+        <div class="text-xs font-medium text-muted mt-1">Доверительный интервал</div>
+      </div>
+      <div class="p-4 rounded-2xl bg-white/60 dark:bg-slate-900/60 border border-gray-200 dark:border-slate-800 backdrop-blur-sm shadow-sm">
+        <div class="text-2xl sm:text-3xl font-extrabold text-heading">100%</div>
+        <div class="text-xs font-medium text-muted mt-1">Nested Group CV валидация</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== FEATURES SECTION ==================== -->
+<section id="features" class="py-16 md:py-24 border-b border-gray-200/60 dark:border-slate-800/60 bg-gray-50/40 dark:bg-slate-950/30">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6">
+    <div class="text-center max-w-3xl mx-auto mb-16">
+      <h2 class="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 mb-2">Функциональные возможности</h2>
+      <h3 class="text-3xl sm:text-4xl font-bold text-heading">Инструменты для инженеров и технологов</h3>
+      <p class="mt-4 text-muted text-base">
+        Комплексный анализ рецептуры гранул от базовых физических свойств до промышленной себестоимости.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <!-- Feature 1 -->
+      <div class="aw-card p-6 flex flex-col justify-between">
+        <div>
+          <div class="w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xl mb-4">
+            <i class="fa-solid fa-microchip"></i>
+          </div>
+          <h4 class="text-lg font-bold text-heading mb-2">Прогноз свойств ML</h4>
+          <p class="text-xs leading-relaxed text-muted">
+            Оценка высшей теплоты сгорания, зольности, плотности, времён задержки зажигания и предела прочности на сжатие с расчётом доверительных интервалов.
+          </p>
+        </div>
+        <div class="mt-6 pt-4 border-t border-gray-100 dark:border-slate-800/60 text-xs font-medium text-blue-600 dark:text-blue-400">
+          С верификацией области применимости →
+        </div>
+      </div>
+
+      <!-- Feature 2 -->
+      <div class="aw-card p-6 flex flex-col justify-between">
+        <div>
+          <div class="w-12 h-12 rounded-xl bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-xl mb-4">
+            <i class="fa-solid fa-code-compare"></i>
+          </div>
+          <h4 class="text-lg font-bold text-heading mb-2">Сравнение составов</h4>
+          <p class="text-xs leading-relaxed text-muted">
+            Детальное сопоставление до четырёх различных рецептур с визуализацией радарных профилей, теплотворной способности и механической стойкости.
+          </p>
+        </div>
+        <div class="mt-6 pt-4 border-t border-gray-100 dark:border-slate-800/60 text-xs font-medium text-indigo-600 dark:text-indigo-400">
+          Интерактивные диаграммы →
+        </div>
+      </div>
+
+      <!-- Feature 3 -->
+      <div class="aw-card p-6 flex flex-col justify-between">
+        <div>
+          <div class="w-12 h-12 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-xl mb-4">
+            <i class="fa-solid fa-coins"></i>
+          </div>
+          <h4 class="text-lg font-bold text-heading mb-2">Модуль экономики</h4>
+          <p class="text-xs leading-relaxed text-muted">
+            Расчёт себестоимости тонны готовых пеллет с учётом стоимости базового сырья, связующих добавок, электроэнергии, грануляции и логистики.
+          </p>
+        </div>
+        <div class="mt-6 pt-4 border-t border-gray-100 dark:border-slate-800/60 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+          Оценка рентабельности производства →
+        </div>
+      </div>
+
+      <!-- Feature 4 -->
+      <div class="aw-card p-6 flex flex-col justify-between">
+        <div>
+          <div class="w-12 h-12 rounded-xl bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 flex items-center justify-center text-xl mb-4">
+            <i class="fa-solid fa-sliders"></i>
+          </div>
+          <h4 class="text-lg font-bold text-heading mb-2">Оптимизация смесей</h4>
+          <p class="text-xs leading-relaxed text-muted">
+            Алгоритмический подбор долей компонентов для достижения заданных параметров прочности и теплоты при минимизации стоимости сырьевой корзины.
+          </p>
+        </div>
+        <div class="mt-6 pt-4 border-t border-gray-100 dark:border-slate-800/60 text-xs font-medium text-amber-600 dark:text-amber-400">
+          Под требования ГОСТ / ISO →
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== REAL METRICS SECTION ==================== -->
+<section id="metrics" class="py-16 md:py-24 border-b border-gray-200/60 dark:border-slate-800/60">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6">
+    <div class="text-center max-w-3xl mx-auto mb-16">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 mb-3">
+        Честные метрики (Nested LORO Group CV)
+      </div>
+      <h3 class="text-3xl sm:text-4xl font-bold text-heading">Качество прогноза на тестовых выборках</h3>
+      <p class="mt-3 text-muted text-base">
+        Данные взяты напрямую из официального манифеста обученных моделей (пакет pellet_ml). Метрики отражают работу на ранее неизвестных рецептах без переобучения.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <!-- Metric 1: q -->
+      <div class="aw-card p-6 relative overflow-hidden">
+        <div class="flex justify-between items-start mb-4">
+          <div>
+            <span class="text-xs font-bold uppercase tracking-wider text-muted">Теплота сгорания</span>
+            <h4 class="text-xl font-bold text-heading mt-1">Q (МДж/кг)</h4>
+          </div>
+          <span class="aw-badge aw-badge-success">R² = 0.951</span>
+        </div>
+        <div class="space-y-2 text-xs text-muted">
+          <div class="flex justify-between py-1 border-b border-gray-100 dark:border-slate-800/60">
+            <span>Алгоритм</span>
+            <span class="font-semibold text-heading">Bayesian Ridge</span>
+          </div>
+          <div class="flex justify-between py-1 border-b border-gray-100 dark:border-slate-800/60">
+            <span>Покрытие 90% интервала</span>
+            <span class="font-semibold text-heading">89.6%</span>
+          </div>
+          <div class="flex justify-between py-1">
+            <span>Информативность</span>
+            <span class="font-semibold text-emerald-600 dark:text-emerald-400">Высокая</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Metric 2: tau_d2 -->
+      <div class="aw-card p-6 relative overflow-hidden">
+        <div class="flex justify-between items-start mb-4">
+          <div>
+            <span class="text-xs font-bold uppercase tracking-wider text-muted">Задержка зажигания</span>
+            <h4 class="text-xl font-bold text-heading mt-1">τ_d2 (с)</h4>
+          </div>
+          <span class="aw-badge aw-badge-success">R² = 0.839</span>
+        </div>
+        <div class="space-y-2 text-xs text-muted">
+          <div class="flex justify-between py-1 border-b border-gray-100 dark:border-slate-800/60">
+            <span>Алгоритм</span>
+            <span class="font-semibold text-heading">Gradient Boosting</span>
+          </div>
+          <div class="flex justify-between py-1 border-b border-gray-100 dark:border-slate-800/60">
+            <span>Покрытие 90% интервала</span>
+            <span class="font-semibold text-heading">93.8%</span>
+          </div>
+          <div class="flex justify-between py-1">
+            <span>Информативность</span>
+            <span class="font-semibold text-emerald-600 dark:text-emerald-400">Высокая</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Metric 3: strength_limit -->
+      <div class="aw-card p-6 relative overflow-hidden">
+        <div class="flex justify-between items-start mb-4">
+          <div>
+            <span class="text-xs font-bold uppercase tracking-wider text-muted">Предел прочности</span>
+            <h4 class="text-xl font-bold text-heading mt-1">σ_сж (МПа)</h4>
+          </div>
+          <span class="aw-badge aw-badge-success">R² = 0.711</span>
+        </div>
+        <div class="space-y-2 text-xs text-muted">
+          <div class="flex justify-between py-1 border-b border-gray-100 dark:border-slate-800/60">
+            <span>Алгоритм</span>
+            <span class="font-semibold text-heading">Ridge Regression</span>
+          </div>
+          <div class="flex justify-between py-1 border-b border-gray-100 dark:border-slate-800/60">
+            <span>Число образцов</span>
+            <span class="font-semibold text-heading">31 опыт</span>
+          </div>
+          <div class="flex justify-between py-1">
+            <span>Информативность</span>
+            <span class="font-semibold text-emerald-600 dark:text-emerald-400">Высокая</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Metric 4: tau_d1 -->
+      <div class="aw-card p-6 relative overflow-hidden">
+        <div class="flex justify-between items-start mb-4">
+          <div>
+            <span class="text-xs font-bold uppercase tracking-wider text-muted">Задержка воспламенения</span>
+            <h4 class="text-xl font-bold text-heading mt-1">τ_d1 (с)</h4>
+          </div>
+          <span class="aw-badge aw-badge-primary">R² = 0.525</span>
+        </div>
+        <div class="space-y-2 text-xs text-muted">
+          <div class="flex justify-between py-1 border-b border-gray-100 dark:border-slate-800/60">
+            <span>Алгоритм</span>
+            <span class="font-semibold text-heading">Ridge Regression</span>
+          </div>
+          <div class="flex justify-between py-1 border-b border-gray-100 dark:border-slate-800/60">
+            <span>Покрытие 90% интервала</span>
+            <span class="font-semibold text-heading">93.8%</span>
+          </div>
+          <div class="flex justify-between py-1">
+            <span>Информативность</span>
+            <span class="font-semibold text-blue-600 dark:text-blue-400">Умеренная</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Metric 5: tau_b -->
+      <div class="aw-card p-6 relative overflow-hidden">
+        <div class="flex justify-between items-start mb-4">
+          <div>
+            <span class="text-xs font-bold uppercase tracking-wider text-muted">Время горения</span>
+            <h4 class="text-xl font-bold text-heading mt-1">τ_b (с)</h4>
+          </div>
+          <span class="aw-badge aw-badge-primary">R² = 0.408</span>
+        </div>
+        <div class="space-y-2 text-xs text-muted">
+          <div class="flex justify-between py-1 border-b border-gray-100 dark:border-slate-800/60">
+            <span>Алгоритм</span>
+            <span class="font-semibold text-heading">Ridge Regression</span>
+          </div>
+          <div class="flex justify-between py-1 border-b border-gray-100 dark:border-slate-800/60">
+            <span>Покрытие 90% интервала</span>
+            <span class="font-semibold text-heading">93.8%</span>
+          </div>
+          <div class="flex justify-between py-1">
+            <span>Информативность</span>
+            <span class="font-semibold text-blue-600 dark:text-blue-400">Умеренная</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Metric 6: Validation Protocol -->
+      <div class="aw-card p-6 bg-blue-50/40 dark:bg-blue-950/20 border-blue-200 dark:border-blue-900/60 flex flex-col justify-between">
+        <div>
+          <span class="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">Протокол валидации</span>
+          <h4 class="text-lg font-bold text-heading mt-1">Честная проверка</h4>
+          <p class="text-xs leading-relaxed text-muted mt-2">
+            Исключено раздувание метрик за счёт случайного разбиения. Все коэффициенты детерминации измерены по схеме Group LORO (Leave-One-Recipe-Out), моделируя применение к полностью новым экспериментам.
+          </p>
+        </div>
+        <div class="mt-4 pt-3 border-t border-blue-200/60 dark:border-blue-900/60 text-xs font-semibold text-blue-700 dark:text-blue-300">
+          Лабораторный стандарт pellet_ml v0.2.0
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== WORKFLOW SECTION ==================== -->
+<section id="workflow" class="py-16 md:py-24 border-b border-gray-200/60 dark:border-slate-800/60 bg-gray-50/40 dark:bg-slate-950/30">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6">
+    <div class="text-center max-w-3xl mx-auto mb-16">
+      <h2 class="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 mb-2">Методология расчёта</h2>
+      <h3 class="text-3xl sm:text-4xl font-bold text-heading">Как устроен рабочий процесс</h3>
+      <p class="mt-4 text-muted text-base">
+        Простой трёхэтапный маршрут от идеи состава до паспорта качественных характеристик.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+      <!-- Step 1 -->
+      <div class="relative flex flex-col items-center text-center p-6">
+        <div class="w-14 h-14 rounded-2xl bg-blue-600 text-white font-extrabold text-xl flex items-center justify-center shadow-lg shadow-blue-500/30 mb-6">
+          1
+        </div>
+        <h4 class="text-xl font-bold text-heading mb-2">Формирование рецепта</h4>
+        <p class="text-xs text-muted leading-relaxed">
+          Выбор компонентов из сырьевой базы (опилки, солома, картон, жмых, пластик, шлам) и задание массовых долей смеси с автоматическим контролем суммы 100%.
+        </p>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="relative flex flex-col items-center text-center p-6">
+        <div class="w-14 h-14 rounded-2xl bg-indigo-600 text-white font-extrabold text-xl flex items-center justify-center shadow-lg shadow-indigo-500/30 mb-6">
+          2
+        </div>
+        <h4 class="text-xl font-bold text-heading mb-2">ML-расчёт и валидация</h4>
+        <p class="text-xs text-muted leading-relaxed">
+          Модели оценивают теплофизические свойства и выдают предупреждение, если смесь выходит за пределы области применимости (Applicability Domain).
+        </p>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="relative flex flex-col items-center text-center p-6">
+        <div class="w-14 h-14 rounded-2xl bg-emerald-600 text-white font-extrabold text-xl flex items-center justify-center shadow-lg shadow-emerald-500/30 mb-6">
+          3
+        </div>
+        <h4 class="text-xl font-bold text-heading mb-2">Паспорт и себестоимость</h4>
+        <p class="text-xs text-muted leading-relaxed">
+          Получение итогового протокола с интервалами достоверности, сравнение с аналогами и детальный расчёт затрат на тонну продукции.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== CALL TO ACTION ==================== -->
+<section id="contact" class="py-16 md:py-24">
+  <div class="max-w-5xl mx-auto px-4 sm:px-6">
+    <div class="aw-card p-8 sm:p-12 text-center bg-gradient-to-tr from-blue-600 to-indigo-600 text-white border-0 shadow-2xl shadow-blue-500/20">
+      <h3 class="text-3xl sm:text-4xl font-extrabold tracking-tight mb-4 text-white">
+        Готовы оптимизировать состав гранул?
+      </h3>
+      <p class="text-blue-100 max-w-xl mx-auto text-sm sm:text-base mb-8 leading-relaxed">
+        Войдите в рабочее пространство для загрузки собственных данных, сравнения экспериментальных серий и подбора оптимальных рецептур.
+      </p>
+      <div class="flex flex-col sm:flex-row justify-center items-center gap-4">
+        <a href="{{ url_for('auth.login') }}" class="btn bg-white text-blue-700 hover:bg-blue-50 border-0 font-bold px-8 py-3.5 shadow-md">
+          Войти в систему
+        </a>
+        <a href="{{ url_for('auth.register') }}" class="btn bg-blue-700/60 hover:bg-blue-700 text-white border border-blue-400/40 font-semibold px-8 py-3.5">
+          Регистрация аккаунта
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

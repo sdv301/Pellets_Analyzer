@@ -105,6 +105,7 @@
                     <span class="nav-link-text ms-1">Профиль</span>
                 </a>
             </li>
+            {% if current_user.role_name != 'operator' %}
             <li class="nav-item">
                 <a class="nav-link {% if segment == 'ML Модели' %}active nav-active-gradient text-white{% endif %}"
                     href="{{ url_for('admin.user_ml_saved_models') }}">
@@ -116,6 +117,7 @@
                     <span class="nav-link-text ms-1">Мои ML модели</span>
                 </a>
             </li>
+            {% endif %}
             {% if current_user.role_name == 'admin' %}
             <li class="nav-item">
                 <a class="nav-link {% if segment == 'Админ-панель' %}active nav-active-gradient text-white{% endif %}"

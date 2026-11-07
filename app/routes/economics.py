@@ -1,5 +1,6 @@
 # app/routes/economics.py — Экономический расчёт
 from flask import Blueprint, request, jsonify, send_file
+import os
 import pandas as pd
 import io
 import math
@@ -277,11 +278,20 @@ def download_economics():
 @login_required
 def upload_economics():
     import sqlite3
+    from werkzeug.utils import secure_filename
     if 'file' not in request.files:
-        return jsonify({'success': False, 'error': 'Файл не найден'})
+        return jsonify({'success': False, 'error': 'Файл не найден'}), 400
     file = request.files['file']
-    if file.filename == '':
-        return jsonify({'success': False, 'error': 'Файл не выбран'})
+    if not file or file.filename == '':
+        return jsonify({'success': False, 'error': 'Файл не выбран'}), 400
+
+    clean_name = secure_filename(file.filename)
+    if not clean_name:
+        return jsonify({'success': False, 'error': 'Недопустимое имя файла'}), 400
+
+    ext = os.path.splitext(clean_name)[1].lower()
+    if ext not in ('.xlsx', '.xls'):
+        return jsonify({'success': False, 'error': 'Недопустимый формат файла. Поддерживаются только .xlsx и .xls'}), 400
 
     try:
         df = pd.read_excel(file)

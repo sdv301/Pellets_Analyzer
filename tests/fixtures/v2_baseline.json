@@ -1,0 +1,958 @@
+{
+  "description": "Прогнозы pellet_ml 0.2.0 (API 1.0.0, коммит f001dead23564d5cae97bb8b42ac0b81b0bf2791, тег lab-v0.2.0) на фиксированных рецептах. Сборка: python -m pellet_ml build, набор HONEST_MODELS включает gradient boosting. Относительно 0.1.0 сменились победители с gb: mass_loss, tau_d2, co; kf остаётся средним ± σ (nested R² 0.104 ниже порога 0.2). Остальные model_name те же. Допуск — abs_tol/rel_tol. Смена model_name считается расхождением.",
+  "lab_commit": "f001dead23564d5cae97bb8b42ac0b81b0bf2791",
+  "api_version": "1.0.0",
+  "package_version": "0.2.0",
+  "abs_tol": 0.05,
+  "rel_tol": 0.01,
+  "recipes": [
+    {
+      "composition": "100% Опилки",
+      "predictions": {
+        "density": {
+          "value": 1031.5416666666667,
+          "std": 42.418528937509215,
+          "lo90": 961.7693954938587,
+          "hi90": 1101.3139378394746,
+          "in_domain": true,
+          "informative": false,
+          "model_name": "baseline_mean"
+        },
+        "kf": {
+          "value": 97.56375375,
+          "std": 3.811904814908516,
+          "lo90": 91.29372828960395,
+          "hi90": 103.83377921039606,
+          "in_domain": true,
+          "informative": false,
+          "model_name": "baseline_mean"
+        },
+        "tau_d1": {
+          "value": 6.25305487339414,
+          "std": 1.3159633239578845,
+          "lo90": 4.088487827046898,
+          "hi90": 8.417621919741382,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "ridge"
+        },
+        "tau_d2": {
+          "value": 43.8140429839818,
+          "std": 3.2213031271617605,
+          "lo90": 38.51547085175966,
+          "hi90": 49.11261511620394,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "gb"
+        },
+        "tau_b": {
+          "value": 188.7541985523967,
+          "std": 13.926932171433307,
+          "lo90": 165.84643365790748,
+          "hi90": 211.66196344688592,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "ridge"
+        },
+        "strength_limit": {
+          "value": 4.3218652727601405,
+          "std": 1.4870821959340523,
+          "lo90": 1.8758327292030548,
+          "hi90": 6.767897816317227,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "ridge"
+        },
+        "q": {
+          "value": 18.27323197658632,
+          "std": 0.0033325777712699604,
+          "lo90": 18.26775037395215,
+          "hi90": 18.27871357922049,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "bayes_ridge"
+        },
+        "ad": {
+          "value": 2.0586770833333334,
+          "std": 3.101525629697187,
+          "lo90": -3.042878597757033,
+          "hi90": 7.1602327644237,
+          "in_domain": true,
+          "informative": false,
+          "model_name": "baseline_mean"
+        },
+        "tign": {
+          "value": 285.3996277370415,
+          "std": 5.405501064770858,
+          "lo90": 276.5083697051631,
+          "hi90": 294.2908857689199,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "bayes_ridge"
+        },
+        "tb": {
+          "value": 597.6103809588885,
+          "std": 1.7868533158164293,
+          "lo90": 594.6712688015376,
+          "hi90": 600.5494931162394,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "gp"
+        },
+        "mass_loss": {
+          "value": 98.45349988484206,
+          "std": 0.8015877740686246,
+          "lo90": 97.13500532734533,
+          "hi90": 99.7719944423388,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "gb"
+        },
+        "kt": {
+          "value": 98.24830156024075,
+          "std": 1.125110648598908,
+          "lo90": 96.39765922917111,
+          "hi90": 100.09894389131038,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "gp"
+        },
+        "h": {
+          "value": 4.048694243406231,
+          "std": 0.7833668332851225,
+          "lo90": 2.7601704664437086,
+          "hi90": 5.337218020368754,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "gp"
+        },
+        "co2": {
+          "value": 5.562697785523483,
+          "std": 0.4534397253805667,
+          "lo90": 4.816855808627378,
+          "hi90": 6.308539762419588,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "gp"
+        },
+        "co": {
+          "value": 0.7088868528686461,
+          "std": 0.3756507868241934,
+          "lo90": 0.09099629369369722,
+          "hi90": 1.326777412043595,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "gb"
+        },
+        "so2": {
+          "value": 24.27451987466057,
+          "std": 1.719417121459618,
+          "lo90": 21.446330386185256,
+          "hi90": 27.102709363135883,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "gp"
+        },
+        "nox": {
+          "value": 41.897910236558616,
+          "std": 11.509961227416063,
+          "lo90": 22.965708765572487,
+          "hi90": 60.830111707544745,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "ridge"
+        }
+      }
+    },
+    {
+      "composition": "95% Опилки, 5% рапсовое масло",
+      "predictions": {
+        "density": {
+          "value": 1031.5416666666667,
+          "std": 42.418528937509215,
+          "lo90": 961.7693954938587,
+          "hi90": 1101.3139378394746,
+          "in_domain": true,
+          "informative": false,
+          "model_name": "baseline_mean"
+        },
+        "kf": {
+          "value": 97.56375375,
+          "std": 3.811904814908516,
+          "lo90": 91.29372828960395,
+          "hi90": 103.83377921039606,
+          "in_domain": true,
+          "informative": false,
+          "model_name": "baseline_mean"
+        },
+        "tau_d1": {
+          "value": 5.6745188723238815,
+          "std": 1.3159633239578845,
+          "lo90": 3.50995182597664,
+          "hi90": 7.839085918671123,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "ridge"
+        },
+        "tau_d2": {
+          "value": 45.199268816006736,
+          "std": 3.2213031271617605,
+          "lo90": 39.900696683784595,
+          "hi90": 50.49784094822888,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "gb"
+        },
+        "tau_b": {
+          "value": 182.88102560106478,
+          "std": 13.926932171433307,
+          "lo90": 159.97326070657556,
+          "hi90": 205.788790495554,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "ridge"
+        },
+        "strength_limit": {
+          "value": 4.385103915663002,
+          "std": 1.4870821959340523,
+          "lo90": 1.9390713721059165,
+          "hi90": 6.8311364592200885,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "ridge"
+        },
+        "q": {
+          "value": 19.405791416047528,
+          "std": 0.003365194647443709,
+          "lo90": 19.40025616342628,
+          "hi90": 19.411326668668774,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "bayes_ridge"
+        },
+        "ad": {
+          "value": 2.0586770833333334,
+          "std": 3.101525629697187,
+          "lo90": -3.042878597757033,
+          "hi90": 7.1602327644237,
+          "in_domain": true,
+          "informative": false,
+          "model_name": "baseline_mean"
+        },
+        "tign": {
+          "value": 281.13506651588966,
+          "std": 5.4531815288410375,
+          "lo90": 272.16538109975073,
+          "hi90": 290.1047519320286,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "bayes_ridge"
+        },
+        "tb": {
+          "value": 598.0108206535949,
+          "std": 1.9332606135049673,
+          "lo90": 594.8308899216288,
+          "hi90": 601.190751385561,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "gp"
+        },
+        "mass_loss": {
+          "value": 98.48692244043474,
+          "std": 0.8015877740686246,
+          "lo90": 97.168427882938,
+          "hi90": 99.80541699793147,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "gb"
+        },
+        "kt": {
+          "value": 98.74237256187062,
+          "std": 1.141952064655004,
+          "lo90": 96.86402856651812,
+          "hi90": 100.62071655722313,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "gp"
+        },
+        "h": {
+          "value": 4.500195573053446,
+          "std": 0.7923822313046138,
+          "lo90": 3.196842785960152,
+          "hi90": 5.80354836014674,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "gp"
+        },
+        "co2": {
+          "value": 5.351435002045065,
+          "std": 0.4589934132583641,
+          "lo90": 4.596458021500209,
+          "hi90": 6.106411982589921,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "gp"
+        },
+        "co": {
+          "value": 0.5045831702710742,
+          "std": 0.3756507868241934,
+          "lo90": -0.1133073889038746,
+          "hi90": 1.122473729446023,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "gb"
+        },
+        "so2": {
+          "value": 35.87377871482581,
+          "std": 1.8222858240082718,
+          "lo90": 32.876385267863554,
+          "hi90": 38.87117216178807,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "gp"
+        },
+        "nox": {
+          "value": 41.16375603437995,
+          "std": 11.509961227416063,
+          "lo90": 22.23155456339382,
+          "hi90": 60.09595750536608,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "ridge"
+        }
+      }
+    },
+    {
+      "composition": "90% Опилки, 10% отработанное моторное масло",
+      "predictions": {
+        "density": {
+          "value": 1031.5416666666667,
+          "std": 42.418528937509215,
+          "lo90": 961.7693954938587,
+          "hi90": 1101.3139378394746,
+          "in_domain": true,
+          "informative": false,
+          "model_name": "baseline_mean"
+        },
+        "kf": {
+          "value": 97.56375375,
+          "std": 3.811904814908516,
+          "lo90": 91.29372828960395,
+          "hi90": 103.83377921039606,
+          "in_domain": true,
+          "informative": false,
+          "model_name": "baseline_mean"
+        },
+        "tau_d1": {
+          "value": 4.140039204672187,
+          "std": 1.3159633239578845,
+          "lo90": 1.975472158324945,
+          "hi90": 6.304606251019428,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "ridge"
+        },
+        "tau_d2": {
+          "value": 44.4564656806845,
+          "std": 3.2213031271617605,
+          "lo90": 39.15789354846236,
+          "hi90": 49.75503781290664,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "gb"
+        },
+        "tau_b": {
+          "value": 174.6708089574252,
+          "std": 13.926932171433307,
+          "lo90": 151.763044062936,
+          "hi90": 197.57857385191443,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "ridge"
+        },
+        "strength_limit": {
+          "value": 3.4003953122241137,
+          "std": 1.4870821959340523,
+          "lo90": 0.954362768667028,
+          "hi90": 5.846427855781199,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "ridge"
+        },
+        "q": {
+          "value": 20.970350315864565,
+          "std": 0.003668251575814122,
+          "lo90": 20.964316578955515,
+          "hi90": 20.976384052773614,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "bayes_ridge"
+        },
+        "ad": {
+          "value": 2.0586770833333334,
+          "std": 3.101525629697187,
+          "lo90": -3.042878597757033,
+          "hi90": 7.1602327644237,
+          "in_domain": true,
+          "informative": false,
+          "model_name": "baseline_mean"
+        },
+        "tign": {
+          "value": 282.0463516936144,
+          "std": 5.8121739025570465,
+          "lo90": 272.4861763695207,
+          "hi90": 291.60652701770806,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "bayes_ridge"
+        },
+        "tb": {
+          "value": 591.8224672098445,
+          "std": 2.0793782266836205,
+          "lo90": 588.40219439188,
+          "hi90": 595.242740027809,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "gp"
+        },
+        "mass_loss": {
+          "value": 98.45349988484206,
+          "std": 0.8015877740686246,
+          "lo90": 97.13500532734533,
+          "hi90": 99.7719944423388,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "gb"
+        },
+        "kt": {
+          "value": 95.79772272419126,
+          "std": 1.2360558096749343,
+          "lo90": 93.76459184253301,
+          "hi90": 97.83085360584951,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "gp"
+        },
+        "h": {
+          "value": 4.710712651888969,
+          "std": 0.847617855764477,
+          "lo90": 3.316505347565939,
+          "hi90": 6.104919956211998,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "gp"
+        },
+        "co2": {
+          "value": 4.922962743811809,
+          "std": 0.49723102019144066,
+          "lo90": 4.1050904968171364,
+          "hi90": 5.740834990806481,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "gp"
+        },
+        "co": {
+          "value": 0.45406980592442353,
+          "std": 0.3756507868241934,
+          "lo90": -0.1638207532505253,
+          "hi90": 1.0719603650993723,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "gb"
+        },
+        "so2": {
+          "value": 35.91870148784635,
+          "std": 1.826404335121149,
+          "lo90": 32.914533692942435,
+          "hi90": 38.92286928275026,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "gp"
+        },
+        "nox": {
+          "value": 38.43087598210988,
+          "std": 11.509961227416063,
+          "lo90": 19.498674511123752,
+          "hi90": 57.36307745309601,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "ridge"
+        }
+      }
+    },
+    {
+      "composition": "70% Опилки, 30% листья",
+      "predictions": {
+        "density": {
+          "value": 1031.5416666666667,
+          "std": 42.418528937509215,
+          "lo90": 961.7693954938587,
+          "hi90": 1101.3139378394746,
+          "in_domain": true,
+          "informative": false,
+          "model_name": "baseline_mean"
+        },
+        "kf": {
+          "value": 97.56375375,
+          "std": 3.811904814908516,
+          "lo90": 91.29372828960395,
+          "hi90": 103.83377921039606,
+          "in_domain": true,
+          "informative": false,
+          "model_name": "baseline_mean"
+        },
+        "tau_d1": {
+          "value": 6.35038940581294,
+          "std": 1.3159633239578845,
+          "lo90": 4.185822359465699,
+          "hi90": 8.514956452160181,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "ridge"
+        },
+        "tau_d2": {
+          "value": 44.0960175460252,
+          "std": 3.2213031271617605,
+          "lo90": 38.79744541380306,
+          "hi90": 49.39458967824734,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "gb"
+        },
+        "tau_b": {
+          "value": 175.77828418446293,
+          "std": 13.926932171433307,
+          "lo90": 152.8705192899737,
+          "hi90": 198.68604907895215,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "ridge"
+        },
+        "strength_limit": {
+          "value": 4.830916911733388,
+          "std": 1.4870821959340523,
+          "lo90": 2.384884368176302,
+          "hi90": 7.276949455290474,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "ridge"
+        },
+        "q": {
+          "value": 17.780354222005514,
+          "std": 0.00438320329037965,
+          "lo90": 17.773144494175668,
+          "hi90": 17.78756394983536,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "bayes_ridge"
+        },
+        "ad": {
+          "value": 2.0586770833333334,
+          "std": 3.101525629697187,
+          "lo90": -3.042878597757033,
+          "hi90": 7.1602327644237,
+          "in_domain": true,
+          "informative": false,
+          "model_name": "baseline_mean"
+        },
+        "tign": {
+          "value": 278.33104797388444,
+          "std": 6.784789754351774,
+          "lo90": 267.17106193833575,
+          "hi90": 289.4910340094331,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "bayes_ridge"
+        },
+        "tb": {
+          "value": 595.6788972914233,
+          "std": 2.2100706187160752,
+          "lo90": 592.0436546184093,
+          "hi90": 599.3141399644372,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "gp"
+        },
+        "mass_loss": {
+          "value": 97.24310148803839,
+          "std": 0.8015877740686246,
+          "lo90": 95.92460693054166,
+          "hi90": 98.56159604553513,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "gb"
+        },
+        "kt": {
+          "value": 97.15674704190336,
+          "std": 1.4383751630024273,
+          "lo90": 94.7908304381219,
+          "hi90": 99.52266364568482,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "gp"
+        },
+        "h": {
+          "value": 6.029504539958992,
+          "std": 0.9828367231343189,
+          "lo90": 4.4128819912104085,
+          "hi90": 7.646127088707576,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "gp"
+        },
+        "co2": {
+          "value": 4.989419300458906,
+          "std": 0.5839704369994614,
+          "lo90": 4.028873409127906,
+          "hi90": 5.9499651917899055,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "gp"
+        },
+        "co": {
+          "value": 0.4811349321676574,
+          "std": 0.3756507868241934,
+          "lo90": -0.13675562700729144,
+          "hi90": 1.0990254913426063,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "gb"
+        },
+        "so2": {
+          "value": 10.803871997323208,
+          "std": 1.831062680113431,
+          "lo90": 7.7920419067631475,
+          "hi90": 13.815702087883269,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "gp"
+        },
+        "nox": {
+          "value": 45.335256079115936,
+          "std": 11.509961227416063,
+          "lo90": 26.403054608129807,
+          "hi90": 64.26745755010207,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "ridge"
+        }
+      }
+    },
+    {
+      "composition": "90% Опилки, 10% листья",
+      "predictions": {
+        "density": {
+          "value": 1031.5416666666667,
+          "std": 42.418528937509215,
+          "lo90": 961.7693954938587,
+          "hi90": 1101.3139378394746,
+          "in_domain": true,
+          "informative": false,
+          "model_name": "baseline_mean"
+        },
+        "kf": {
+          "value": 97.56375375,
+          "std": 3.811904814908516,
+          "lo90": 91.29372828960395,
+          "hi90": 103.83377921039606,
+          "in_domain": true,
+          "informative": false,
+          "model_name": "baseline_mean"
+        },
+        "tau_d1": {
+          "value": 6.28549971753374,
+          "std": 1.3159633239578845,
+          "lo90": 4.120932671186498,
+          "hi90": 8.450066763880981,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "ridge"
+        },
+        "tau_d2": {
+          "value": 44.3101840460252,
+          "std": 3.2213031271617605,
+          "lo90": 39.01161191380306,
+          "hi90": 49.60875617824734,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "gb"
+        },
+        "tau_b": {
+          "value": 184.42889376308543,
+          "std": 13.926932171433307,
+          "lo90": 161.5211288685962,
+          "hi90": 207.33665865757465,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "ridge"
+        },
+        "strength_limit": {
+          "value": 4.491549152417889,
+          "std": 1.4870821959340523,
+          "lo90": 2.045516608860803,
+          "hi90": 6.937581695974975,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "ridge"
+        },
+        "q": {
+          "value": 18.10893939172605,
+          "std": 0.003377910714082726,
+          "lo90": 18.103383223036474,
+          "hi90": 18.114495560415627,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "bayes_ridge"
+        },
+        "ad": {
+          "value": 2.0586770833333334,
+          "std": 3.101525629697187,
+          "lo90": -3.042878597757033,
+          "hi90": 7.1602327644237,
+          "in_domain": true,
+          "informative": false,
+          "model_name": "baseline_mean"
+        },
+        "tign": {
+          "value": 283.0434344826558,
+          "std": 5.478763488182644,
+          "lo90": 274.0316704879093,
+          "hi90": 292.0551984774023,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "bayes_ridge"
+        },
+        "tb": {
+          "value": 614.0200169975251,
+          "std": 2.122525658253754,
+          "lo90": 610.5287729702488,
+          "hi90": 617.5112610248013,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "gp"
+        },
+        "mass_loss": {
+          "value": 98.45349988484206,
+          "std": 0.8015877740686246,
+          "lo90": 97.13500532734533,
+          "hi90": 99.7719944423388,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "gb"
+        },
+        "kt": {
+          "value": 99.2681876500852,
+          "std": 1.1677648098584055,
+          "lo90": 97.3473854671633,
+          "hi90": 101.18898983300708,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "gp"
+        },
+        "h": {
+          "value": 4.81002150121887,
+          "std": 0.8023403927126687,
+          "lo90": 3.490288996215768,
+          "hi90": 6.1297540062219715,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "gp"
+        },
+        "co2": {
+          "value": 5.376803033669233,
+          "std": 0.465875003930894,
+          "lo90": 4.610506843747471,
+          "hi90": 6.143099223590996,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "gp"
+        },
+        "co": {
+          "value": 0.5796329269524944,
+          "std": 0.3756507868241934,
+          "lo90": -0.038257632222454485,
+          "hi90": 1.197523486127443,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "gb"
+        },
+        "so2": {
+          "value": 12.983762378430079,
+          "std": 1.828794078997269,
+          "lo90": 9.975663804644043,
+          "hi90": 15.991860952216115,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "gp"
+        },
+        "nox": {
+          "value": 43.04369218407772,
+          "std": 11.509961227416063,
+          "lo90": 24.11149071309159,
+          "hi90": 61.97589365506385,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "ridge"
+        }
+      }
+    },
+    {
+      "composition": "65% Опилки, 25% картон, 10% рапсовое масло",
+      "predictions": {
+        "density": {
+          "value": 1031.5416666666667,
+          "std": 42.418528937509215,
+          "lo90": 961.7693954938587,
+          "hi90": 1101.3139378394746,
+          "in_domain": true,
+          "informative": false,
+          "model_name": "baseline_mean"
+        },
+        "kf": {
+          "value": 97.56375375,
+          "std": 3.811904814908516,
+          "lo90": 91.29372828960395,
+          "hi90": 103.83377921039606,
+          "in_domain": true,
+          "informative": false,
+          "model_name": "baseline_mean"
+        },
+        "tau_d1": {
+          "value": 4.385301561510185,
+          "std": 1.3159633239578845,
+          "lo90": 2.2207345151629436,
+          "hi90": 6.549868607857427,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "ridge"
+        },
+        "tau_d2": {
+          "value": 44.80722208230218,
+          "std": 3.2213031271617605,
+          "lo90": 39.50864995008004,
+          "hi90": 50.10579421452432,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "gb"
+        },
+        "tau_b": {
+          "value": 156.15269820193487,
+          "std": 13.926932171433307,
+          "lo90": 133.24493330744565,
+          "hi90": 179.0604630964241,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "ridge"
+        },
+        "strength_limit": {
+          "value": 8.160607823824842,
+          "std": 1.4870821959340523,
+          "lo90": 5.714575280267756,
+          "hi90": 10.606640367381928,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "ridge"
+        },
+        "q": {
+          "value": 20.31566788073349,
+          "std": 0.003661039749661386,
+          "lo90": 20.309646006222845,
+          "hi90": 20.321689755244133,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "bayes_ridge"
+        },
+        "ad": {
+          "value": 2.0586770833333334,
+          "std": 3.101525629697187,
+          "lo90": -3.042878597757033,
+          "hi90": 7.1602327644237,
+          "in_domain": true,
+          "informative": false,
+          "model_name": "baseline_mean"
+        },
+        "tign": {
+          "value": 273.6784767209803,
+          "std": 5.826544700064903,
+          "lo90": 264.0946635384837,
+          "hi90": 283.2622899034769,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "bayes_ridge"
+        },
+        "tb": {
+          "value": 565.9543002429659,
+          "std": 2.0855935198827975,
+          "lo90": 562.5238041774402,
+          "hi90": 569.3847963084917,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "gp"
+        },
+        "mass_loss": {
+          "value": 98.37285583241436,
+          "std": 0.8015877740686246,
+          "lo90": 97.05436127491762,
+          "hi90": 99.6913503899111,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "gb"
+        },
+        "kt": {
+          "value": 98.6960191816116,
+          "std": 1.2370543245189318,
+          "lo90": 96.66124588919064,
+          "hi90": 100.73079247403257,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "gp"
+        },
+        "h": {
+          "value": 5.453362744060456,
+          "std": 0.8493027746256072,
+          "lo90": 4.056383994837577,
+          "hi90": 6.850341493283335,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "gp"
+        },
+        "co2": {
+          "value": 5.118867833645709,
+          "std": 0.49731358984683177,
+          "lo90": 4.300859771653891,
+          "hi90": 5.9368758956375265,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "gp"
+        },
+        "co": {
+          "value": 0.4119265534100235,
+          "std": 0.3756507868241934,
+          "lo90": -0.20596400576492535,
+          "hi90": 1.0298171125849724,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "gb"
+        },
+        "so2": {
+          "value": 41.46954027596129,
+          "std": 1.826410315054559,
+          "lo90": 38.46536264494222,
+          "hi90": 44.47371790698037,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "gp"
+        },
+        "nox": {
+          "value": 34.73685205125101,
+          "std": 11.509961227416063,
+          "lo90": 15.804650580264884,
+          "hi90": 53.66905352223714,
+          "in_domain": true,
+          "informative": true,
+          "model_name": "ridge"
+        }
+      }
+    }
+  ]
+}
