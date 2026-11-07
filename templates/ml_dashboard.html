@@ -604,20 +604,12 @@
                         </div>
                     </div>
 
-                    <div id="sandboxNotReadyAlert" class="alert alert-warning border shadow-sm mb-4 d-none">
-                        <div class="d-flex align-items-start">
-                            <i class="fas fa-exclamation-triangle fa-2x text-warning me-3"></i>
+                    <div id="sandboxNotReadyAlert" class="alert alert-info border shadow-sm mb-4 d-none">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-info-circle fa-2x text-info me-3"></i>
                             <div class="flex-grow-1">
-                                <h6 class="text-dark fw-bold mb-2">ИИ требует обучения!</h6>
-                                <p class="text-sm mb-3">Для работы песочницы необходимо сначала обучить модель машинного обучения.</p>
-                                <div class="d-flex gap-2">
-                                    <button class="btn bg-gradient-primary btn-sm" onclick="quickTrainSandbox()">
-                                        <i class="fas fa-bolt me-2"></i>Обучить ИИ автоматически
-                                    </button>
-                                    <button class="btn bg-gradient-info btn-sm" onclick="goToTab('step2-train')">
-                                        <i class="fas fa-cogs me-2"></i>Настроить обучение вручную
-                                    </button>
-                                </div>
+                                <h6 class="text-dark fw-bold mb-1">Модель ML не инициализирована</h6>
+                                <p class="text-sm mb-0">Для расчёта прогноза требуется зафиксированный артефакт модели v2 на сервере (<code>models/v2</code>).</p>
                             </div>
                         </div>
                     </div>
@@ -627,15 +619,24 @@
                             <div class="glass-card p-4 h-100">
                                 <div class="d-flex justify-content-between align-items-center mb-3">
                                     <h6 class="fw-bold mb-0 text-dark"><i class="fas fa-sliders-h text-warning me-2"></i>Ваш Рецепт</h6>
-                                    <div class="dropdown">
-                                        <button class="btn btn-xs btn-outline-secondary dropdown-toggle py-1 px-2 mb-0" type="button" id="recipePresetsBtn" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 0.72rem;">
-                                            <i class="fas fa-magic me-1"></i>Пресеты
+                                    <div class="d-flex align-items-center gap-1">
+                                        <div class="dropdown">
+                                            <button class="btn btn-xs btn-outline-secondary dropdown-toggle py-1 px-2 mb-0" type="button" id="recipePresetsBtn" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 0.72rem;">
+                                                <i class="fas fa-magic me-1"></i>Пресеты
+                                            </button>
+                                            <ul class="dropdown-menu dropdown-menu-end shadow-sm" style="font-size: 0.8rem;">
+                                                <li><a class="dropdown-item py-1" href="javascript:;" onclick="applyRecipePreset('pine_pure')"><i class="fas fa-tree me-2 text-success"></i>100% Сосна (Хвойный)</a></li>
+                                                <li><a class="dropdown-item py-1" href="javascript:;" onclick="applyRecipePreset('mix_pine_birch')"><i class="fas fa-leaf me-2 text-warning"></i>60% Сосна / 40% Берёза</a></li>
+                                                <li><a class="dropdown-item py-1" href="javascript:;" onclick="applyRecipePreset('equal')"><i class="fas fa-balance-scale me-2 text-info"></i>Равные доли сырья</a></li>
+                                            </ul>
+                                        </div>
+                                        <button class="btn btn-xs btn-outline-primary py-1 px-2 mb-0" type="button" title="Загрузить состав из файла JSON/CSV" onclick="document.getElementById('loadRecipeFileInput').click()" style="font-size: 0.72rem;">
+                                            <i class="fas fa-file-upload me-1"></i>Из файла
                                         </button>
-                                        <ul class="dropdown-menu dropdown-menu-end shadow-sm" style="font-size: 0.8rem;">
-                                            <li><a class="dropdown-item py-1" href="javascript:;" onclick="applyRecipePreset('pine_pure')"><i class="fas fa-tree me-2 text-success"></i>100% Сосна (Хвойный)</a></li>
-                                            <li><a class="dropdown-item py-1" href="javascript:;" onclick="applyRecipePreset('mix_pine_birch')"><i class="fas fa-leaf me-2 text-warning"></i>60% Сосна / 40% Берёза</a></li>
-                                            <li><a class="dropdown-item py-1" href="javascript:;" onclick="applyRecipePreset('equal')"><i class="fas fa-balance-scale me-2 text-info"></i>Равные доли сырья</a></li>
-                                        </ul>
+                                        <input type="file" id="loadRecipeFileInput" accept=".json,.csv" style="display: none;" onchange="handleRecipeFileUpload(event)">
+                                        <button class="btn btn-xs btn-outline-info py-1 px-2 mb-0" type="button" title="Выбрать рецепт из базы" onclick="openDatabaseRecipesModal()" style="font-size: 0.72rem;">
+                                            <i class="fas fa-database me-1"></i>Из базы
+                                        </button>
                                     </div>
                                 </div>
 
@@ -717,6 +718,27 @@
         </div>
     </div>
 </div>
+
+<!-- МОДАЛЬНОЕ ОКНО ВЫБОРА РЕЦЕПТУРЫ ИЗ БАЗЫ ДАННЫХ -->
+<div class="modal fade" id="dbRecipesModal" tabindex="-1" aria-labelledby="dbRecipesModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-gradient-primary text-white">
+                <h6 class="modal-title text-white fw-bold" id="dbRecipesModalLabel">
+                    <i class="fas fa-database me-2"></i>Рецептуры из базы данных
+                </h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body p-4" id="dbRecipesListContainer" style="max-height: 60vh; overflow-y: auto;">
+                <!-- Динамический список рецептур -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-outline-secondary mb-0" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock content %}
 
 {% block extra_js %}
@@ -1369,11 +1391,38 @@
 
     function updateSandbox() {
         const comp = {};
-        document.querySelectorAll('.sandbox-slider').forEach(s => comp[s.getAttribute('data-comp')] = parseFloat(s.value));
+        let actualSum = 0;
+        let validRanges = true;
+
+        document.querySelectorAll('.sandbox-slider').forEach(s => {
+            const val = parseFloat(s.value);
+            const compName = s.getAttribute('data-comp');
+            comp[compName] = val;
+            actualSum += val;
+            if (val < 0 || val > 100 || isNaN(val)) {
+                validRanges = false;
+            }
+        });
 
         if (Object.keys(comp).length === 0) {
             const badgeC = document.getElementById('sandboxPredictionBadges');
             if (badgeC) badgeC.innerHTML = '<div class="col-12 text-center py-4 text-muted"><i class="fas fa-info-circle fa-2x mb-3"></i><p>Нет данных для прогноза</p></div>';
+            return;
+        }
+
+        // Валидация перед отправкой: строгая сумма 100% (допуск ±0.2%) и диапазоны 0-100
+        const isSumValid = Math.abs(actualSum - 100.0) <= 0.2;
+        if (!validRanges || !isSumValid) {
+            const badgeC = document.getElementById('sandboxPredictionBadges');
+            if (badgeC) {
+                badgeC.innerHTML = `
+                    <div class="col-12 text-center py-4 text-warning">
+                        <i class="fas fa-balance-scale fa-2x mb-2 text-warning"></i>
+                        <h6 class="text-warning fw-bold mb-1">Сумма долей сырья должна составлять ровно 100% (±0.2%)</h6>
+                        <p class="text-xs text-muted mb-0">Текущая сумма: <b>${actualSum.toFixed(1)}%</b>. Скорректируйте ползунки или выберите пресет.</p>
+                    </div>
+                `;
+            }
             return;
         }
 
@@ -1387,21 +1436,20 @@
                 const alertEl = document.getElementById('sandboxNotReadyAlert');
                 const badgeC = document.getElementById('sandboxPredictionBadges');
                 if (data.success) {
-                    // Скрываем предупреждение если ИИ обучен
                     if (alertEl) alertEl.classList.add('d-none');
-                    window.currentSandboxPredictions = data.results; window.currentSandboxComposition = comp; renderSandboxCards(data.results); setWizardStep(2, 'Шаг 2 из 4: Прогноз готов'); updateResiduals();
+                    window.currentSandboxPredictions = data.results;
+                    window.currentSandboxComposition = comp;
+                    renderSandboxCards(data.results);
+                    setWizardStep(2, 'Шаг 2 из 4: Прогноз готов');
+                    updateResiduals();
                 } else {
-                    // Показываем предупреждение если ИИ не обучен
                     if (alertEl) alertEl.classList.remove('d-none');
                     if (badgeC) badgeC.innerHTML = `
                     <div class="col-12 text-center py-4">
-                        <div class="alert alert-danger border-0 shadow-sm mb-3">
-                            <i class="fas fa-exclamation-triangle me-2"></i> ИИ еще не обучен! Прогноз невозможен.
+                        <div class="alert alert-info border-0 shadow-sm mb-2">
+                            <i class="fas fa-robot me-2"></i> Модель ML не готова к расчёту
                         </div>
-                        <p class="text-muted text-sm mb-3">Обучите модель чтобы активировать песочницу</p>
-                        <button class="btn bg-gradient-primary btn-lg shadow-sm" id="sandboxQuickTrainBtn" onclick="quickTrainSandbox()">
-                            <i class="fas fa-bolt me-2"></i>Обучить ИИ прямо здесь
-                        </button>
+                        <p class="text-muted text-xs mb-0">Требуется наличие зафиксированного артефакта моделей v2 (models/v2).</p>
                     </div>
                 `;
                 }
@@ -1413,7 +1461,7 @@
                 if (alertEl) alertEl.classList.remove('d-none');
                 if (badgeC) badgeC.innerHTML = `
                     <div class="col-12 text-center py-4">
-                        <div class="alert alert-danger border-0 shadow-sm mb-3">
+                        <div class="alert alert-danger border-0 shadow-sm mb-2">
                             <i class="fas fa-plug me-2"></i> Ошибка соединения с сервером
                         </div>
                     </div>
@@ -1421,65 +1469,143 @@
             });
     }
 
-    // --- БЫСТРОЕ ОБУЧЕНИЕ ИЗ ПЕСОЧНИЦЫ ---
-    async function quickTrainSandbox() {
-        const btn = document.getElementById('sandboxQuickTrainBtn');
-        if (!btn) return;
+    // --- ЗАГРУЗКА РЕЦЕПТОВ (ФАЙЛ / БАЗА ДАННЫХ) ---
+    function handleRecipeFileUpload(event) {
+        const file = event.target.files && event.target.files[0];
+        if (!file) return;
 
-        const originalContent = btn.innerHTML;
-        btn.disabled = true;
-        btn.innerHTML = `<i class="fas fa-spinner fa-spin me-2"></i>Изучаю данные...`;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const text = e.target.result;
+                let parsedComp = {};
+
+                if (file.name.endsWith('.json')) {
+                    const data = JSON.parse(text);
+                    parsedComp = data.composition || data;
+                } else if (file.name.endsWith('.csv')) {
+                    const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
+                    lines.forEach((line, idx) => {
+                        if (idx === 0 && (line.includes('компонент') || line.includes('component'))) return;
+                        const parts = line.split(/[,;\t]/);
+                        if (parts.length >= 2) {
+                            const name = parts[0].trim();
+                            const val = parseFloat(parts[1].trim());
+                            if (name && !isNaN(val)) parsedComp[name] = val;
+                        }
+                    });
+                }
+
+                if (Object.keys(parsedComp).length === 0) {
+                    Swal.fire({ icon: 'warning', title: 'Файл пуст', text: 'Не удалось извлечь доли компонентов сырья.' });
+                    return;
+                }
+
+                applyCompositionToSliders(parsedComp);
+                Swal.fire({ icon: 'success', title: 'Рецепт загружен', text: `Загружено компонентов: ${Object.keys(parsedComp).length}`, timer: 1500 });
+            } catch (err) {
+                console.error('Ошибка парсинга файла рецепта:', err);
+                Swal.fire({ icon: 'error', title: 'Ошибка файла', text: 'Неверный формат JSON или CSV.' });
+            } finally {
+                event.target.value = '';
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    function applyCompositionToSliders(comp) {
+        const sliders = Array.from(document.querySelectorAll('.sandbox-slider'));
+        if (sliders.length === 0) return;
+
+        let total = 0;
+        sliders.forEach(s => {
+            const compName = s.getAttribute('data-comp');
+            const safeId = s.getAttribute('data-safe-id');
+            const val = comp[compName] !== undefined ? parseFloat(comp[compName]) : 0.0;
+            s.value = val.toFixed(1);
+            total += val;
+            const valLabel = document.getElementById(`val_${safeId}`);
+            if (valLabel) valLabel.textContent = val.toFixed(1) + '%';
+        });
+
+        // Нормализация к 100% если сумма отличается
+        if (total > 0 && Math.abs(total - 100.0) > 0.2) {
+            const factor = 100.0 / total;
+            total = 0;
+            sliders.forEach(s => {
+                const safeId = s.getAttribute('data-safe-id');
+                const normVal = Math.round(parseFloat(s.value) * factor * 10) / 10;
+                s.value = normVal.toFixed(1);
+                total += normVal;
+                const valLabel = document.getElementById(`val_${safeId}`);
+                if (valLabel) valLabel.textContent = normVal.toFixed(1) + '%';
+            });
+        }
+
+        document.getElementById('sandboxTotalText').textContent = total.toFixed(1) + '%';
+        updateTotalColor(total);
+        updateSandbox();
+    }
+
+    async function openDatabaseRecipesModal() {
+        const modalEl = document.getElementById('dbRecipesModal');
+        if (!modalEl) return;
+        const modal = new bootstrap.Modal(modalEl);
+        modal.show();
+
+        const listContainer = document.getElementById('dbRecipesListContainer');
+        listContainer.innerHTML = '<div class="text-center py-4"><i class="fas fa-spinner fa-spin fa-2x text-primary mb-2"></i><p>Загрузка рецептур...</p></div>';
 
         try {
-            const formData = new FormData();
-            formData.append('algorithm', 'auto'); // Авто-выбор алгоритма
-            // Отправляем базовые свойства для обучения
-            ['q', 'density', 'ad', 'kf'].forEach(p => formData.append('target_properties[]', p));
-            // Берем сырье, которое есть в чекбоксах
-            document.querySelectorAll('.feature-checkbox').forEach(c => formData.append('input_features[]', c.value));
-
-            const r = await fetch('/ml_system_train', { method: 'POST', body: formData });
-            const data = await r.json();
-
-            if (data.success) {
-                _mlStatusCache = null;
-                fetchMLStatusOnce().then(newData => {
-                    updateSystemStatsFromCache(newData);
-                    loadMLStatusFromCache(newData);
-                    initSandboxFromCache(newData);
+            const resp = await fetch('/api/ml/saved_recipes');
+            const data = await resp.json();
+            if (data.success && data.recipes && data.recipes.length > 0) {
+                let html = '<div class="list-group shadow-sm">';
+                data.recipes.forEach(r => {
+                    const compStr = Object.entries(r.composition || {}).map(([k, v]) => `${k}: ${v}%`).join(', ');
+                    const safeCompJson = encodeURIComponent(JSON.stringify(r.composition));
+                    html += `
+                        <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center py-3">
+                            <div>
+                                <h6 class="mb-1 text-dark fw-bold">${r.recipe_name || 'Без названия'}</h6>
+                                <p class="mb-1 text-xs text-muted">${compStr}</p>
+                                <small class="text-xxs text-secondary"><i class="far fa-clock me-1"></i>${r.created_at || ''}</small>
+                            </div>
+                            <button class="btn btn-sm bg-gradient-primary mb-0" onclick="applySavedRecipeFromModal('${safeCompJson}')">
+                                <i class="fas fa-check me-1"></i>Применить
+                            </button>
+                        </div>
+                    `;
                 });
-                
-                // Обновляем ограничения для оптимизации
-                if (document.getElementById('advancedConstraints').checked) {
-                    initConstraintsSection();
-                }
-                
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Готово!',
-                    text: 'ИИ обучен. Песочница активирована!',
-                    confirmButtonColor: '#0d6efd',
-                    timer: 2000
-                });
-                
-                // Автоматически запрашиваем прогноз снова!
-                setTimeout(() => {
-                    updateSandbox();
-                }, 500);
+                html += '</div>';
+                listContainer.innerHTML = html;
             } else {
-                Swal.fire({ icon: 'error', title: 'Ошибка', text: data.error || 'Не удалось обучить модель', confirmButtonColor: '#0d6efd' });
-                btn.disabled = false;
-                btn.innerHTML = `<i class="fas fa-bolt me-2"></i>Повторить обучение`;
+                listContainer.innerHTML = `
+                    <div class="text-center py-4 text-muted">
+                        <i class="fas fa-folder-open fa-2x mb-2 opacity-6"></i>
+                        <p class="mb-1">В базе пока нет сохранённых рецептур.</p>
+                        <p class="text-xs">Вы можете настроить доли в песочнице и нажать «Сохранить рецепт».</p>
+                    </div>
+                `;
             }
         } catch (err) {
-            console.error('Ошибка обучения:', err);
-            Swal.fire({ icon: 'error', title: 'Ошибка сети', text: 'Не удалось связаться с сервером' });
-            btn.disabled = false;
-            btn.innerHTML = `<i class="fas fa-bolt me-2"></i>Повторить обучение`;
+            console.error('Ошибка загрузки рецептур:', err);
+            listContainer.innerHTML = '<div class="alert alert-danger mb-0">Не удалось загрузить историю рецептур с сервера.</div>';
         }
     }
 
-    // --- Рендер карточек песочницы ---
+    function applySavedRecipeFromModal(encodedJson) {
+        try {
+            const comp = JSON.parse(decodeURIComponent(encodedJson));
+            applyCompositionToSliders(comp);
+            const modalEl = document.getElementById('dbRecipesModal');
+            const modal = bootstrap.Modal.getInstance(modalEl);
+            if (modal) modal.hide();
+        } catch (e) {
+            console.error('Ошибка применения рецепта:', e);
+        }
+    }
+
     function renderSandboxCards(results) {
         const badgeC = document.getElementById('sandboxPredictionBadges');
         badgeC.innerHTML = '';

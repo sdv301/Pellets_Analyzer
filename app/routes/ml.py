@@ -149,7 +149,10 @@ def _warmup_ml_system_worker():
 
 
 def _ensure_ml_warmup():
-    global _ml_warmup_started
+    """Синхронная или ленивая инициализация без запуска фоновых потоков в воркере."""
+    if model_version() == "v2":
+        return
+    global _ml_warmup_started, _ml_warmup_completed
     with _ml_warmup_lock:
         if has_app_context():
             warmup = current_app.extensions.setdefault('ml_warmup', {'started': False, 'completed': False, 'error': None})
@@ -160,8 +163,11 @@ def _ensure_ml_warmup():
             if _ml_warmup_started:
                 return
             _ml_warmup_started = True
-    thread = threading.Thread(target=_warmup_ml_system_worker, daemon=True)
-    thread.start()
+    # Выполняется ленивая инициализация без фонового потока
+    try:
+        _warmup_ml_system_worker()
+    except Exception as exc:
+        logger.warning("ML warmup failed: %s", exc)
 
 
 def _get_ml_system():
@@ -337,36 +343,14 @@ def ml_system_train():
         message = _v2_training_refused_payload()
         return jsonify({"success": True, "message": message, "task_id": "ml_train", "model_version": "v2"})
 
-    try:
-        target_properties = request.form.getlist('target_properties[]')
-        if not target_properties:
-            from app.services.ml_optimizer import PelletPropertyPredictor
-            target_properties = list(PelletPropertyPredictor().target_properties_mapping.keys())
-
-        algorithm = request.form.get('algorithm', 'random_forest').lower()
-        input_features = request.form.getlist('input_features[]')
-        if not input_features:
-            input_features = None
-
-        user_id = session.get('user_id')
-
-        # Запуск обучения в фоне
-        thread = threading.Thread(
-            target=_train_async_task,
-            args=(target_properties, algorithm, input_features, user_id)
-        )
-        thread.daemon = True
-        thread.start()
-
-        return jsonify({
-            'success': True,
-            'message': 'Обучение запущено в фоновом режиме. Отслеживайте прогресс.',
-            'task_id': 'ml_train'
-        })
-    except Exception as e:
-        return jsonify({'success': False, 'error': f'Ошибка запуска обучения: {str(e)}'})
-    finally:
-        _record_endpoint_timing('/ml_system_train', time.perf_counter() - started_at)
+    # Legacy: запуск обучения в веб-процессе отключен согласно политике безопасности
+    _record_endpoint_timing('/ml_system_train', time.perf_counter() - started_at)
+    return jsonify({
+        'success': False,
+        'error': 'Обучение моделей в веб-воркере отключено согласно политике безопасности (ML_TRAINING_POLICY). '
+                 'Запустите переобучение через CLI: python scripts/train_legacy.py',
+        'cli_command': 'python scripts/train_legacy.py',
+    })
 
 
 @ml_bp.route('/ml_train_status')
@@ -566,12 +550,13 @@ def ml_auto_retrain():
             'model_version': 'v2',
             'error': 'v2 не переобучается на данных продукта и не записывает прогнозы в БД.',
         })
-    try:
-        ml_system = _get_ml_system()
-        result = ml_system.retrain_on_new_data()
-        return jsonify(result)
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)})
+    return jsonify({
+        'success': False,
+        'model_version': 'legacy',
+        'error': 'Автоматическое переобучение в веб-воркере отключено согласно политике безопасности (ML_TRAINING_POLICY). '
+                 'Используйте CLI: python scripts/train_legacy.py',
+        'cli_command': 'python scripts/train_legacy.py',
+    })
 
 
 @ml_bp.route('/ml_load_excel', methods=['POST'])

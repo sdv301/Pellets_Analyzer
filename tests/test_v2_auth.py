@@ -183,6 +183,23 @@ def test_dashboard_renders_for_authenticated_user(authed, monkeypatch):
     assert "avgAccuracyLabel" in page
     assert "Вне области применимости" in page
     assert "lo90" in page
+    assert "dbRecipesModal" in page
+    assert "loadRecipeFileInput" in page
+
+
+def test_operator_dashboard_clean_of_train_cta(anon, monkeypatch):
+    monkeypatch.setenv("MODEL_VERSION", "v2")
+    with anon.session_transaction() as sess:
+        sess["user_id"] = 2
+        sess["username"] = "operator"
+        sess["role_name"] = "operator"
+
+    res = anon.get("/ml_dashboard")
+    assert res.status_code == 200
+    html = res.get_data(as_text=True)
+    assert "quickTrainSandbox" not in html
+    assert "Обучить ИИ автоматически" not in html
+    assert "Мои ML модели" not in html
 
 
 def test_operator_gated_from_admin_ml_routes(anon):

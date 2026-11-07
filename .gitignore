@@ -111,6 +111,7 @@ security.log
 # ===========================================
 *.txt
 !requirements.txt
+!requirements-dev.txt
 
 # ===========================================
 # ML Models (large files)
